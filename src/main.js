@@ -23,20 +23,41 @@ function step(dt) {
   stepFx(st, dt);
 }
 
+function rememberPose() {
+  const { cam, d, box, has } = st;
+  st.prev = { camX: cam.x, camY: cam.y, x: d.x, y: d.y, a: d.a, boxX: box.x, boxY: box.y, has };
+}
+
+// A display faster than the physics gets frames with no new step, which would
+// freeze the picture. Draw a blend of the last two steps; physics never sees it.
+function blended() {
+  const p = st.prev;
+  if (!p) return st;
+  const t = Math.min(1, st.acc / FIXED_DT), mix = (a, b) => a + (b - a) * t;
+  return {
+    ...st,
+    cam: { x: mix(p.camX, st.cam.x), y: mix(p.camY, st.cam.y) },
+    d: { ...st.d, x: mix(p.x, st.d.x), y: mix(p.y, st.d.y), a: mix(p.a, st.d.a) },
+    // a box picked up this step teleported to the drone, so it has nothing to blend from
+    box: p.has ? { ...st.box, x: mix(p.boxX, st.box.x), y: mix(p.boxY, st.box.y) } : st.box,
+  };
+}
+
 function render() {
+  const s = blended();
   ctx.setTransform(view.DPR, 0, 0, view.DPR, 0, 0);
-  view.cam = st.cam;
-  drawSky(st);
-  const sh = st.shake;
+  view.cam = s.cam;
+  drawSky(s);
+  const sh = s.shake;
   ctx.save();
   if (sh) ctx.translate((Math.random() - .5) * sh, (Math.random() - .5) * sh);
-  drawCity(st);
-  drawTarget(st);
-  drawRope(st);
-  drawDrone(st);
-  drawFx(st);
+  drawCity(s);
+  drawTarget(s);
+  drawRope(s);
+  drawDrone(s);
+  drawFx(s);
   ctx.restore();
-  drawPointer(st);
+  drawPointer(s);
 }
 
 function loop(now) {
@@ -45,6 +66,7 @@ function loop(now) {
   if (st.running) {
     st.acc += dt;
     while (st.acc >= FIXED_DT) {
+      rememberPose();
       step(FIXED_DT);
       st.acc -= FIXED_DT;
       if (!st.running) break;
