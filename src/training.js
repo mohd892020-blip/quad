@@ -55,7 +55,7 @@ const LAND = STEPS.findIndex(s => s.title === 'Land');
 export function trainingLevel() {
   const shop = world.shops[0], x = shop.x + shop.w / 2;
   const t = world.targets.filter(q => q.kind === 'roof' && q.b !== shop && q.x > x).sort((a, b) => a.x - b.x)[0];
-  return { training: true, n: 0, tier: 0, shop, item: { ...ITEMS.pizza, prep: c.prep }, t, dist: Math.abs(t.x - x), hawks: 0, rival: false, wind: 0 };
+  return { training: true, n: 0, tier: 0, shop, stops: [{ shop, item: { ...ITEMS.pizza, prep: c.prep }, t, dist: Math.abs(t.x - x) }], hawks: 0, rival: false, wind: 0 };
 }
 
 function enter(st, i) {

@@ -50,15 +50,14 @@ export function stepTraffic(st, dt) {
 // Lays out the hawks and rival for a job that has just started.
 export function planMission(st, shop) {
   const t = st.order.t, tier = st.tier, from = st.d.x, span = t.x - from;
-  const hawks = hawkCount(tier);
   st.hawks = [];
-  for (let i = 0; i < hawks; i++) {
+  for (let i = 0; i < st.level.hawks; i++) {
     const x = from + span * (HAWKS.pathMin + Math.random() * HAWKS.pathRange), y = roofAt(x, HAWKS.orbit) - HAWKS.lift;
     st.hawks.push({ homeX: x, homeY: y, x, y, px: x, py: y, state: 'circle', t: 0, phase: Math.random() * 7 });
   }
 
   st.rival = null;
-  if (st.level.rival) {
+  if (st.stop.rival) {
     const x = shop.x + shop.w / 2, y = shop.top - RIVAL.padLift;
     st.rival = {
       x, y, px: x, py: y,

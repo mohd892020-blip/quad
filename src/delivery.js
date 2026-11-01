@@ -1,8 +1,9 @@
 import { clearAction, planMission, planTraffic } from './action.js';
 import { sfx } from './audio.js';
 import {
-  AIRCRAFT, CAMERA, DELIVERY, DEV, DRONE, HANGAR, HEADING, HEALTH, LEVELS, MISSION, ORDERS, POINTER, RESTAURANT, RIVAL, ROPE, ROPE_CTL, WIND,
+  AIRCRAFT, BATTERY, CAMERA, DELIVERY, DEV, DRONE, HANGAR, HEADING, HEALTH, LEVELS, MISSION, ORDERS, POINTER, RESTAURANT, RIVAL, ROPE, ROPE_CTL, WIND,
 } from './config.js';
+import { currentModel } from './drone.js';
 import { loadProgress, saveProgress, settings } from './storage.js';
 import { addMark, blast, ctx, glow, hud, pop, puff, showToast, view, X, Y } from './ui.js';
 import { nearby, nearestShop, shopPad, world } from './world.js';
@@ -14,14 +15,14 @@ export const currentShift = () => current;
 export function newGame(level) {
   const shop = level.shop, p = shopPad(shop), saved = loadProgress();
   const st = {
-    t: 0, money: saved.money, del: saved.del, level, tier: level.tier, outcome: null, done: false, cam: { x: p.x - view.viewW * CAMERA.leadX, y: 0 },
+    t: 0, money: saved.money, del: saved.del, level, tier: level.tier, stop: level.stops[0], stopAt: 0, earned: { stars: 3, tip: 0, beat: 0 }, outcome: null, done: false, cam: { x: p.x - view.viewW * CAMERA.leadX, y: 0 },
     d: { x: p.x, y: p.y - DRONE.radius, vx: 0, vy: 0, a: 0, bat: 100 },
     box: { x: p.x, y: p.y, px: p.x, py: p.y },
     has: false, heat: 100, integ: 100, order: null, item: null, hold: 0, readyAt: 0,
     wind: 0, windT: 0, windNext: WIND.firstAt, pops: [], parts: [], shake: 0, acc: 0,
     dust: [], dustN: 0, onGround: true, ropeLen: ROPE, anchor: null, wrong: 0,
     boost: 100, boosting: false, boostDir: 1, boostWait: 0, hawks: [], rival: null, prep: null,
-    hp: 100, wreck: 0, lastHit: null, smokeDue: 0, marks: [], smoke: [], blasts: [],
+    hp: 100, wreck: 0, lastHit: null, smokeDue: 0, marks: [], smoke: [], blasts: [], batWarn: 0, charging: false,
   };
   planTraffic(st);
   current = st;
@@ -48,7 +49,7 @@ export function timeLimit(item, dist) {
 }
 
 export function startMission(st, shop, item) {
-  const t = st.level.t, p = shopPad(shop), limit = st.level.training ? Infinity : timeLimit(item, Math.abs(t.x - st.d.x));
+  const { t } = st.stop, p = shopPad(shop), limit = st.level.training ? Infinity : timeLimit(item, Math.abs(t.x - st.d.x));
   st.item = item;
   st.order = { t, shop, start: st.t, deadline: st.t + limit, limit };
   st.heat = 100;
@@ -104,13 +105,23 @@ function passMission(st) {
   const tip = Math.round(item.urgent ? base * c.urgentTip : base) + beat;
   const fresh = item.heat ? st.heat > c.starHeat : secs / o.limit < c.starTimeShare;
   const stars = 1 + (st.integ > c.starBox ? 1 : 0) + (fresh ? 1 : 0);
+  const made = st.earned, next = st.level.stops[st.stopAt + 1];
+  made.stars = Math.min(made.stars, stars);
+  made.tip += tip;
+  made.beat += beat;
   st.money += tip;
   st.del++;
   endMission(st);
   pop(st, o.t.x, o.t.y - c.popLift, `+$${tip}`, '#ffc23d');
   sfx('deliver');
-  saveProgress(st.del, st.money, st.level.n, stars);
-  finish(st, { passed: true, stars, tip, beat });
+  if (next) {
+    showToast(`Stop ${++st.stopAt} done`, `Next: ${next.item.label} at ${next.shop.shop.name}`, true);
+    st.stop = next;
+    saveProgress(st.del, st.money);
+  } else {
+    saveProgress(st.del, st.money, st.level.n, made.stars);
+    finish(st, { passed: true, ...made });
+  }
   hud(st);
 }
 
@@ -127,14 +138,14 @@ export function stepMission(st, dt) {
     st.prep = null;
     return;
   }
-  const shop = st.level.shop, p = shopPad(shop);
+  const { shop } = st.stop, p = shopPad(shop);
   const parked = Math.abs(d.x - p.x) < c.padReach && d.y < p.y && d.y > p.y - DRONE.radius - c.padGap && Math.hypot(d.vx, d.vy) < c.padSpeed;
   if (!parked || st.t < st.readyAt) {
     st.prep = null;
     return;
   }
   if (!st.prep) {
-    const { item } = st.level;
+    const { item } = st.stop;
     st.prep = { shop, item, left: item.prep };
     hud(st);
   }
@@ -178,7 +189,7 @@ export function zones(st) {
 function goal(st) {
   if (st.lesson?.goal) return st.lesson.goal;
   if (st.has && st.order) return { x: st.order.t.x, y: st.order.t.y, label: 'Customer' };
-  const shop = st.level.shop, p = shopPad(shop);
+  const { shop } = st.stop, p = shopPad(shop);
   return { x: p.x, y: p.y - 20, label: shop.shop.name };
 }
 
@@ -272,10 +283,20 @@ export function stepHealth(st, dt) {
   if (st.hp <= 0) explode(st);
 }
 
+// A soft chime once when the battery runs low and once more when it is nearly out.
+function stepBattery(st) {
+  const c = BATTERY, secs = st.d.bat * currentModel().battery / (DRONE.batDrain + DRONE.batDrainLift);
+  const warn = secs < c.criticalSecs ? 2 : secs < c.lowSecs ? 1 : 0;
+  if (warn > st.batWarn && !st.outcome && !st.done) sfx('battery');
+  st.batWarn = warn;
+}
+
 // Any shop roof charges and repairs. A dead drone on the ground with no job is carried to the closest shop.
 export function stepShop(st, grounded, dt) {
   const d = st.d, c = RESTAURANT, shop = nearestShop(d.x);
-  if (grounded && Math.abs(d.x - (shop.x + shop.w / 2)) < shop.w / 2 && d.y < shop.top && d.y > shop.top - c.padHeight) {
+  stepBattery(st);
+  st.charging = grounded && Math.abs(d.x - (shop.x + shop.w / 2)) < shop.w / 2 && d.y < shop.top && d.y > shop.top - c.padHeight;
+  if (st.charging) {
     d.bat = Math.min(100, d.bat + dt * c.chargeRate);
     st.hp = Math.min(100, st.hp + dt * HEALTH.repairRate);
     return;
@@ -291,7 +312,7 @@ export function drawHalos(st) {
   if (st.has) return;
   const { W, S } = view, c = MISSION, pulse = .5 + .5 * Math.sin(st.t * 4);
   if (st.outcome || st.done) return;
-  const p = shopPad(st.level.shop), sx = X(p.x);
+  const p = shopPad(st.stop.shop), sx = X(p.x);
   if (sx < -80 || sx > W + 80) return;
   const top = Y(p.y - c.haloHeight), bottom = Y(p.y);
   const shaft = ctx.createLinearGradient(0, top, 0, bottom);
@@ -376,6 +397,38 @@ export function drawHeading(st) {
     ctx.stroke();
   }
   ctx.lineCap = 'butt';
+}
+
+// A small battery over the aircraft while it runs low, with the way to the closest shop.
+// Green while it charges. Sizes are in pixels, so it stays readable on a phone.
+export function drawBatteryCue(st) {
+  const c = BATTERY, d = st.d, low = st.batWarn > 0, charging = st.charging && d.bat < c.chargingBelow;
+  if (st.wreck || st.outcome || st.done || st.prep || !(low || charging)) return;
+  const shop = nearestShop(d.x), gap = shop.x + shop.w / 2 - d.x, dist = Math.round(Math.abs(gap) / 10);
+  const col = charging ? '#4fc27c' : st.batWarn > 1 ? '#ff7a5c' : '#ffc23d';
+  const text = charging ? 'Charging' : Math.abs(gap) < c.shopReach ? 'Land here to charge' : gap > 0 ? `Charge at shop ${dist} m ▶` : `◀ Charge at shop ${dist} m`;
+  const x = X(d.x), y = Math.max(view.top + 34, Y(d.y) - 30 * view.S - 10), w = 26, h = 12;
+  ctx.save();
+  ctx.globalAlpha = charging ? 1 : .8 + .2 * Math.sin(st.t * 4);
+  ctx.lineWidth = 2;
+  ctx.fillStyle = 'rgba(20,15,40,.8)';
+  ctx.strokeStyle = col;
+  ctx.beginPath();
+  ctx.roundRect(x - w / 2, y - h / 2, w, h, 3);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = col;
+  ctx.fillRect(x + w / 2 + 1, y - 3, 3, 6);
+  ctx.fillRect(x - w / 2 + 2, y - h / 2 + 2, Math.max(2, (w - 4) * d.bat / 100), h - 4);
+  ctx.font = '800 13px Tajawal,sans-serif';
+  ctx.textAlign = 'center';
+  const half = ctx.measureText(text).width / 2 + 6, tx = Math.max(half, Math.min(view.W - half, x));
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = 'rgba(20,15,40,.85)';
+  ctx.strokeText(text, tx, y - 14);
+  ctx.fillStyle = '#fff3df';
+  ctx.fillText(text, tx, y - 14);
+  ctx.restore();
 }
 
 // A bold arrow circling the drone. It stays close to where the player is already

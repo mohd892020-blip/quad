@@ -292,7 +292,8 @@ const text = (id, value) => put(id, value, v => { $(id).textContent = v; });
 const bar = (id, percent) => put(id, Math.round(percent), v => { $(id).firstChild.style.transform = `scaleX(${v / 100})`; });
 
 export function hud(st) {
-  const training = st.level.training, tag = training ? '' : `Level ${st.level.n} · `;
+  const training = st.level.training, legs = st.level.stops.length;
+  const head = `Level ${st.level.n}${legs > 1 ? ` · Stop ${st.stopAt + 1}/${legs}` : ''}`, tag = training ? '' : `${head} · `;
   put('money', `$${st.money}`, v => { $('money').firstChild.nodeValue = v; });
   text('del', `${st.del} ${st.del === 1 ? 'delivery' : 'deliveries'}`);
   const o = st.has ? st.order : null;
@@ -315,8 +316,8 @@ export function hud(st) {
     text('oTitle', `${tag}Preparing ${st.prep.item.label}`);
     text('oSub', `${st.prep.shop.shop.name} · Stay on the pad`);
   } else {
-    text('oTitle', training ? 'Training' : `Level ${st.level.n}`);
-    text('oSub', training ? 'Follow the steps' : `Land on the green pad at ${st.level.shop.shop.name}`);
+    text('oTitle', training ? 'Training' : head);
+    text('oSub', training ? 'Follow the steps' : `Land on the green pad at ${st.stop.shop.shop.name}`);
   }
 }
 
@@ -412,14 +413,19 @@ export function showLevels() {
 }
 
 function openLevelCard(n) {
-  const l = levelList[n - 1], { stars } = loadProgress(), open = reachedLevel(stars), i = l.item;
+  const l = levelList[n - 1], { stars } = loadProgress(), open = reachedLevel(stars), legs = l.stops, route = legs.length > 1;
   picked = l;
   $('levelTitle').textContent = `Level ${n}`;
   $('levelBest').textContent = stars[n] ? starText(stars[n]) : '☆☆☆';
+  const order = i => (i.urgent ? `${i.label} · urgent` : i.label), to = s => `${placeName(s.t)}, ${Math.round(s.dist / 10)} m`;
+  const { item, shop, limit } = legs[0];
+  const jobs = route
+    ? legs.map((s, k) => [`Stop ${k + 1}`, `${order(s.item)} to ${to(s)}, ${clockText(s.limit)}`])
+    : [['Order', order(item)], ['Shop', `${shop.shop.name}, ${shop.zone.name}`], ['Preparing', `${item.prep} s`], ['Customer', to(legs[0])], ['Time', clockText(limit)]];
   const rows = [
-    ['Order', i.urgent ? `${i.label} · urgent` : i.label], ['Shop', `${l.shop.shop.name}, ${l.shop.zone.name}`], ['Preparing', `${i.prep} s`],
-    ['Customer', `${placeName(l.t)}, ${Math.round(l.dist / 10)} m`], ['Time', clockText(l.limit)], ['If ruined', `-$${i.price}`],
-    ['Wind', `up to ${l.wind}`], ['Hawks', l.hawks || 'None'], ['Rival', l.rival ? `Yes, speed ${l.rivalSpeed}` : 'None'], ['Cars', l.traffic ? `Yes, speed ${l.carSpeed}` : 'None'],
+    ...jobs, ['If ruined', route ? `up to -$${Math.max(...legs.map(s => s.item.price))}` : `-$${item.price}`],
+    ['Wind', `up to ${l.wind}`], ['Hawks', l.hawks ? `${l.hawks}${route ? ' per stop' : ''}` : 'None'],
+    ['Rival', l.rival ? `Yes${route ? ', last stop' : ''}, speed ${l.rivalSpeed}` : 'None'], ['Cars', l.traffic ? `Yes, speed ${l.carSpeed}` : 'None'],
   ];
   $('levelRows').innerHTML = rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');
   const locked = n > open;

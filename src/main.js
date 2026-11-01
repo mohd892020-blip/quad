@@ -3,7 +3,7 @@ import { initAudio, updateRotor } from './audio.js';
 import { CAMERA, CITY_SEED, DRONE, DUST, FIXED_DT, GROUND, HANGAR, HUD_INTERVAL, MAX_FRAME_DT, QUALITY } from './config.js';
 import { buildLevels } from './levels.js';
 import {
-  autoDeliver, chargeDrone, drawHalos, drawHeading, drawPointer, drawPrep, drawTarget, failMission, hangarHint, newGame, stepHealth, stepCargo, stepHeading, stepMission,
+  autoDeliver, chargeDrone, drawBatteryCue, drawHalos, drawHeading, drawPointer, drawPrep, drawTarget, failMission, hangarHint, newGame, stepHealth, stepCargo, stepHeading, stepMission,
   stepShop, zones,
 } from './delivery.js';
 import { currentModel, drawAirframe, drawDrone, drawShadow, rotorLoad, stepBoost, stepDrone, stepHold } from './drone.js';
@@ -98,6 +98,7 @@ function render() {
   drawFx(s);
   ctx.restore();
   drawPointer(s);
+  drawBatteryCue(s);
 }
 
 function drawPreview(time) {
