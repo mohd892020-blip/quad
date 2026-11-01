@@ -224,7 +224,7 @@ function blendTimes(a, b, t) {
 }
 
 // The sky blends every frame it changes, but buildings are cached images, so the
-// fade moves in small steps and each step repaints only what is on screen.
+// fade moves in small steps and refreshSprite repaints them one at a time.
 export function setClock(seconds) {
   const c = CLOCK, span = c.hold + c.fade, n = TIMES.length, day = span * n;
   world.clock = (seconds % day + day) % day;
@@ -234,7 +234,6 @@ export function setClock(seconds) {
   if (key === world.palKey) return;
   world.palKey = key;
   world.pal = blendTimes(TIMES[i], TIMES[(i + 1) % n], t);
-  dropSprites();
 }
 setClock(CLOCK.startAt * (CLOCK.hold + CLOCK.fade));
 
@@ -442,26 +441,48 @@ function paintBuilding(g, b) {
 }
 
 // Each visible building is kept as a ready image, so a frame only blits it.
-function spriteOf(b) {
-  const k = view.S * view.DPR, p = SPRITE;
-  if (b.sprite && b.spriteK === k) return b.sprite;
-  const s = document.createElement('canvas');
-  s.width = Math.ceil((b.w + p.padX * 2) * k);
-  s.height = Math.ceil((GROUND + 60 - b.top + p.padTop) * k);
+function paintSprite(b) {
+  const k = view.S * view.DPR, p = SPRITE, reuse = b.sprite && b.spriteK === k;
+  const s = reuse ? b.sprite : document.createElement('canvas');
+  if (!reuse) {
+    s.width = Math.ceil((b.w + p.padX * 2) * k);
+    s.height = Math.ceil((GROUND + 60 - b.top + p.padTop) * k);
+  }
   const g = s.getContext('2d');
-  g.scale(k, k);
-  g.translate(p.padX - b.x, p.padTop - b.top);
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.clearRect(0, 0, s.width, s.height);
+  g.setTransform(k, 0, 0, k, (p.padX - b.x) * k, (p.padTop - b.top) * k);
   paintBuilding(g, b);
   b.sprite = s;
   b.spriteK = k;
+  b.spritePal = world.palKey;
   world.live.add(b);
   return s;
+}
+
+// A sprite from an older fade step still draws fine; only a missing or wrong-sized one must be painted now.
+const spriteOf = b => (b.sprite && b.spriteK === view.S * view.DPR ? b.sprite : paintSprite(b));
+
+// One repaint a frame, nearest first: this keeps buildings ready before they scroll in
+// and spreads a fade step over several frames, so neither lands as one long frame.
+function refreshSprite(vpx) {
+  const k = view.S * view.DPR;
+  let next = null, best = view.viewW / 2 + SPRITE.ahead;
+  for (const b of world.B) {
+    const gap = Math.abs(b.x + b.w / 2 - vpx);
+    if (gap < best && !(b.sprite && b.spriteK === k && b.spritePal === world.palKey)) {
+      next = b;
+      best = gap;
+    }
+  }
+  if (next) paintSprite(next);
 }
 
 function drawBuildings() {
   const { W, S, DPR, viewW, viewH } = view, p = SPRITE, light = world.pal.light;
   const vpx = view.cam.x + viewW / 2, vpy = view.cam.y + viewH * PERSPECTIVE.eyeY, f = PERSPECTIVE.depth;
   const back = (x, y) => [X(vpx + (x - vpx) * f), Y(vpy + (y - vpy) * f)];
+  refreshSprite(vpx);
   const vis = world.B.filter(b => X(b.x + b.w) > -120 && X(b.x) < W + 120)
     .sort((a, b) => Math.abs(b.x + b.w / 2 - vpx) - Math.abs(a.x + a.w / 2 - vpx));
   for (const b of vis) {
@@ -569,15 +590,19 @@ function drawCloth(c, p, st) {
   ctx.closePath();
   ctx.fillStyle = shade(c.c, world.pal.light);
   ctx.fill();
-  if (!view.lowQ) {
-    // a soft fold down one side, plus the stripe a towel has
-    ctx.clip();
-    ctx.fillStyle = 'rgba(0,0,0,.13)';
-    ctx.fillRect(w * .08, 0, w, h * 1.4);
+  if (!view.lowQ && c.kind !== 'socks') {
+    // a soft fold down one side: the same shape, narrower, so it stays inside the cloth
     if (c.kind === 'towel') {
       ctx.fillStyle = 'rgba(255,255,255,.45)';
-      ctx.fillRect(-w, h * .62, w * 2, h * .1);
+      ctx.fillRect(-w * .5 + f * .62, h * .62, w, h * .1);
     }
+    ctx.translate(w * .14, 0);
+    ctx.scale(.5, 1);
+    ctx.beginPath();
+    CLOTH[c.kind](w, h, f);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(0,0,0,.13)';
+    ctx.fill();
   }
   ctx.restore();
   ctx.save();
@@ -653,7 +678,7 @@ function drawBirds(st) {
 
 // The strip map: zones as bands, then shops, the customer, and the player on top.
 export function drawMap(st) {
-  const c = document.getElementById('map'), w = c.clientWidth || 300, h = c.clientHeight || 18;
+  const c = document.getElementById('map'), w = view.mapW, h = view.mapH;
   const k = view.DPR, left = CITY.leftBuilding.x, span = world.span;
   if (c.width !== Math.round(w * k)) {
     c.width = Math.round(w * k);

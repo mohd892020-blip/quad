@@ -1,20 +1,27 @@
 import { toggleMute } from './audio.js';
-import { AIRCRAFT, DEV, DUST, FX, G, HEALTH, LEVELS, MISSION, POINTER, QUALITY, ROPE, ROPE_CTL, SHAKE, VIEW, WIND } from './config.js';
+import { AIRCRAFT, DEV, DUST, FX, G, HANGAR, HEALTH, LEVELS, MISSION, POINTER, QUALITY, ROPE, ROPE_CTL, SHAKE, VIEW, WIND } from './config.js';
 import { applyControls } from './input.js';
 import { loadProgress, saveSettings, settings } from './storage.js';
 
 const $ = id => document.getElementById(id);
 
 const cv = $('c');
-export const ctx = cv.getContext('2d');
+// opaque: the sky covers every pixel, and the browser can skip blending the page behind it
+export const ctx = cv.getContext('2d', { alpha: false });
 
 /* ---------- view ---------- */
-export const view = { W: 0, H: 0, DPR: 1, S: 1, viewW: 0, viewH: 0, cam: null, lowQ: false, top: 140, bottom: 600, floorGap: 0 };
+export const view = {
+  W: 0, H: 0, DPR: 1, S: 1, viewW: 0, viewH: 0, cam: null, lowQ: false, top: 140, bottom: 600, floorGap: 0, mapW: 300, mapH: 18,
+  tier: Math.min(QUALITY.tiers.length - 1, Math.max(0, settings.quality | 0)), dirty: true,
+};
+const coarse = () => matchMedia('(pointer:coarse)').matches;
 
 function resize() {
   // a hidden frame reports zero size; keep the last real one or the camera turns to NaN
   if (!innerWidth || !innerHeight) return;
-  view.DPR = view.lowQ ? QUALITY.lowDPR : Math.min(VIEW.maxDPR, window.devicePixelRatio || 1);
+  const tier = QUALITY.tiers[view.tier];
+  view.DPR = Math.min(tier.dpr, window.devicePixelRatio || 1);
+  view.lowQ = !!tier.low;
   view.W = innerWidth;
   view.H = innerHeight;
   cv.width = Math.round(view.W * view.DPR);
@@ -22,12 +29,35 @@ function resize() {
   view.S = Math.min(view.H / VIEW.refH, view.W / VIEW.refW);
   view.viewW = view.W / view.S;
   view.viewH = view.H / view.S;
+  view.dirty = true;
+  measureHud();
+}
+
+// Asking for layout is costly, so this runs when the HUD changes size, never on the HUD tick.
+export function measureHud() {
+  view.top = $('hud').getBoundingClientRect().bottom || view.top;
+  const tops = [$('boost'), $('up')].map(e => e.getBoundingClientRect().top).filter(Boolean);
+  view.bottom = tops.length ? Math.min(...tops) - 8 : view.H - POINTER.bottomGap;
+  view.floorGap = coarse() ? (view.H - view.bottom) / view.S : 0;
+  view.mapW = $('map').clientWidth || view.mapW;
+  view.mapH = $('map').clientHeight || view.mapH;
+  $('toast').style.top = view.top + 12 + 'px';
 }
 addEventListener('resize', resize);
 resize();
+if (globalThis.ResizeObserver) {
+  const watch = new ResizeObserver(measureHud);
+  for (const id of ['hud', 'controls', 'map']) watch.observe($(id));
+}
 
-export function setLowQ() {
-  view.lowQ = true;
+export const lowestTier = () => view.tier >= QUALITY.tiers.length - 1;
+
+export function lowerQuality() {
+  view.tier++;
+  if (coarse()) {
+    settings.quality = view.tier;
+    saveSettings();
+  }
   resize();
 }
 
@@ -250,40 +280,45 @@ export function drawFx(st) {
 /* ---------- HUD ---------- */
 const placeName = t => (t.kind === 'bal' ? `Balcony, floor ${t.fl}` : t.kind === 'street' ? 'Street' : 'Rooftop');
 
+// The HUD ticks ten times a second and most of it has not moved, so only changes reach the page.
+const shown = {};
+function put(key, value, write) {
+  if (shown[key] === value) return;
+  shown[key] = value;
+  write(value);
+}
+const text = (id, value) => put(id, value, v => { $(id).textContent = v; });
+const bar = (id, percent) => put(id, Math.round(percent), v => { $(id).firstChild.style.transform = `scaleX(${v / 100})`; });
+
 export function hud(st) {
   const tag = st.level ? `Level ${st.level.n} · ` : '';
-  $('money').firstChild.nodeValue = `$${st.money}`;
-  $('del').textContent = `${st.del} ${st.del === 1 ? 'delivery' : 'deliveries'}`;
-  const clock = $('clock'), o = st.has ? st.order : null;
+  put('money', `$${st.money}`, v => { $('money').firstChild.nodeValue = v; });
+  text('del', `${st.del} ${st.del === 1 ? 'delivery' : 'deliveries'}`);
+  const o = st.has ? st.order : null;
   const left = o ? Math.max(0, o.deadline - st.t) : st.prep ? st.prep.left : 0, whole = Math.ceil(left);
-  clock.textContent = o || st.prep ? `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}` : '--:--';
-  clock.classList.toggle('low', !!o && left < MISSION.lowTime);
-  $('bBat').firstChild.style.width = st.d.bat + '%';
-  $('bHp').firstChild.style.width = st.hp + '%';
-  $('bHeat').firstChild.style.width = (o && st.item.heat ? st.heat : 0) + '%';
-  $('bBox').firstChild.style.width = (o ? st.integ : 0) + '%';
-  $('bBoost').firstChild.style.width = st.boost + '%';
-  $('bRope').firstChild.style.width = (st.ropeLen - ROPE) / (ROPE_CTL.max - ROPE) * 100 + '%';
+  text('clock', o || st.prep ? `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}` : '--:--');
+  put('clockLow', !!o && left < MISSION.lowTime, v => { $('clock').classList.toggle('low', v); });
+  bar('bBat', st.d.bat);
+  bar('bHp', st.hp);
+  bar('bHeat', o && st.item.heat ? st.heat : 0);
+  bar('bBox', o ? st.integ : 0);
+  bar('bBoost', st.boost);
+  bar('bRope', (st.ropeLen - ROPE) / (ROPE_CTL.max - ROPE) * 100);
   const reach = WIND.base + WIND.maxDeliveries * WIND.perDelivery;
-  $('windNeedle').style.left = 50 + Math.max(-1, Math.min(1, st.wind / reach)) * 50 + '%';
-  view.top = $('hud').getBoundingClientRect().bottom || view.top;
-  const tops = [$('boost'), $('up')].map(e => e.getBoundingClientRect().top).filter(Boolean);
-  view.bottom = tops.length ? Math.min(...tops) - 8 : view.H - POINTER.bottomGap;
-  view.floorGap = matchMedia('(pointer:coarse)').matches ? (view.H - view.bottom) / view.S : 0;
-  $('toast').style.top = view.top + 12 + 'px';
+  put('wind', Math.round(50 + Math.max(-1, Math.min(1, st.wind / reach)) * 50), v => { $('windNeedle').style.transform = `translateX(${v}%)`; });
   if (o) {
     const t = o.t, item = st.item, dist = Math.round(Math.abs(t.x - st.d.x) / 10);
-    $('oTitle').textContent = `${tag}${item.urgent ? `${item.label} · URGENT` : item.label}`;
-    $('oSub').textContent = `${o.shop.shop.name} → ${placeName(t)} · ${dist} m`;
+    text('oTitle', `${tag}${item.urgent ? `${item.label} · URGENT` : item.label}`);
+    text('oSub', `${o.shop.shop.name} → ${placeName(t)} · ${dist} m`);
   } else if (st.prep) {
-    $('oTitle').textContent = `${tag}Preparing ${st.prep.item.label}`;
-    $('oSub').textContent = `${st.prep.shop.shop.name} · Stay on the pad`;
+    text('oTitle', `${tag}Preparing ${st.prep.item.label}`);
+    text('oSub', `${st.prep.shop.shop.name} · Stay on the pad`);
   } else if (st.level) {
-    $('oTitle').textContent = `Level ${st.level.n}`;
-    $('oSub').textContent = `Land on the green pad at ${st.level.shop.shop.name}`;
+    text('oTitle', `Level ${st.level.n}`);
+    text('oSub', `Land on the green pad at ${st.level.shop.shop.name}`);
   } else {
-    $('oTitle').textContent = 'Free Roam';
-    $('oSub').textContent = 'Land on the green pad of any shop';
+    text('oTitle', 'Free Roam');
+    text('oSub', 'Land on the green pad of any shop');
   }
 }
 
@@ -325,6 +360,8 @@ export function showActions(zone, anchored, boosting) {
 export const sheetOpen = () => !$('sheet').hidden;
 const MODALS = ['levels', 'levelCard', 'resultCard'];
 export const modalOpen = () => sheetOpen() || MODALS.some(id => !$(id).hidden);
+// The level map is opaque, so nothing behind it needs drawing.
+export const levelsOpen = () => !$('levels').hidden;
 
 /* ---------- levels ---------- */
 let levelList = [], acts = {}, picked = null, resultLevel = null;
@@ -430,7 +467,7 @@ export function showHangarTip(text) {
   tip.hidden = !text;
   if (text) {
     tip.textContent = text;
-    tip.style.top = view.top + 76 + 'px';
+    tip.style.top = view.top + HANGAR.tipGap + 'px';
     $('gear').classList.add('dot');
   }
 }

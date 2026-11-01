@@ -11,8 +11,8 @@ import { initInput, keys } from './input.js';
 import { drawRope, stepRope, stepRopeLength } from './rope.js';
 import { settings } from './storage.js';
 import {
-  ctx, drawFx, drawMarks, hideModals, hideOverlay, hud, initLevels, initSheet, kickDust, modalOpen, onDevActions, onStart, previewCanvas, setLowQ,
-  shakeOffset, sheetOpen, showActions, showHangarTip, showLevels, showResult, stepFx, view,
+  ctx, drawFx, drawMarks, hideModals, hideOverlay, hud, initLevels, initSheet, kickDust, levelsOpen, lowerQuality, lowestTier, measureHud, modalOpen, onDevActions, onStart,
+  previewCanvas, shakeOffset, sheetOpen, showActions, showHangarTip, showLevels, showResult, stepFx, view,
 } from './ui.js';
 import { drawCity, drawMap, drawSky, dropSprites, genWorld, stepCamera, stepClock, stepWind } from './world.js';
 
@@ -102,14 +102,14 @@ function drawPreview(time) {
   drawAirframe(g, settings.plane, time);
 }
 
-// Lowers quality once and for good when the device cannot keep up.
+// Steps quality down when the device cannot keep up.
 function watchPace(frame) {
-  if (view.lowQ || frame > QUALITY.maxFrameGap) return;
+  if (lowestTier() || frame > QUALITY.maxFrameGap) return;
   pace.t += frame;
   pace.n++;
   if (pace.t < QUALITY.window) return;
   if (pace.t / pace.n > QUALITY.slowFrame) {
-    setLowQ();
+    lowerQuality();
     dropSprites();
   }
   pace.t = pace.n = 0;
@@ -138,7 +138,11 @@ function loop(now) {
       showResult(outcome, st.level, st.level.n < levels.length);
     }
   }
-  render();
+  // a paused scene does not change, so the last picture stands until the canvas is resized
+  if (!paused || view.dirty) {
+    render();
+    view.dirty = false;
+  }
   showActions(zones(st), !!st.anchor, st.boosting);
   showHangarTip(paused ? null : hangarHint(st));
   updateRotor(!paused && !st.wreck && st.d.bat > 0, rotorLoad(st, keys), currentModel());
@@ -149,7 +153,9 @@ function start(level) {
   st = newGame(level);
   hideModals();
   last = performance.now();
+  pace.t = pace.n = 0;
   hud(st);
+  measureHud();
   drawMap(st);
 }
 
@@ -157,15 +163,17 @@ function start(level) {
 const demo = { x: 0 };
 function idle() {
   if (st) { requestAnimationFrame(loop); return; }
-  ctx.setTransform(view.DPR, 0, 0, view.DPR, 0, 0);
-  demo.x += CAMERA.idleSpeed;
-  const fake = {
-    cam: { x: demo.x - CAMERA.idleLead, y: GROUND + CAMERA.floorBelow - view.viewH },
-    t: demo.x / CAMERA.idleTimeDiv, wind: 0,
-  };
-  view.cam = fake.cam;
-  drawSky(fake);
-  drawCity(fake);
+  if (!levelsOpen()) {
+    ctx.setTransform(view.DPR, 0, 0, view.DPR, 0, 0);
+    demo.x += CAMERA.idleSpeed;
+    const fake = {
+      cam: { x: demo.x - CAMERA.idleLead, y: GROUND + CAMERA.floorBelow - view.viewH },
+      t: demo.x / CAMERA.idleTimeDiv, wind: 0,
+    };
+    view.cam = fake.cam;
+    drawSky(fake);
+    drawCity(fake);
+  }
   if (sheetOpen()) drawPreview(performance.now() / 1000);
   requestAnimationFrame(idle);
 }

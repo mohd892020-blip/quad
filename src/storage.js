@@ -1,7 +1,7 @@
 const PROGRESS_KEY = 'pizzaCityV1';
 const SETTINGS_KEY = 'pizzaSettingsV1';
 
-export const settings = { controls: 'joystick', plane: 'courier', dev: false, muted: false };
+export const settings = { controls: 'joystick', plane: 'courier', dev: false, muted: false, quality: 0 };
 
 try {
   Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {});

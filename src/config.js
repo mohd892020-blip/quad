@@ -4,11 +4,13 @@ export const FIXED_DT = 1 / 120;
 export const MAX_FRAME_DT = .05;
 export const HUD_INTERVAL = .1;
 
-export const VIEW = { maxDPR: 2, refH: 600, refW: 560 };
+export const VIEW = { refH: 600, refW: 560 };
 export const PERSPECTIVE = { depth: .93, eyeY: .38 };
-// Drop to LOWQ when frames average slower than slowFrame over a window, ignoring tab-switch gaps.
-export const QUALITY = { window: 3, slowFrame: .028, maxFrameGap: .2, lowDPR: 1 };
-export const SPRITE = { padX: 44, padTop: 50, evictMargin: 900 };
+// Step down a tier when frames average slower than slowFrame over a window, ignoring tab-switch gaps.
+// A phone remembers its tier, so the next launch starts where this one settled.
+export const QUALITY = { window: 2, slowFrame: .021, maxFrameGap: .2, tiers: [{ dpr: 1.5 }, { dpr: 1.25 }, { dpr: 1, low: true }] };
+// ahead is how far past the screen edge a building's image is prepared before it is needed.
+export const SPRITE = { padX: 44, padTop: 50, evictMargin: 900, ahead: 420 };
 export const CELL = { size: 256, base: -2400, margin: 48 };
 
 export const G = 700;
@@ -173,7 +175,7 @@ export const AIRCRAFT = [
 ];
 
 // When a shop suggests another aircraft while it makes the order.
-export const HANGAR = { heavyFrom: 1.8, fragileFrom: 1.6, windyFrom: 1.6, rotate: 3 };
+export const HANGAR = { heavyFrom: 1.8, fragileFrom: 1.6, windyFrom: 1.6, rotate: 3, tipGap: 10 };
 
 export const LEVELS = { count: 40, seed: 2026, maxDist: 5000, resultDelay: .9, rowGap: 92 };
 
