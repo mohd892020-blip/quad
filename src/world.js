@@ -1,4 +1,4 @@
-import { BIRDS, CAMERA, CELL, CITY, CLOCK, GROUND, GROUND_BOX, PEOPLE, PERSPECTIVE, SHOPS, SPRITE, TIMES, WIND, ZONES } from './config.js';
+import { BIRDS, CAMERA, CELL, CITY, CLOCK, GROUND, GROUND_BOX, ORDERS, PEOPLE, PERSPECTIVE, SHOPS, SPRITE, TIMES, WIND, ZONES } from './config.js';
 import { ctx, glow, shade, view, X, Y } from './ui.js';
 
 const CLOTHES = ['#e8492c', '#f2efe6', '#4fa3c2', '#ffc23d', '#7cc28f', '#d97aa8', '#3f5f8f', '#fafafa'];
@@ -176,6 +176,16 @@ export function genWorld(seed) {
     }
   }
 
+  // the rope must be able to reach a customer: nothing solid in their spot or just over it, and no line through it
+  const o = ORDERS;
+  const blocked = t => solids.some(R => {
+    if (R.mat === 'wall' || (t.bal && R.y === t.bal.y && R.x === t.bal.x)) return false;
+    const over = t.x > R.x - o.clearX && t.x < R.x + R.w + o.clearX && R.y + R.h <= t.y + c.targetLift && t.y - (R.y + R.h) < o.clearAbove;
+    const inside = t.x > R.x - o.insideX && t.x < R.x + R.w + o.insideX && t.y > R.y - o.insideY && t.y < R.y + R.h && R.y < t.y;
+    return over || inside;
+  }) || lines.some(L => L.pts.some(p => Math.abs(p.x - t.x) < o.lineX && Math.abs(p.y - t.y) < o.lineY));
+  const reachable = targets.filter(t => !blocked(t));
+
   const far1 = [], far2 = [];
   for (let i = 0; i < c.farCount; i++) {
     far1.push({ w: c.far1WMin + r() * c.far1WRange, h: c.far1HMin + r() * c.far1HRange, d: r() < c.far1DomeChance });
@@ -199,7 +209,7 @@ export function genWorld(seed) {
 
   dropSprites();
   indexColliders(solids);
-  Object.assign(world, { B, solids, lines, targets, shops, rigs, far1, far2, people, flocks, span });
+  Object.assign(world, { B, solids, lines, targets: reachable, shops, rigs, far1, far2, people, flocks, span });
 }
 
 export function dropSprites() {

@@ -16,6 +16,8 @@ export const CELL = { size: 256, base: -2400, margin: 48 };
 export const G = 700;
 export const GROUND = 560;
 export const GROUND_BOX = { x: -2000, w: 20000, h: 200 };
+// The drone stops at these, well inside the ground, so it can never fly off the end of the world.
+export const EDGE = { left: -1000, right: 14800 };
 export const CITY_SEED = 7;
 
 // A job: its clock, when harder customers appear, and the pad that starts it.
@@ -66,7 +68,6 @@ export const ZONES = [
 
 export const DRONE = {
   radius: 15,
-  spawnAbovePad: 90,
   tiltMax: .48,
   tiltRate: 7,
   thrustLift: 1.72,
@@ -115,7 +116,6 @@ export const HEALTH = {
 
 export const ROPE = 62;
 export const BOX = {
-  startAbovePad: 28,
   anchorY: 8,
   damping: .997,
   windForce: 1,
@@ -175,9 +175,9 @@ export const AIRCRAFT = [
 ];
 
 // When a shop suggests another aircraft while it makes the order.
-export const HANGAR = { heavyFrom: 1.8, fragileFrom: 1.6, windyFrom: 1.6, rotate: 3, tipGap: 10 };
+export const HANGAR = { heavyFrom: 1.8, fragileFrom: 1.6, windyFrom: 1.6, rotate: 3, tipGap: 10, previewHeight: 68 };
 
-export const LEVELS = { count: 40, seed: 2026, maxDist: 5000, resultDelay: .9, rowGap: 92 };
+export const LEVELS = { count: 40, seed: 2026, maxDist: 5000, resultDelay: .9, rowGap: 92, pathWave: .85, pathWidth: 30, balconyMaxSize: 1.3 };
 
 // The arrow circles the drone, so it can never slip under the controls or the HUD.
 export const POINTER = { orbit: 78, size: 19, bob: 6, safeMargin: 44, bottomGap: 60 };
@@ -185,13 +185,13 @@ export const POINTER = { orbit: 78, size: 19, bob: 6, safeMargin: 44, bottomGap:
 export const BOOST = { force: 900, drain: 60, refill: 18, refillDelay: .6, batteryDrain: 2.5 };
 
 export const HAWKS = {
-  from: 1, twoFrom: 4, threeFrom: 8, pathMin: .3, pathRange: .5, lift: 90, orbit: 60, circleRate: 1.4,
-  trigger: 200, diveSpeed: 380, diveTime: 3, hitDist: 22, shooDist: 30, damage: 16, hitShake: 6,
+  from: 1, twoFrom: 4, threeFrom: 20, pathMin: .3, pathRange: .5, lift: 90, orbit: 60, circleRate: 1.4,
+  trigger: 200, diveSpeed: 380, diveTime: 3, hitDist: 22, shooDist: 30, damage: 14, hitShake: 6,
   fleeX: 240, fleeY: 200, fleeTime: 2.5,
 };
 
 export const RIVAL = {
-  from: 2, chance: .5, delayMin: 5, delayRange: 2, speed: 135, speedPerDelivery: 8, speedMax: 280,
+  from: 2, chance: .5, delayMin: 7, delayRange: 2, speed: 135, speedPerDelivery: 3, speedMax: 240,
   padLift: 30, clearance: 70, lookAhead: 90, climb: 3, approach: 140, hover: 60, arrive: 12, arriveY: 26, bonus: 15, scale: 1.05,
 };
 
@@ -208,8 +208,9 @@ export const WIND = {
 
 // Pizza is the prototype's baseline: every factor is 1, so its flight matches prototype.html.
 // prep is how many seconds the shop needs to make the order; price is what ruining it costs.
+// ropeImpact keeps the prototype's rule that the rope's own pull counts as a knock on the box.
 export const ITEMS = {
-  pizza: { key: 'pizza', price: 10, prep: 7, label: 'Pizza', weight: 1, size: 1, fragile: 1, heat: 1, wind: 1 },
+  pizza: { key: 'pizza', price: 10, prep: 7, label: 'Pizza', weight: 1, size: 1, fragile: 1, heat: 1, wind: 1, ropeImpact: true },
   falafel: { key: 'falafel', price: 6, prep: 3.5, label: 'Falafel', weight: .8, size: .8, fragile: .6, heat: .9, wind: .9 },
   kunafa: { key: 'kunafa', price: 12, prep: 5.5, label: 'Kunafa', weight: 1.1, size: 1.1, fragile: 1.2, heat: 1.1, wind: 1 },
   coffee: { key: 'coffee', price: 4, prep: 2.5, label: 'Coffee', weight: .6, size: .6, fragile: 1.6, heat: 1.4, wind: .8 },
@@ -261,9 +262,16 @@ export const BIRDS = { spacing: 850, countMin: 4, countRange: 5, heightMin: 40, 
 export const ORDERS = {
   minDist: 300,
   stepDist: 260,
-  maxSteps: 8,
+  maxSteps: 12,
   span: 900,
   spanPerDelivery: 120,
+  // a customer needs open air: how close something solid or a line may come to their spot
+  clearX: 20,
+  clearAbove: 60,
+  insideX: 14,
+  insideY: 12,
+  lineX: 34,
+  lineY: 32,
 };
 
 export const DELIVERY = {
@@ -272,7 +280,7 @@ export const DELIVERY = {
   maxDroneSpeed: 160,
   holdTime: .7,
   holdDecay: 2,
-  hintDelay: 700,
+  popLift: 50,
   heatLoss: 1.45,
   steamRate: 10,
   steamMinHeat: 35,
@@ -293,7 +301,6 @@ export const DELIVERY = {
 
 export const RESTAURANT = {
   chargeRate: 30,
-  pickupTime: .8,
   padHeight: 40,
   boxOffsetX: 18,
   boxLift: 11,

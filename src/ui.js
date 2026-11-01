@@ -358,7 +358,7 @@ export function showActions(zone, anchored, boosting) {
 
 /* ---------- settings ---------- */
 export const sheetOpen = () => !$('sheet').hidden;
-const MODALS = ['levels', 'levelCard', 'resultCard'];
+const MODALS = ['levels', 'levelCard', 'resultCard', 'pauseCard'];
 export const modalOpen = () => sheetOpen() || MODALS.some(id => !$(id).hidden);
 // The level map is opaque, so nothing behind it needs drawing.
 export const levelsOpen = () => !$('levels').hidden;
@@ -376,13 +376,15 @@ function reachedLevel(stars) {
 
 export function hideModals() {
   for (const id of MODALS) $(id).hidden = true;
+  $('toast').hidden = true;
+  clearTimeout(toastTimer);
 }
 
 export function showLevels() {
   hideModals();
   const { stars, money } = loadProgress(), open = reachedLevel(stars), gap = LEVELS.rowGap;
   const height = (levelList.length + 1) * gap;
-  const spot = l => ({ x: 50 + Math.sin(l.n * .85) * 30, y: height - l.n * gap });
+  const spot = l => ({ x: 50 + Math.sin(l.n * LEVELS.pathWave) * LEVELS.pathWidth, y: height - l.n * gap });
   const road = levelList.map(l => { const p = spot(l); return `${p.x},${p.y}`; }).join(' ');
   const nodes = levelList.map(l => {
     const p = spot(l), best = stars[l.n] || 0;
@@ -426,6 +428,13 @@ export function showResult(o, level, hasNext) {
   card.hidden = false;
 }
 
+// The map button pauses. Leaving with an order in the air costs what ruining it would.
+function openPause() {
+  const cost = acts.stake();
+  $('pauseWhy').textContent = cost ? `Leaving loses the order: -$${cost}` : 'Take your time.';
+  $('pauseCard').hidden = false;
+}
+
 export function initLevels(levels, handlers) {
   levelList = levels;
   acts = handlers;
@@ -437,7 +446,13 @@ export function initLevels(levels, handlers) {
   $('levelPlay').addEventListener('click', () => acts.play(picked));
   $('freeRoam').addEventListener('click', () => acts.play(null));
   $('levelsGear').addEventListener('click', () => { $('sheet').hidden = false; });
-  $('toMap').addEventListener('click', showLevels);
+  $('toMap').addEventListener('click', openPause);
+  $('pauseBack').addEventListener('click', () => { $('pauseCard').hidden = true; });
+  $('pauseRetry').addEventListener('click', acts.retry);
+  $('pauseMap').addEventListener('click', () => {
+    acts.leave();
+    showLevels();
+  });
   $('resultNext').addEventListener('click', () => acts.play(levelList[resultLevel.n]));
   $('resultRetry').addEventListener('click', () => acts.play(resultLevel));
   $('resultMap').addEventListener('click', showLevels);

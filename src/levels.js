@@ -11,7 +11,9 @@ export function buildLevels() {
     const tier = n - 1, shop = world.shops[tier % world.shops.length];
     // shops with several items take turns, so every item appears across the levels
     const items = shop.shop.items, visit = Math.floor(tier / world.shops.length), item = ITEMS[items[visit % items.length]];
-    const pool = targetsFor(shop, tier, LEVELS.maxDist), t = pool[(r() * pool.length) | 0];
+    // a load this big cannot be lowered past a balcony rail
+    const fits = targetsFor(shop, tier, LEVELS.maxDist).filter(c => c.kind !== 'bal' || item.size <= LEVELS.balconyMaxSize);
+    const t = fits[(r() * fits.length) | 0];
     const dist = Math.abs(t.x - (shop.x + shop.w / 2));
     levels.push({
       n, tier, shop, item, t, dist,

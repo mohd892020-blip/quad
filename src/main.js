@@ -1,6 +1,6 @@
 import { drawBoost, drawHawks, drawRival, stepAction } from './action.js';
 import { initAudio, updateRotor } from './audio.js';
-import { CAMERA, CITY_SEED, DRONE, DUST, FIXED_DT, GROUND, HUD_INTERVAL, MAX_FRAME_DT, QUALITY } from './config.js';
+import { CAMERA, CITY_SEED, DRONE, DUST, FIXED_DT, GROUND, HANGAR, HUD_INTERVAL, MAX_FRAME_DT, QUALITY } from './config.js';
 import { buildLevels } from './levels.js';
 import {
   autoDeliver, chargeDrone, drawHalos, drawHeading, drawPointer, drawPrep, drawTarget, failMission, hangarHint, newGame, stepHealth, stepCargo, stepHeading, stepMission,
@@ -96,7 +96,7 @@ function render() {
 }
 
 function drawPreview(time) {
-  const c = previewCanvas(), g = c.getContext('2d'), k = c.height / 68;
+  const c = previewCanvas(), g = c.getContext('2d'), k = c.height / HANGAR.previewHeight;
   g.setTransform(k, 0, 0, k, c.width / 2, c.height / 2);
   g.clearRect(-c.width, -c.height, c.width * 2, c.height * 2);
   drawAirframe(g, settings.plane, time);
@@ -159,6 +159,11 @@ function start(level) {
   drawMap(st);
 }
 
+// Walking out on an order in the air costs the same as ruining it.
+function leave() {
+  if (st.has) failMission(st, 'Left the mission', true);
+}
+
 // Idle demo city behind the start card, until play begins.
 const demo = { x: 0 };
 function idle() {
@@ -188,7 +193,15 @@ onStart(() => {
 onDevActions(() => autoDeliver(st), () => chargeDrone(st));
 genWorld(CITY_SEED);
 levels = buildLevels();
-initLevels(levels, { play: start });
+initLevels(levels, {
+  play: start,
+  leave,
+  retry() {
+    leave();
+    start(st.level);
+  },
+  stake: () => (st.has ? Math.min(st.money, st.item.price) : 0),
+});
 // building sprites hold shop signs, so repaint them once the web fonts arrive
 document.fonts?.ready.then(dropSprites);
 idle();

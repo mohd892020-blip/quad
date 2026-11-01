@@ -23,11 +23,14 @@ export function stepRope(st, dt) {
 
   const ax = d.x, ay = d.y + c.anchorY;
   const dx = bx.x - ax, dy = bx.y - ay, dist = Math.hypot(dx, dy);
+  let pullX = 0, pullY = 0;
   if (dist > st.ropeLen) {
     const k = (dist - st.ropeLen) / dist;
     const pullDrone = c.pullDrone * item.weight, pullBox = c.pullBox - (pullDrone - c.pullDrone);
-    bx.x -= dx * k * pullBox;
-    bx.y -= dy * k * pullBox;
+    pullX = -dx * k * pullBox;
+    pullY = -dy * k * pullBox;
+    bx.x += pullX;
+    bx.y += pullY;
     d.x += dx * k * pullDrone;
     d.y += dy * k * pullDrone;
   }
@@ -40,11 +43,13 @@ export function stepRope(st, dt) {
       const vvx = (bx.x - bx.px) / dt, vvy = (bx.y - bx.py) / dt, vn = -(vvx * pens[1] + vvy * pens[2]);
       bx.x += pens[1] * pens[0];
       bx.y += pens[2] * pens[0];
-      if (vn > c.hitSpeed) {
-        st.integ -= (vn - c.hitSpeed) * c.hitDamage * item.fragile;
-        if (vn > c.bigHitSpeed) {
+      // a rope dragging the box along a wall is not a knock, so its share of the speed comes off
+      const dragged = item.ropeImpact ? 0 : Math.min(0, pullX * pens[1] + pullY * pens[2]) / dt, knock = vn + dragged;
+      if (knock > c.hitSpeed) {
+        st.integ -= (knock - c.hitSpeed) * c.hitDamage * item.fragile;
+        if (knock > c.bigHitSpeed) {
           st.shake = Math.max(st.shake, c.bigHitShake);
-          kickDust(st, bx.x, bx.y, vn * .5);
+          kickDust(st, bx.x, bx.y, knock * .5);
           sfx('box');
         }
       }

@@ -1,5 +1,5 @@
 import { sfx } from './audio.js';
-import { AIRCRAFT, AUDIO, BOOST, DRONE, G, HEALTH, HOLD, LOAD, SHADOW } from './config.js';
+import { AIRCRAFT, AUDIO, BOOST, DRONE, EDGE, G, HEALTH, HOLD, LOAD, SHADOW } from './config.js';
 import { settings } from './storage.js';
 import { addMark, ctx, glow, kickDust, view, X, Y } from './ui.js';
 import { nearby, roofAt } from './world.js';
@@ -39,13 +39,15 @@ export function stepBoost(st, keys, dt) {
   else st.boost = Math.min(100, st.boost + c.refill * dt);
 }
 
-// Hold pins the drone where it was pressed; any flight input hands control back.
+// Hold pins the drone where it was pressed; any new flight input hands control back.
+// Controls already held when Hold was pressed count only once they have been let go.
 export function stepHold(st, keys, canHold) {
-  const tap = keys.holdTap;
+  const tap = keys.holdTap, flying = keys.l || keys.r || keys.u || keys.axis;
   keys.holdTap = 0;
   if (st.anchor) {
-    if (tap || keys.l || keys.r || keys.u || keys.axis || !st.has || st.d.bat <= 0) st.anchor = null;
-  } else if (tap && canHold) st.anchor = { x: st.d.x, y: st.d.y };
+    if (!flying) st.anchor.armed = true;
+    if (tap || (flying && st.anchor.armed) || !st.has || st.d.bat <= 0) st.anchor = null;
+  } else if (tap && canHold) st.anchor = { x: st.d.x, y: st.d.y, armed: false };
 }
 
 function flyHeld(st, dt, over) {
@@ -77,7 +79,9 @@ export function stepDrone(st, keys, dt) {
     const tgt = (keys.r - keys.l + keys.axis) * c.tiltMax;
     d.a += (tgt - d.a) * Math.min(1, dt * c.tiltRate);
     const thr = powered ? (keys.u ? c.thrustLift * m.thrust : c.thrustIdle) * G * (1 - over * LOAD.thrustLoss / m.thrust) : 0;
-    d.vx += (Math.sin(d.a) * thr * m.speed + st.wind * c.windForce) * dt;
+    // a parked drone sits on its gear, so wind cannot slide it off a pad
+    const wind = st.onGround && !st.has ? 0 : st.wind * c.windForce;
+    d.vx += (Math.sin(d.a) * thr * m.speed + wind) * dt;
     d.vy += (G - Math.cos(d.a) * thr) * dt;
     if (st.boosting) d.vx += st.boostDir * BOOST.force * dt;
     const drag = Math.pow(c.dragX, dt);
@@ -88,6 +92,8 @@ export function stepDrone(st, keys, dt) {
     if (powered) d.bat = Math.max(0, d.bat - dt * (c.batDrain + keys.u * c.batDrainLift) * (1 + over * LOAD.drainGain) / m.battery);
   }
   if (d.y < c.ceiling) { d.y = c.ceiling; d.vy = Math.max(0, d.vy); }
+  if (d.x < EDGE.left) { d.x = EDGE.left; d.vx = Math.max(0, d.vx); }
+  if (d.x > EDGE.right) { d.x = EDGE.right; d.vx = Math.min(0, d.vx); }
 
   let grounded = false;
   const dr = { x: d.x, y: d.y };

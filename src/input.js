@@ -10,6 +10,7 @@ const km = {
   ShiftLeft: 'boost', ShiftRight: 'boost', KeyB: 'boost',
 };
 
+const HELD = ['lt', 'rt', 'up', 'boost', 'ropeDown', 'ropeUp'];
 const coarse = () => matchMedia('(pointer:coarse)').matches;
 const $ = id => document.getElementById(id);
 
@@ -34,9 +35,18 @@ function bindHeld(id, k) {
   el.addEventListener('contextmenu', e => e.preventDefault());
 }
 
+let finger = null;
+
+// Nothing stays pressed once the game loses the keyboard or the screen.
+function releaseAll() {
+  keys.l = keys.r = keys.u = keys.rd = keys.ru = keys.boost = keys.axis = 0;
+  finger = null;
+  $('knob').style.transform = '';
+  for (const id of HELD) $(id).classList.remove('on');
+}
+
 function bindJoystick() {
   const joy = $('joy'), knob = $('knob');
-  let finger = null;
   const move = e => {
     const r = joy.getBoundingClientRect(), reach = r.width / 2 - JOY.knobInset;
     const v = Math.max(-1, Math.min(1, (e.clientX - (r.left + r.width / 2)) / reach));
@@ -88,10 +98,15 @@ export function initInput() {
 
   [['lt', 'l'], ['rt', 'r'], ['up', 'u'], ['boost', 'boost'], ['ropeDown', 'rd'], ['ropeUp', 'ru']].forEach(([id, k]) => bindHeld(id, k));
   bindJoystick();
-  $('hold').addEventListener('click', () => { keys.holdTap = 1; });
+  // a second finger never produces a click, and this button is pressed while steering
+  $('hold').addEventListener('pointerdown', e => {
+    e.preventDefault();
+    keys.holdTap = 1;
+  });
   lockPage();
 
+  addEventListener('blur', releaseAll);
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) keys.l = keys.r = keys.u = keys.rd = keys.ru = keys.boost = keys.axis = 0;
+    if (document.hidden) releaseAll();
   });
 }

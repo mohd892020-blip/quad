@@ -79,7 +79,9 @@ function endMission(st) {
 }
 
 // A level ends on a result card, shown a moment later so the crash or delivery plays out.
+// The first ending stands: a drone that burns out just after delivering has still delivered.
 function finish(st, outcome) {
+  if (st.outcome || st.done) return;
   st.outcome = { ...outcome, at: st.t + LEVELS.resultDelay };
 }
 
@@ -105,15 +107,13 @@ function passMission(st) {
   st.del++;
   if (!st.level) st.tier = st.del;
   endMission(st);
-  pop(st, o.t.x, o.t.y - 50, `+$${tip}`, '#ffc23d');
+  pop(st, o.t.x, o.t.y - c.popLift, `+$${tip}`, '#ffc23d');
   sfx('deliver');
   saveProgress(st.del, st.money, st.level?.n, stars);
   if (st.level) finish(st, { passed: true, stars, tip, beat });
   else showToast('MISSION PASSED', beat ? `+$${tip} · Rival beaten` : `+$${tip}`, true);
   hud(st);
 }
-
-export const missionLeft = st => Math.max(0, st.order.deadline - st.t);
 
 // Landing on a green pad orders a job; the shop needs the item's prep time to make it,
 // and taking off first cancels the order. A running job ends on time or power.
@@ -222,13 +222,13 @@ export function stepCargo(st, dt) {
   } else st.hold = Math.max(0, st.hold - dt * c.holdDecay);
 }
 
-function carryToShop(st, shop) {
+function carryToShop(st, shop, rebuilt) {
   const d = st.d, p = shopPad(shop);
   d.x = p.x;
   d.y = p.y - DRONE.radius;
   d.vx = d.vy = d.a = 0;
   d.bat = 100;
-  st.hp = 100;
+  if (rebuilt) st.hp = 100;
   st.anchor = null;
   st.prev = null;
   st.cam.x = d.x - view.viewW * CAMERA.leadX;
@@ -246,6 +246,7 @@ function explode(st) {
   }
   st.wreck = c.respawnDelay;
   st.shake = c.blastShake;
+  st.boosting = false;
   d.vx = d.vy = 0;
   sfx('boom');
   if (st.has) failMission(st, 'Aircraft destroyed', true);
@@ -258,7 +259,7 @@ export function stepHealth(st, dt) {
   const c = HEALTH, d = st.d;
   if (st.wreck) {
     st.wreck = Math.max(0, st.wreck - dt);
-    if (!st.wreck) carryToShop(st, nearestShop(d.x));
+    if (!st.wreck) carryToShop(st, nearestShop(d.x), true);
     return;
   }
   const burning = st.hp < c.fireAt;
