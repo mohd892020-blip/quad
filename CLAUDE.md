@@ -2,7 +2,7 @@
 
 - اللعبة: ويب 2.5D، كواد كابتر يوصّل طلبات معلّقة بحبل في مدينة مفتوحة، للموبايل والكمبيوتر. النسخة النهائية لاحقًا بـ C# Unity.
 - التقنية: JavaScript (ES modules) مع Canvas 2D وVite. ممنوع محركات ألعاب أو React أو مكتبات فيزياء.
-- النشر: `npm run build` يطلّع ملف واحد `dist/flying-pizza.html`، وينشر كـArtifact بنفس المسار عشان يضل الرابط نفسه.
+- النشر: `npm run build` يطلّع `dist/flying-pizza.html` للـArtifact بنفس المسار عشان يضل الرابط نفسه، و`npm run deploy` يرفع الصفحة العامة على GitHub Pages.
 - prototype.html مرجع فيزياء الدرون والحبل: البيتزا تضل بقيم النموذج بالضبط، وباقي الطلبات مضاعفات فوقها.
 - الملفات في src/: main، config، drone، rope، world، delivery، action، ui، input، audio، storage. ملف لكل مسؤولية.
 - كل الأرقام القابلة للضبط في src/config.js فقط.
