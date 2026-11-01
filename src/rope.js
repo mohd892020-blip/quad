@@ -43,8 +43,8 @@ export function stepRope(st, dt) {
       const vvx = (bx.x - bx.px) / dt, vvy = (bx.y - bx.py) / dt, vn = -(vvx * pens[1] + vvy * pens[2]);
       bx.x += pens[1] * pens[0];
       bx.y += pens[2] * pens[0];
-      // a rope dragging the box along a wall is not a knock, so its share of the speed comes off
-      const dragged = item.ropeImpact ? 0 : Math.min(0, pullX * pens[1] + pullY * pens[2]) / dt, knock = vn + dragged;
+      // a sturdy load only feels the wall: the rope's share of the speed comes off
+      const dragged = item.fragile >= c.snagFragile ? 0 : Math.min(0, pullX * pens[1] + pullY * pens[2]) / dt, knock = vn + dragged;
       if (knock > c.hitSpeed) {
         st.integ -= (knock - c.hitSpeed) * c.hitDamage * item.fragile;
         if (knock > c.bigHitSpeed) {

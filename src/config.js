@@ -115,7 +115,10 @@ export const HEALTH = {
 };
 
 export const ROPE = 62;
+// snagFragile: from this fragility up, the rope's own pull counts as a knock, as in the prototype,
+// so a delicate order that snags on something is gone in moments.
 export const BOX = {
+  snagFragile: 1,
   anchorY: 8,
   damping: .997,
   windForce: 1,
@@ -238,9 +241,8 @@ export const WIND = {
 
 // Pizza is the prototype's baseline: every factor is 1, so its flight matches prototype.html.
 // prep is how many seconds the shop needs to make the order; price is what ruining it costs.
-// ropeImpact keeps the prototype's rule that the rope's own pull counts as a knock on the box.
 export const ITEMS = {
-  pizza: { key: 'pizza', price: 10, prep: 7, label: 'Pizza', weight: 1, size: 1, fragile: 1, heat: 1, wind: 1, ropeImpact: true },
+  pizza: { key: 'pizza', price: 10, prep: 7, label: 'Pizza', weight: 1, size: 1, fragile: 1, heat: 1, wind: 1 },
   falafel: { key: 'falafel', price: 6, prep: 3.5, label: 'Falafel', weight: .8, size: .8, fragile: .6, heat: .9, wind: .9 },
   kunafa: { key: 'kunafa', price: 12, prep: 5.5, label: 'Kunafa', weight: 1.1, size: 1.1, fragile: 1.2, heat: 1.1, wind: 1 },
   coffee: { key: 'coffee', price: 4, prep: 2.5, label: 'Coffee', weight: .6, size: .6, fragile: 1.6, heat: 1.4, wind: .8 },
