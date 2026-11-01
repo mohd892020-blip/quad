@@ -1,6 +1,6 @@
-import { AIRCRAFT, DEV, DUST, FX, G, QUALITY, SHAKE, VIEW } from './config.js';
+import { AIRCRAFT, DEV, DUST, FX, G, MISSION, QUALITY, SHAKE, VIEW } from './config.js';
 import { applyControls } from './input.js';
-import { saveSettings, settings, updateBest } from './storage.js';
+import { saveSettings, settings } from './storage.js';
 
 const $ = id => document.getElementById(id);
 
@@ -60,7 +60,7 @@ export function glow(g, color, x, y, r) {
   g.globalCompositeOperation = op;
 }
 
-// Smooth screen shake; follows the shift clock instead of a dice roll per frame.
+// Smooth screen shake; follows the game clock instead of a dice roll per frame.
 export function shakeOffset(st) {
   const c = SHAKE, sh = st.shake;
   const amp = sh * sh / (sh + c.soft) * c.amp * view.S;
@@ -162,19 +162,33 @@ export function drawFx(st) {
 export function hud(st) {
   $('money').firstChild.nodeValue = `$${st.money}`;
   $('del').textContent = `${st.del} ${st.del === 1 ? 'delivery' : 'deliveries'}`;
-  const left = Math.max(0, st.shift - st.t);
-  $('clock').textContent = `${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}`;
+  const clock = $('clock'), o = st.has ? st.order : null;
+  const left = o ? Math.max(0, o.deadline - st.t) : 0, whole = Math.ceil(left);
+  clock.textContent = o ? `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}` : '--:--';
+  clock.classList.toggle('low', !!o && left < MISSION.lowTime);
   $('bBat').firstChild.style.width = st.d.bat + '%';
-  $('bHeat').firstChild.style.width = (st.has && st.item.heat ? st.heat : 0) + '%';
-  $('bBox').firstChild.style.width = (st.has ? st.integ : 0) + '%';
-  if (st.has && st.order) {
-    const t = st.order.t, item = st.item;
+  $('bHeat').firstChild.style.width = (o && st.item.heat ? st.heat : 0) + '%';
+  $('bBox').firstChild.style.width = (o ? st.integ : 0) + '%';
+  if (o) {
+    const t = o.t, item = st.item, dist = Math.round(Math.abs(t.x - st.d.x) / 10);
+    const place = t.kind === 'bal' ? `Balcony, floor ${t.fl}` : t.kind === 'street' ? 'Street' : 'Rooftop';
     $('oTitle').textContent = item.urgent ? `${item.label} · URGENT` : item.label;
-    $('oSub').textContent = `Building ${t.b.idx} · ${t.kind === 'bal' ? `Balcony, floor ${t.fl}` : 'Rooftop'}`;
+    $('oSub').textContent = `${o.shop.shop.name} → ${place} · ${dist} m`;
   } else {
-    $('oTitle').textContent = 'Back to a shop';
-    $('oSub').textContent = 'Land on a green pad for the next order';
+    $('oTitle').textContent = 'Find a job';
+    $('oSub').textContent = 'Fly into a yellow beacon on a shop roof';
   }
+}
+
+let toastTimer = 0;
+export function showToast(title, detail, good) {
+  const el = $('toast');
+  $('toastTitle').textContent = title;
+  $('toastWhy').textContent = detail;
+  el.classList.toggle('bad', !good);
+  el.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.hidden = true; }, MISSION.toastMs);
 }
 
 export function hideOverlay() {
@@ -261,21 +275,6 @@ export function onDevActions(auto, charge) {
   $('devCharge').addEventListener('click', charge);
 }
 
-export function endShift(st, why) {
-  if (st.over) return;
-  st.over = true;
-  st.running = false;
-  const best = updateBest(st.money);
-  $('endTitle').textContent = why;
-  $('endMoney').textContent = `$${st.money}`;
-  $('endDel').textContent = `${st.del} ${st.del === 1 ? 'delivery' : 'deliveries'}`;
-  $('endBest').textContent = st.money > best ? 'New record!' : `Best: $${best}`;
-  $('cardStart').hidden = true;
-  $('cardEnd').hidden = false;
-  $('overlay').hidden = false;
-}
-
 export function onStart(fn) {
   $('start').addEventListener('click', fn);
-  $('again').addEventListener('click', fn);
 }

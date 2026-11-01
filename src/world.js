@@ -1,7 +1,6 @@
-import { BIRDS, CAMERA, CELL, CITY, GROUND, GROUND_BOX, PEOPLE, PERSPECTIVE, SHOPS, SPRITE, TIMES, WIND } from './config.js';
+import { BIRDS, CAMERA, CELL, CITY, GROUND, GROUND_BOX, MISSION, PEOPLE, PERSPECTIVE, SHOPS, SPRITE, TIMES, WIND, ZONES } from './config.js';
 import { ctx, glow, shade, view, X, Y } from './ui.js';
 
-const STONES = ['#c9a27a', '#b8916c', '#d4b08a', '#a98463', '#c09673', '#d8bb98'];
 const CLOTHES = ['#e8492c', '#f2efe6', '#4fa3c2', '#ffc23d', '#7cc28f', '#d97aa8'];
 const SHIRTS = ['#e8492c', '#4fa3c2', '#ffc23d', '#7cc28f', '#d97aa8', '#f2efe6', '#5a6b8c'];
 
@@ -24,8 +23,20 @@ function hash(i) {
   return s - Math.floor(s);
 }
 
+export function zoneAt(x) {
+  let zone = ZONES[0];
+  for (const z of ZONES) if (x >= z.from) zone = z;
+  return zone;
+}
+
+// The charging pad and the job beacon sit at opposite ends of a shop roof,
+// so landing to charge never starts a job by accident.
 export function shopPad(b) {
-  return { x: b.x + b.w / 2, y: b.top };
+  return { x: b.x + CITY.padInset, y: b.top };
+}
+
+export function shopBeacon(b) {
+  return { x: b.x + b.w - MISSION.beaconInset, y: b.top - MISSION.beaconLift };
 }
 
 export function nearestShop(x) {
@@ -58,8 +69,8 @@ export function genWorld(seed) {
   const B = [], solids = [], lines = [], targets = [], shops = [], rigs = [];
 
   const mk = (x, w, h) => {
-    const top = GROUND - h;
-    const b = { x, w, h, top, col: STONES[(r() * STONES.length) | 0], idx: B.length, bal: [], tank: null, dish: null, lit: [] };
+    const top = GROUND - h, zone = zoneAt(x);
+    const b = { x, w, h, top, zone, col: zone.stones[(r() * zone.stones.length) | 0], idx: B.length, bal: [], tank: null, dish: null, lit: [] };
     const cols = Math.max(c.minCols, Math.floor((w - c.sideMargin) / c.cellW));
     const rows = Math.max(c.minRows, Math.floor((h - c.roofMargin) / c.floorH));
     b.cols = cols; b.rows = rows;
@@ -80,31 +91,32 @@ export function genWorld(seed) {
 
   let x = rest.x + rest.w + c.firstGap, nextShop = rest.x + c.shopEvery;
   while (x < c.endX) {
+    const z = zoneAt(x);
     if (x >= nextShop) {
       const b = mkShop(x, c.restaurant.h + r() * c.shopHRange);
       nextShop += c.shopEvery;
-      x += b.w + c.gapMin + r() * c.gapRange;
+      x += b.w + c.gapMin + r() * z.gapRange;
       continue;
     }
-    const w = c.widthMin + r() * c.widthRange, h = c.heightMin + r() * c.heightRange, b = mk(x, w, h);
-    if (r() < c.tankChance) {
+    const w = z.widthMin + r() * z.widthRange, h = z.heightMin + r() * z.heightRange, b = mk(x, w, h);
+    if (r() < z.tankChance) {
       const tw = c.tankW + r() * c.tankWRange;
       b.tank = { x: b.x + c.tankInset + r() * (w - c.tankSlack - (tw - c.tankW)), y: b.top - c.tankH, w: tw, h: c.tankH };
       solids.push(b.tank);
     }
-    if (r() < c.dishChance) {
+    if (r() < z.dishChance) {
       b.dish = { x: b.x + w - c.dishInset, y: b.top };
       solids.push({ x: b.dish.x - c.dishW / 2, y: b.top - c.dishH, w: c.dishW, h: c.dishH });
     }
     if (w > c.rigMinW) {
       const mx = b.x + w / 2;
-      if (h > c.craneMinH && r() < c.craneChance) {
+      if (h > c.craneMinH && r() < z.craneChance) {
         const mastH = c.craneMastHMin + r() * c.craneMastHRange, jibY = b.top - mastH, jibX = mx - c.craneJibLen / 2;
         const mast = { x: mx - c.craneMastW / 2, y: jibY, w: c.craneMastW, h: mastH };
         const jib = { x: jibX, y: jibY, w: c.craneJibLen, h: c.craneJibH };
         solids.push(mast, jib);
         rigs.push({ kind: 'crane', mast, jib });
-      } else if (r() < c.towerChance) {
+      } else if (r() < z.towerChance) {
         const towerH = c.towerHMin + r() * c.towerHRange;
         const mast = { x: mx - c.towerW / 2, y: b.top - towerH, w: c.towerW, h: towerH };
         solids.push(mast);
@@ -129,13 +141,17 @@ export function genWorld(seed) {
       x: b.tank && b.tank.x < b.x + w / 2 ? b.x + w - c.roofTargetInset : b.x + c.roofTargetInset,
       y: b.top - c.targetLift, kind: 'roof', b,
     });
-    x += w + c.gapMin + r() * c.gapRange;
+    x += w + c.gapMin + r() * z.gapRange;
   }
 
   for (let i = 1; i < B.length - 1; i++) {
-    const a = B[i], d = B[i + 1];
-    if (a.shop || a.h < c.lineMinH || d.h < c.lineMinH) continue;
-    if (r() < c.lineChance) {
+    const a = B[i], d = B[i + 1], z = a.zone, gap = (a.x + a.w + d.x) / 2;
+    // a customer in the street needs a clear drop between the two buildings
+    if (a.shop || a.h < z.lineMinH || d.h < z.lineMinH || r() >= z.lineChance) {
+      targets.push({ x: gap, y: GROUND - c.targetLift, kind: 'street', b: a });
+      continue;
+    }
+    {
       const ya = Math.max(a.top, d.top) + c.lineDropMin + r() * c.lineDropRange, yb = ya + (r() - .5) * c.lineTilt;
       const p0 = { x: a.x + a.w, y: ya }, p1 = { x: d.x, y: yb };
       const pts = [];
@@ -143,7 +159,7 @@ export function genWorld(seed) {
         const t = k / c.linePoints;
         pts.push({ x: p0.x + (p1.x - p0.x) * t, y: p0.y + (p1.y - p0.y) * t + Math.sin(t * Math.PI) * c.lineSag });
       }
-      const power = r() < c.powerChance, clothes = [];
+      const power = r() < z.powerChance, clothes = [];
       if (!power) {
         for (let k = c.clothFirst; k < c.clothLast; k += c.clothStep + ((r() * c.clothStepRange) | 0)) {
           clothes.push({
@@ -266,27 +282,59 @@ function drawFar(st, arr, par, col, baseOff, scale) {
 
 // Paints the parts of a building that do not change with the camera, in world units.
 function paintBuilding(g, b) {
-  const time = TIMES[world.time], c = CITY;
+  const time = TIMES[world.time], c = CITY, z = b.zone, style = z.style;
   const L = b.x, T = b.top, Bt = GROUND + 60;
   g.fillStyle = shade(b.col, time.light);
   g.fillRect(L, T, b.w, Bt - T);
   g.fillStyle = shade(b.col, .85 * time.light);
   g.fillRect(L, T, b.w, 5);
-  for (let y = T + c.floorH; y < GROUND; y += c.floorH) {
-    g.fillStyle = 'rgba(0,0,0,.06)';
-    g.fillRect(L, y, b.w, 1.5);
+  if (style !== 'tower') {
+    for (let y = T + c.floorH; y < GROUND; y += c.floorH) {
+      g.fillStyle = 'rgba(0,0,0,.06)';
+      g.fillRect(L, y, b.w, 1.5);
+    }
   }
   const sill = shade(b.col, .6 * time.light);
-  const gx = (b.w - b.cols * c.cellW) / 2 + 8;
+  const gx = (b.w - b.cols * c.cellW) / 2 + 8 + (14 - z.winW) / 2;
   for (let r = 0; r < b.rows; r++) for (let col = 0; col < b.cols; col++) {
     const i = r * b.cols + col, wx = L + gx + col * c.cellW, wy = GROUND - (r + 1) * c.floorH + 10;
     if (wy < T + 8) continue;
     const lit = b.lit[i] || (hash(i + b.idx * 97) < time.extraLit ? 1 : 0);
     g.fillStyle = time.lit[lit];
-    g.fillRect(wx, wy, 14, 20);
-    if (time.windowGlow && lit) glow(g, 'rgba(255,190,110,.5)', wx + 7, wy + 10, 22);
-    g.fillStyle = sill;
-    g.fillRect(wx - 2, wy + 20, 18, 2.5);
+    g.fillRect(wx, wy, z.winW, z.winH);
+    if (style === 'old') {
+      g.beginPath();
+      g.arc(wx + z.winW / 2, wy, z.winW / 2, Math.PI, 0);
+      g.fill();
+    }
+    if (time.windowGlow && lit) glow(g, 'rgba(255,190,110,.5)', wx + z.winW / 2, wy + z.winH / 2, 22);
+    if (style !== 'tower') {
+      g.fillStyle = sill;
+      g.fillRect(wx - 2, wy + z.winH, z.winW + 4, 2.5);
+    }
+  }
+  if (style === 'village') {
+    // a tiled cap across the top of the wall
+    g.fillStyle = shade('#b4553a', time.light);
+    g.beginPath();
+    g.moveTo(L - 7, T + 20); g.lineTo(L + 10, T); g.lineTo(L + b.w - 10, T); g.lineTo(L + b.w + 7, T + 20);
+    g.fill();
+    g.fillStyle = 'rgba(0,0,0,.14)';
+    for (let y = T + 6; y < T + 20; y += 6) g.fillRect(L - 4, y, b.w + 8, 1.5);
+  }
+  if (style === 'souk' && !b.shop) {
+    // striped market awning over the street
+    const y = GROUND - 44;
+    for (let x = L, i = 0; x < L + b.w; x += 14, i++) {
+      g.fillStyle = shade(i % 2 ? '#f2efe6' : ['#e8492c', '#2f8f8a', '#d9a321'][b.idx % 3], time.light);
+      g.fillRect(x, y, Math.min(14, L + b.w - x), 13);
+    }
+  }
+  if (style === 'tower') {
+    g.fillStyle = `rgba(255,255,255,${.1 * time.light})`;
+    g.beginPath();
+    g.moveTo(L, T + 120); g.lineTo(L + b.w, T); g.lineTo(L + b.w, T + 90); g.lineTo(L, T + 210);
+    g.fill();
   }
   if (b.shop) {
     g.fillStyle = '#2b1b14';
@@ -313,7 +361,7 @@ function paintBuilding(g, b) {
     g.setLineDash([]);
     g.fillStyle = '#4fc27c';
     g.font = '700 11px Tajawal,sans-serif';
-    g.fillText('Charge + Pickup', p.x, p.y - 10);
+    g.fillText('Charge', p.x, p.y - 10);
   }
   if (b.tank) {
     const t = b.tank;
@@ -501,6 +549,55 @@ function drawBirds(st) {
     }
   }
   ctx.stroke();
+}
+
+// The strip map: zones as bands, then shops, the customer, and the player on top.
+export function drawMap(st) {
+  const c = document.getElementById('map'), w = c.clientWidth || 300, h = c.clientHeight || 18;
+  const k = view.DPR, left = CITY.leftBuilding.x, span = world.span;
+  if (c.width !== Math.round(w * k)) {
+    c.width = Math.round(w * k);
+    c.height = Math.round(h * k);
+  }
+  const g = c.getContext('2d'), mx = x => (x - left) / span * w;
+  g.setTransform(k, 0, 0, k, 0, 0);
+  g.clearRect(0, 0, w, h);
+  g.font = '700 9px Tajawal,sans-serif';
+  g.textBaseline = 'middle';
+  ZONES.forEach((z, i) => {
+    const a = Math.max(0, mx(z.from)), b = i + 1 < ZONES.length ? mx(ZONES[i + 1].from) : w;
+    g.fillStyle = z.map;
+    g.globalAlpha = .55;
+    g.fillRect(a, 0, b - a - 1, h);
+    g.globalAlpha = 1;
+    g.fillStyle = '#fff3df';
+    g.fillText(z.name, a + 4, h / 2 + 1);
+  });
+  for (const b of world.shops) {
+    const x = mx(b.x + b.w / 2);
+    g.fillStyle = st.has ? 'rgba(255,255,255,.6)' : '#ffc23d';
+    g.fillRect(x - 1.5, h - 7, 3, 7);
+  }
+  const dot = (x, col, r) => {
+    g.fillStyle = col;
+    g.strokeStyle = '#140f2a';
+    g.lineWidth = 1.5;
+    g.beginPath();
+    g.arc(mx(x), h / 2, r, 0, 7);
+    g.fill();
+    g.stroke();
+  };
+  if (st.order) dot(st.order.t.x, '#e8492c', 4.5);
+  if (st.rival) dot(st.rival.x, '#ff3b3b', 3.5);
+  const px = mx(st.d.x);
+  g.fillStyle = '#fff';
+  g.strokeStyle = '#140f2a';
+  g.lineWidth = 1.5;
+  g.beginPath();
+  g.moveTo(px, 1); g.lineTo(px + 5, h - 1); g.lineTo(px - 5, h - 1);
+  g.closePath();
+  g.fill();
+  g.stroke();
 }
 
 export function drawCity(st) {

@@ -1,15 +1,17 @@
 import { initAudio, updateRotor } from './audio.js';
-import { CAMERA, DRONE, DUST, FIXED_DT, GROUND, HUD_INTERVAL, IDLE_SEED, MAX_FRAME_DT, QUALITY } from './config.js';
-import { autoDeliver, chargeDrone, drawHeading, drawPointer, drawTarget, newGame, stepCargo, stepHeading, stepShop, zones } from './delivery.js';
+import { CAMERA, CITY_SEED, DRONE, DUST, FIXED_DT, GROUND, HUD_INTERVAL, MAX_FRAME_DT, QUALITY } from './config.js';
+import {
+  autoDeliver, chargeDrone, drawBeacons, drawHeading, drawPointer, drawTarget, newGame, stepCargo, stepHeading, stepMission, stepShop, zones,
+} from './delivery.js';
 import { drawAirframe, drawDrone, drawShadow, stepDrone, stepHold } from './drone.js';
 import { initInput, keys } from './input.js';
 import { drawRope, stepRope, stepRopeLength } from './rope.js';
 import { settings } from './storage.js';
 import {
-  ctx, drawFx, endShift, hideOverlay, hud, initSheet, kickDust, onDevActions, onStart, previewCanvas, setLowQ, shakeOffset, sheetOpen,
+  ctx, drawFx, hideOverlay, hud, initSheet, kickDust, onDevActions, onStart, previewCanvas, setLowQ, shakeOffset, sheetOpen,
   showActions, stepFx, view,
 } from './ui.js';
-import { drawCity, drawSky, dropSprites, genWorld, stepCamera, stepWind } from './world.js';
+import { drawCity, drawMap, drawSky, dropSprites, genWorld, stepCamera, stepWind } from './world.js';
 
 let st = null, hudT = 0, last = performance.now();
 const pace = { t: 0, n: 0 };
@@ -28,10 +30,9 @@ function step(dt) {
     stepRope(st, dt);
     stepCargo(st, dt);
   }
+  stepMission(st);
   stepShop(st, grounded, dt);
   stepHeading(st, dt);
-  if (st.t >= st.shift) endShift(st, 'Shift over');
-  if (st.d.bat <= 0 && grounded) endShift(st, 'Battery dead');
   stepCamera(st, dt);
   stepFx(st, dt);
 }
@@ -65,6 +66,7 @@ function render() {
   ctx.save();
   if (s.shake) ctx.translate(...shakeOffset(s));
   drawCity(s);
+  drawBeacons(s);
   drawShadow(s);
   drawTarget(s);
   drawRope(s);
@@ -102,20 +104,19 @@ function loop(now) {
   const paused = sheetOpen();
   if (!paused) watchPace(frame);
   if (paused) drawPreview(now / 1000);
-  else if (st.running) {
+  else {
     st.acc += dt;
     while (st.acc >= FIXED_DT) {
       rememberPose();
       step(FIXED_DT);
       st.acc -= FIXED_DT;
-      if (!st.running) break;
     }
     hudT += dt;
-    if (hudT > HUD_INTERVAL) { hud(st); hudT = 0; }
+    if (hudT > HUD_INTERVAL) { hud(st); drawMap(st); hudT = 0; }
   }
   render();
-  showActions(st.running ? zones(st) : { rope: false, hold: false }, !!st.anchor);
-  updateRotor(st.running && !paused && st.d.bat > 0, !!keys.u);
+  showActions(zones(st), !!st.anchor);
+  updateRotor(!paused && st.d.bat > 0, !!keys.u);
   requestAnimationFrame(loop);
 }
 
@@ -124,9 +125,10 @@ function start() {
   hideOverlay();
   last = performance.now();
   hud(st);
+  drawMap(st);
 }
 
-// Idle demo city behind the start card, until the first shift starts.
+// Idle demo city behind the start card, until play begins.
 const demo = { x: 0 };
 function idle() {
   if (st) { requestAnimationFrame(loop); return; }
@@ -148,7 +150,7 @@ initAudio();
 initSheet();
 onStart(start);
 onDevActions(() => autoDeliver(st), () => chargeDrone(st));
-genWorld(IDLE_SEED);
+genWorld(CITY_SEED);
 // building sprites hold shop signs, so repaint them once the web fonts arrive
 document.fonts?.ready.then(dropSprites);
 idle();

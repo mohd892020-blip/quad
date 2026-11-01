@@ -14,8 +14,51 @@ export const CELL = { size: 256, base: -2400, margin: 48 };
 export const G = 700;
 export const GROUND = 560;
 export const GROUND_BOX = { x: -2000, w: 20000, h: 200 };
-export const SHIFT = 180;
-export const IDLE_SEED = 7;
+export const CITY_SEED = 7;
+
+// A job: its clock, when harder customers appear, and the beacon that starts it.
+export const MISSION = {
+  baseTime: 16,
+  speed: 170,
+  urgentTime: .75,
+  heavyTime: 6,
+  lowTime: 10,
+  cooldown: 2,
+  balconyFrom: 2,
+  streetFrom: 5,
+  toastMs: 2600,
+  beaconInset: 44,
+  beaconLift: 58,
+  beaconRadius: 36,
+};
+
+// The one long city, left to right. Each zone sets its own buildings and obstacles.
+export const ZONES = [
+  {
+    name: 'Village', from: -400, style: 'village', map: '#6f9a52',
+    stones: ['#e9dcc0', '#e2d0ab', '#ecdfca', '#d9c7a3'],
+    widthMin: 120, widthRange: 70, heightMin: 90, heightRange: 80, gapRange: 110,
+    tankChance: .25, dishChance: .15, craneChance: 0, towerChance: .05, lineChance: .6, powerChance: .25, lineMinH: 80, winW: 12, winH: 16,
+  },
+  {
+    name: 'Old Town', from: 3000, style: 'old', map: '#b8916c',
+    stones: ['#c9a27a', '#b8916c', '#d4b08a', '#a98463', '#c09673', '#d8bb98'],
+    widthMin: 110, widthRange: 110, heightMin: 150, heightRange: 170, gapRange: 60,
+    tankChance: .6, dishChance: .45, craneChance: .05, towerChance: .1, lineChance: .7, powerChance: .15, lineMinH: 150, winW: 14, winH: 20,
+  },
+  {
+    name: 'Souk', from: 7000, style: 'souk', map: '#d9823a',
+    stones: ['#d6a56b', '#c98f5c', '#e0b47c', '#cf9a68'],
+    widthMin: 130, widthRange: 90, heightMin: 130, heightRange: 130, gapRange: 50,
+    tankChance: .5, dishChance: .6, craneChance: .08, towerChance: .1, lineChance: .75, powerChance: .6, lineMinH: 130, winW: 14, winH: 18,
+  },
+  {
+    name: 'Downtown', from: 10500, style: 'tower', map: '#5a7fa6',
+    stones: ['#6f8296', '#7d92a8', '#5f7286', '#8ba0b5'],
+    widthMin: 130, widthRange: 110, heightMin: 300, heightRange: 220, gapRange: 70,
+    tankChance: .35, dishChance: .3, craneChance: .22, towerChance: .3, lineChance: .25, powerChance: .8, lineMinH: 170, winW: 22, winH: 30,
+  },
+];
 
 export const DRONE = {
   radius: 15,
@@ -273,12 +316,8 @@ export const CITY = {
   endX: 14000,
   shopEvery: 1500,
   shopHRange: 60,
+  padInset: 70,
   gapMin: 90,
-  gapRange: 60,
-  widthMin: 110,
-  widthRange: 110,
-  heightMin: 150,
-  heightRange: 290,
   cellW: 30,
   floorH: 40,
   sideMargin: 24,
@@ -287,25 +326,21 @@ export const CITY = {
   minRows: 1,
   litChance: .42,
   brightChance: .5,
-  tankChance: .6,
   tankW: 34,
   tankWRange: 26,
   tankH: 26,
   tankInset: 12,
   tankSlack: 60,
-  dishChance: .45,
   dishInset: 30,
   dishW: 20,
   dishH: 22,
   rigMinW: 150,
-  craneChance: .12,
   craneMinH: 230,
   craneMastW: 14,
   craneMastHMin: 120,
   craneMastHRange: 70,
   craneJibLen: 260,
   craneJibH: 10,
-  towerChance: .14,
   towerW: 12,
   towerHMin: 90,
   towerHRange: 80,
@@ -318,10 +353,7 @@ export const CITY = {
   balconyRoofGap: 30,
   targetLift: 11,
   roofTargetInset: 34,
-  lineChance: .55,
-  powerChance: .3,
   powerDamage: 3,
-  lineMinH: 170,
   lineDropMin: 25,
   lineDropRange: 70,
   lineTilt: 20,

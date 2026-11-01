@@ -1,4 +1,4 @@
-const BEST_KEY = 'pizzaBest';
+const PROGRESS_KEY = 'pizzaCityV1';
 const SETTINGS_KEY = 'pizzaSettingsV1';
 
 export const settings = { controls: 'joystick', plane: 'courier', dev: false };
@@ -11,12 +11,14 @@ export function saveSettings() {
   try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (_) {}
 }
 
-// Returns the best score from before this shift and saves the new one if it beat it.
-export function updateBest(money) {
-  let best = 0;
+export function loadProgress() {
   try {
-    best = +localStorage.getItem(BEST_KEY) || 0;
-    if (money > best) localStorage.setItem(BEST_KEY, money);
+    const saved = JSON.parse(localStorage.getItem(PROGRESS_KEY));
+    if (saved && Number.isFinite(saved.del) && Number.isFinite(saved.money)) return { del: saved.del, money: saved.money };
   } catch (_) {}
-  return best;
+  return { del: 0, money: 0 };
+}
+
+export function saveProgress(del, money) {
+  try { localStorage.setItem(PROGRESS_KEY, JSON.stringify({ del, money })); } catch (_) {}
 }

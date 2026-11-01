@@ -18,12 +18,14 @@
     <button class="pill" id="gear" aria-label="Settings">⚙</button>
     <div class="pill" id="order"><b id="oTitle">—</b><span id="oSub"></span></div>
     <div class="pill" id="meters">
-      <span>TIME</span><span id="clock">3:00</span>
+      <span>TIME</span><span id="clock">--:--</span>
       <span>BATTERY</span><div class="bar" id="bBat"><i></i></div>
       <span>HEAT</span><div class="bar" id="bHeat"><i></i></div>
       <span>ORDER</span><div class="bar" id="bBox"><i></i></div>
     </div>
+    <canvas id="map" aria-label="City map"></canvas>
   </div>
+  <div id="toast" hidden role="status"><b id="toastTitle"></b><span id="toastWhy"></span></div>
   <div id="controls" hidden>
     <div class="grp" id="arrows" hidden><button class="btn" id="lt" aria-label="Left">◀</button><button class="btn" id="rt" aria-label="Right">▶</button></div>
     <div id="joy" hidden aria-label="Steer left or right"><i id="knob"></i></div>
@@ -42,14 +44,7 @@
   <div id="overlay">
     <div class="card" id="cardStart">
       <h1>Flying Pizza</h1>
-      <p class="tag">Fly it there. Keep it in one piece.</p>
       <button class="go" id="start">Play</button>
-    </div>
-    <div class="card" id="cardEnd" hidden>
-      <h1 id="endTitle">Shift over</h1>
-      <div class="big" id="endMoney">$0</div>
-      <div class="stats"><span id="endDel"></span><span id="endBest"></span></div>
-      <button class="go" id="again">Play again</button>
     </div>
   </div>
   <div id="sheet" hidden>
