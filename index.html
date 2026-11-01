@@ -58,6 +58,8 @@
   <div id="levels" hidden>
     <div id="levelsBar">
       <b>Flying Pizza</b><span id="levelsMoney">$0</span>
+      <button class="barBtn" id="openShop">Shop</button>
+      <button class="barBtn" id="openLeague">Ranks</button>
       <button class="icon" id="levelsGear" aria-label="Settings">⚙</button>
     </div>
     <div id="levelsScroll"><div id="levelsPath"></div></div>
@@ -83,6 +85,25 @@
       <h2>Paused</h2>
       <p id="pauseWhy"></p>
       <div class="row"><button class="ghost" id="pauseMap">Levels</button><button class="ghost" id="pauseRetry">Retry</button><button class="go" id="pauseBack">Resume</button></div>
+    </div>
+  </div>
+  <div id="shop" class="modal" hidden>
+    <div class="card">
+      <div class="shopHead"><h2>Shop</h2><b id="shopMoney">$0</b></div>
+      <h3>Upgrades</h3>
+      <div id="shopParts"></div>
+      <h3>Aircraft</h3>
+      <div id="shopPlanes"></div>
+      <div class="row"><button class="go" id="shopClose">Close</button></div>
+    </div>
+  </div>
+  <div id="league" class="modal" hidden>
+    <div class="card">
+      <h2>Pilot League</h2>
+      <p id="leagueRank"></p>
+      <p class="fine">Computer pilots. Scores stay on this device.</p>
+      <ol id="leagueRows"></ol>
+      <div class="row"><button class="go" id="leagueClose">Close</button></div>
     </div>
   </div>
   <div id="sheet" hidden>

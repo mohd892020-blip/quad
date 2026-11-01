@@ -1,7 +1,7 @@
 import { toggleMute } from './audio.js';
-import { AIRCRAFT, BADGE, DEV, DUST, FX, G, HANGAR, HEALTH, LEVELS, MISSION, POINTER, QUALITY, ROPE, ROPE_CTL, SHAKE, VIEW, WIND } from './config.js';
+import { AIRCRAFT, BADGE, DEV, DUST, FX, G, HANGAR, HEALTH, LEVELS, MISSION, POINTER, QUALITY, ROPE, ROPE_CTL, SHAKE, SHOP, VIEW, WIND } from './config.js';
 import { applyControls } from './input.js';
-import { loadProgress, saveSettings, settings } from './storage.js';
+import { loadProgress, owns, saveSettings, settings } from './storage.js';
 
 const $ = id => document.getElementById(id);
 
@@ -370,7 +370,7 @@ export function showActions(zone, anchored, boosting) {
 
 /* ---------- settings ---------- */
 export const sheetOpen = () => !$('sheet').hidden;
-const MODALS = ['levels', 'levelCard', 'resultCard', 'pauseCard'];
+const MODALS = ['levels', 'levelCard', 'resultCard', 'pauseCard', 'shop', 'league'];
 export const modalOpen = () => sheetOpen() || MODALS.some(id => !$(id).hidden);
 // The level map is opaque, so nothing behind it needs drawing.
 export const levelsOpen = () => !$('levels').hidden;
@@ -489,7 +489,7 @@ function markControls() {
 }
 
 // Read from the numbers, so a rebalanced model gets a true badge without touching this.
-function badgeFor(m) {
+export function badgeFor(m) {
   let badge = { stat: 'all', text: BADGE.allRound }, top = 0;
   for (const [stat, [best, good]] of Object.entries(BADGE.stats)) {
     const fleet = AIRCRAFT.map(a => a[stat]), rank = 1 + fleet.filter(v => v > m[stat]).length;
@@ -501,8 +501,11 @@ function badgeFor(m) {
   return badge;
 }
 
-function markPlanes() {
-  for (const b of $('planes').children) b.setAttribute('aria-pressed', b.dataset.key === settings.plane);
+export function markPlanes() {
+  for (const b of $('planes').children) {
+    b.setAttribute('aria-pressed', b.dataset.key === settings.plane);
+    b.classList.toggle('locked', !owns(b.dataset.key));
+  }
   const m = AIRCRAFT.find(a => a.key === settings.plane) || AIRCRAFT[0];
   $('planeNote').textContent = m.note;
   const rows = [['Power', m.thrust, 1.6], ['Speed', m.speed, 1.7], ['Battery', m.battery, 1.4], ['Toughness', m.tough, 1.9]];
@@ -544,6 +547,10 @@ export function initSheet() {
     b.innerHTML = `${a.name}<small class="${badge.stat}">${badge.text}</small>`;
     b.dataset.key = a.key;
     b.addEventListener('click', () => {
+      if (!owns(a.key)) {
+        $('planeNote').textContent = `${a.name} costs $${SHOP.aircraft[a.key]} in the Shop on the level map`;
+        return;
+      }
       settings.plane = a.key;
       saveSettings();
       markPlanes();

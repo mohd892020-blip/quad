@@ -4,7 +4,7 @@ import {
   AIRCRAFT, BATTERY, CAMERA, DELIVERY, DEV, DRONE, HANGAR, HEADING, HEALTH, LEVELS, MISSION, ORDERS, POINTER, RESTAURANT, RIVAL, ROPE, ROPE_CTL, WIND,
 } from './config.js';
 import { currentModel } from './drone.js';
-import { loadProgress, saveProgress, settings } from './storage.js';
+import { loadProgress, owns, saveProgress, settings } from './storage.js';
 import { addMark, blast, ctx, glow, hud, pop, puff, showToast, view, X, Y } from './ui.js';
 import { nearby, nearestShop, shopPad, world } from './world.js';
 
@@ -167,10 +167,10 @@ export function hangarHint(st) {
     : item.urgent ? ['fpv', `Urgent: try ${named('fpv').name}`]
     : item.wind >= c.windyFrom ? ['hexa', `Catches the wind: try ${named('hexa').name}`]
     : null;
-  if (pick) return pick[0] === settings.plane ? null : pick[1];
+  if (pick) return pick[0] === settings.plane ? null : owns(pick[0]) ? pick[1] : `${pick[1]} from the Shop`;
   if (st.del % c.rotate !== 0) return null;
   const next = AIRCRAFT[(st.del / c.rotate + 1) % AIRCRAFT.length];
-  return next.key === settings.plane ? null : `Try the ${next.name}`;
+  return next.key === settings.plane || !owns(next.key) ? null : `Try the ${next.name}`;
 }
 
 const NO_ZONE = { rope: false, hold: false };

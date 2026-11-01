@@ -1,6 +1,6 @@
 import { sfx } from './audio.js';
-import { AIRCRAFT, AUDIO, BOOST, DRONE, EDGE, G, HEALTH, HOLD, LOAD, SHADOW } from './config.js';
-import { settings } from './storage.js';
+import { AIRCRAFT, AUDIO, BOOST, DRONE, EDGE, G, HEALTH, HOLD, LOAD, SHADOW, SHOP } from './config.js';
+import { garage, settings } from './storage.js';
 import { addMark, ctx, glow, kickDust, view, X, Y } from './ui.js';
 import { nearby, roofAt } from './world.js';
 
@@ -16,7 +16,16 @@ function circleRect(o, r, R) {
   return { nx: dx / d, ny: dy / d, p: r - d };
 }
 
-export const currentModel = () => AIRCRAFT.find(a => a.key === settings.plane) || AIRCRAFT[0];
+// The chosen aircraft with the bought parts fitted. Flight asks every step, so it is kept until either changes.
+const fit = { plane: null, version: -1, model: null };
+export function currentModel() {
+  if (fit.plane !== settings.plane || fit.version !== garage.version) {
+    const model = { ...(AIRCRAFT.find(a => a.key === settings.plane) || AIRCRAFT[0]) };
+    for (const p of SHOP.parts) model[p.stat] *= 1 + p.gain * Math.min(garage.parts[p.key] || 0, SHOP.partPrices.length);
+    Object.assign(fit, { plane: settings.plane, version: garage.version, model });
+  }
+  return fit.model;
+}
 
 // How hard the motors are working, for the rotor sound.
 export function rotorLoad(st, keys) {

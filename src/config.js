@@ -190,6 +190,29 @@ export const BADGE = {
   },
 };
 
+// The first aircraft is free and the rest are bought with delivery money. A part fits every
+// aircraft: stat says what it multiplies, gain is how much each level adds.
+export const SHOP = {
+  aircraft: { miniFold: 150, hexa: 200, x8: 200, cage: 250, agri: 250, tandem: 300, whoop: 350, tilt: 450, heavy: 450, vtol: 550, fpv: 600 },
+  partPrices: [100, 220, 400],
+  parts: [
+    { key: 'motors', stat: 'thrust', gain: .06, name: 'Stronger motors', note: '+6% lift each' },
+    { key: 'shell', stat: 'speed', gain: .06, name: 'Sleek shell', note: '+6% speed each' },
+    { key: 'cells', stat: 'battery', gain: .1, name: 'Bigger battery', note: '+10% flying time each' },
+    { key: 'frame', stat: 'tough', gain: .15, name: 'Reinforced frame', note: '+15% toughness each' },
+  ],
+};
+
+// The player's score against computer pilots; a full 120 stars plus steady replays reach the top.
+export const LEAGUE = {
+  perStar: 100,
+  perDelivery: 5,
+  pilots: [
+    ['Sky Fox', 12600], ['Rotor Rex', 11200], ['Night Owl', 9800], ['Blue Kite', 8400], ['Iron Wing', 7000], ['Copper Hawk', 5800],
+    ['Dust Devil', 4600], ['Zero Wind', 3500], ['Captain Prop', 2500], ['Mint Comet', 1600], ['Low Battery', 800], ['Rookie Rotor', 300],
+  ],
+};
+
 // When a shop suggests another aircraft while it makes the order.
 export const HANGAR = { heavyFrom: 1.8, fragileFrom: 1.6, windyFrom: 1.6, rotate: 3, tipGap: 10, previewHeight: 68 };
 

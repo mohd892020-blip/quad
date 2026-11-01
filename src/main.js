@@ -1,6 +1,7 @@
 import { drawBoost, drawCars, drawHawks, drawRival, stepAction, stepTraffic } from './action.js';
 import { initAudio, updateRotor } from './audio.js';
 import { CAMERA, CITY_SEED, DRONE, DUST, FIXED_DT, GROUND, HANGAR, HUD_INTERVAL, MAX_FRAME_DT, QUALITY } from './config.js';
+import { initLeague } from './league.js';
 import { buildLevels } from './levels.js';
 import {
   autoDeliver, chargeDrone, drawBatteryCue, drawHalos, drawHeading, drawPointer, drawPrep, drawTarget, failMission, hangarHint, newGame, stepHealth, stepCargo, stepHeading, stepMission,
@@ -10,6 +11,7 @@ import { currentModel, drawAirframe, drawDrone, drawShadow, rotorLoad, stepBoost
 import { beginTraining, drawLesson, stepTraining, trainingLevel } from './training.js';
 import { initInput, keys } from './input.js';
 import { drawRope, stepRope, stepRopeLength } from './rope.js';
+import { initShop } from './shop.js';
 import { loadProgress, settings } from './storage.js';
 import {
   ctx, drawFx, drawMarks, hideModals, hideOverlay, hud, initLevels, initSheet, kickDust, levelsOpen, lowerQuality, lowestTier, measureHud, modalOpen, onDevActions, onStart,
@@ -194,6 +196,8 @@ function idle() {
 initInput();
 initAudio();
 initSheet();
+initShop();
+initLeague();
 onStart(() => {
   hideOverlay();
   // a brand new player flies the lessons first

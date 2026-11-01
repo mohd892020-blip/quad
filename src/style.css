@@ -195,3 +195,30 @@ body{background:var(--night);color:var(--ink);font-family:var(--body);overflow:h
   #lesson b{font-size:17px}
   #lesson span{font-size:12px}
 }
+.barBtn{font-family:var(--body);font-weight:800;font-size:14px;min-height:40px;padding:0 12px;border-radius:20px;border:2px solid var(--cheese);background:transparent;color:var(--cheese);cursor:pointer}
+.barBtn:focus-visible{outline:3px solid var(--cheese);outline-offset:3px}
+@media (max-width:430px){#levelsBar b{display:none}}
+#shop,#league{place-items:start center}
+#shop .card,#league .card{text-align:start}
+.shopHead{display:flex;justify-content:space-between;align-items:center;position:relative;z-index:1}
+.shopHead b{font-family:var(--display);font-weight:400;font-size:26px;color:#c98a12}
+#shop h3{font-size:13px;letter-spacing:.06em;text-transform:uppercase;margin:6px 0 0;position:relative;z-index:1}
+#shopParts,#shopPlanes{display:grid;gap:6px;position:relative;z-index:1}
+.shopRow{display:flex;align-items:center;gap:10px;min-height:48px;padding:4px 8px;border-radius:8px;background:rgba(42,27,20,.07)}
+.shopRow p{flex:1;min-width:0;line-height:1.2}
+.shopRow p b{display:block;font-size:15px}
+.shopRow p small{font-size:12px;font-weight:700;color:#6a5040}
+.shopRow span{font-size:13px;letter-spacing:1px;color:#c98a12;white-space:nowrap}
+.shopRow canvas{width:72px;height:36px;flex:none;border-radius:6px;background:linear-gradient(#3b2452,#b4505a)}
+.shopRow em{font-style:normal;font-weight:800;font-size:14px;color:#2f8f5a;min-width:56px;text-align:center}
+.shopRow .go,.shopRow .ghost{font-size:16px;min-height:40px;min-width:68px;padding:0 10px;border-radius:20px}
+.shopRow .go:disabled{background:#8e8378;cursor:default}
+.chips button.locked{opacity:.55;border-style:dashed}
+#league .fine{font-size:13px;font-weight:700;color:#6a5040}
+#leagueRank{font-size:18px}
+#leagueRows{list-style:none;margin:4px 0;padding:0;display:grid;gap:2px;position:relative;z-index:1}
+#leagueRows li{display:grid;grid-template-columns:30px 1fr auto;gap:8px;align-items:center;min-height:30px;padding:0 10px;border-radius:6px;font-size:15px}
+#leagueRows li b{font-weight:800;color:#6a5040}
+#leagueRows li em{font-style:normal;font-weight:800;font-variant-numeric:tabular-nums}
+#leagueRows li.you{background:var(--tomato);color:#fff}
+#leagueRows li.you b{color:#fff}

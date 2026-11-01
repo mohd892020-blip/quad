@@ -1,11 +1,30 @@
+import { AIRCRAFT } from './config.js';
+
 const PROGRESS_KEY = 'pizzaCityV1';
 const SETTINGS_KEY = 'pizzaSettingsV1';
+const GARAGE_KEY = 'pizzaGarageV1';
 
 export const settings = { controls: 'joystick', plane: 'courier', dev: false, muted: false, quality: 0, trained: false };
 
 try {
   Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {});
 } catch (_) {}
+
+// What the player has bought. It lives in memory, so flight code never touches storage.
+export const garage = { owned: [], parts: {}, version: 0 };
+try {
+  const saved = JSON.parse(localStorage.getItem(GARAGE_KEY));
+  if (Array.isArray(saved?.owned)) garage.owned = saved.owned.filter(k => typeof k === 'string');
+  for (const [k, v] of Object.entries(saved?.parts ?? {})) if (Number.isInteger(v) && v > 0) garage.parts[k] = v;
+} catch (_) {}
+
+export function saveGarage() {
+  garage.version++;
+  try { localStorage.setItem(GARAGE_KEY, JSON.stringify({ owned: garage.owned, parts: garage.parts })); } catch (_) {}
+}
+
+export const owns = key => key === AIRCRAFT[0].key || settings.dev || garage.owned.includes(key);
+if (!owns(settings.plane)) settings.plane = AIRCRAFT[0].key;
 
 export function saveSettings() {
   try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (_) {}
