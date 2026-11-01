@@ -1,5 +1,5 @@
 import { toggleMute } from './audio.js';
-import { AIRCRAFT, DEV, DUST, FX, G, HANGAR, HEALTH, LEVELS, MISSION, POINTER, QUALITY, ROPE, ROPE_CTL, SHAKE, VIEW, WIND } from './config.js';
+import { AIRCRAFT, BADGE, DEV, DUST, FX, G, HANGAR, HEALTH, LEVELS, MISSION, POINTER, QUALITY, ROPE, ROPE_CTL, SHAKE, VIEW, WIND } from './config.js';
 import { applyControls } from './input.js';
 import { loadProgress, saveSettings, settings } from './storage.js';
 
@@ -482,6 +482,19 @@ function markControls() {
   $('ctlArrows').setAttribute('aria-pressed', settings.controls === 'arrows');
 }
 
+// Read from the numbers, so a rebalanced model gets a true badge without touching this.
+function badgeFor(m) {
+  let badge = { stat: 'all', text: BADGE.allRound }, top = 0;
+  for (const [stat, [best, good]] of Object.entries(BADGE.stats)) {
+    const fleet = AIRCRAFT.map(a => a[stat]), rank = 1 + fleet.filter(v => v > m[stat]).length;
+    const lead = m[stat] / (fleet.reduce((sum, v) => sum + v, 0) / fleet.length);
+    if (rank > BADGE.topRank || lead <= top) continue;
+    top = lead;
+    badge = { stat, text: rank === 1 ? best : good };
+  }
+  return badge;
+}
+
 function markPlanes() {
   for (const b of $('planes').children) b.setAttribute('aria-pressed', b.dataset.key === settings.plane);
   const m = AIRCRAFT.find(a => a.key === settings.plane) || AIRCRAFT[0];
@@ -521,8 +534,8 @@ function showDev() {
 export function initSheet() {
   const planes = $('planes');
   for (const a of AIRCRAFT) {
-    const b = document.createElement('button');
-    b.textContent = a.name;
+    const b = document.createElement('button'), badge = badgeFor(a);
+    b.innerHTML = `${a.name}<small class="${badge.stat}">${badge.text}</small>`;
     b.dataset.key = a.key;
     b.addEventListener('click', () => {
       settings.plane = a.key;

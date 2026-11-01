@@ -174,6 +174,19 @@ export const AIRCRAFT = [
   { key: 'tilt', name: 'Tiltrotor', gear: 'retract', thrust: .9, speed: 1.45, battery: 1.2, tough: .8, hz: [150, 240], note: 'Rotors swing forward at speed' },
 ];
 
+// Picker badge: of the stats a model ranks in the top topRank for, the one furthest above
+// the fleet average. Text is [best in the fleet, top rank]. No such stat means all-round.
+export const BADGE = {
+  topRank: 4,
+  allRound: 'All-round',
+  stats: {
+    thrust: ['Strongest', 'Strong'],
+    speed: ['Fastest', 'Fast'],
+    battery: ['Longest range', 'Long range'],
+    tough: ['Toughest', 'Tough'],
+  },
+};
+
 // When a shop suggests another aircraft while it makes the order.
 export const HANGAR = { heavyFrom: 1.8, fragileFrom: 1.6, windyFrom: 1.6, rotate: 3, tipGap: 10, previewHeight: 68 };
 
@@ -385,10 +398,16 @@ export const AUDIO = {
   idleGain: .05,
   liftGain: .11,
   toneMix: .55,
-  noiseMix: .5,
-  noiseHz: 900,
-  noiseLiftHz: 1500,
-  noiseQ: .7,
+  noiseMix: .35,
+  noiseHz: 750,
+  noiseLiftHz: 1200,
+  noiseQ: 1,
+  latency: 'balanced',
+  maxHz: 420,
+  maxCut: 1700,
+  maxNoiseHz: 1700,
+  softCut: 2600,
+  pitchTrim: .35,
   sfxGain: .5,
   maxVoices: 6,
   sfxGap: .12,
