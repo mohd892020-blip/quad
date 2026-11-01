@@ -16,6 +16,7 @@ export function newGame() {
     box: { x: p.x, y: p.y - BOX.startAbovePad, px: p.x, py: p.y - BOX.startAbovePad },
     has: true, heat: 100, integ: 100, order: null, hold: 0, charge: 0,
     wind: 0, windT: 0, windNext: WIND.firstAt, pops: [], parts: [], shake: 0, over: false, running: true, acc: 0,
+    dust: [], dustN: 0, onGround: false,
   };
   current = st;
   pickOrder(st);

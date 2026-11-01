@@ -1,4 +1,4 @@
-import { DRONE, G } from './config.js';
+import { DRONE, G, SHADOW } from './config.js';
 import { ctx, pop, view, X, Y } from './ui.js';
 import { world } from './world.js';
 
@@ -57,6 +57,28 @@ export function stepDrone(st, keys, dt) {
   d.x = dr.x;
   d.y = dr.y;
   return grounded;
+}
+
+// Soft shadow on the nearest surface below; fades out and widens with height.
+export function drawShadow(st) {
+  const d = st.d, S = view.S, c = SHADOW;
+  let floor = null;
+  for (const R of world.colliders) {
+    if (d.x >= R.x && d.x <= R.x + R.w && R.y >= d.y && (!floor || R.y < floor.y)) floor = R;
+  }
+  if (!floor) return;
+  const h = floor.y - d.y, alpha = c.alpha * (1 - h / c.maxHeight);
+  if (alpha <= 0) return;
+  const r = c.radius + h * c.radiusGrow;
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(X(floor.x), Y(floor.y - r), floor.w * S, r * S);
+  ctx.clip();
+  ctx.fillStyle = `rgba(20,12,24,${alpha})`;
+  ctx.beginPath();
+  ctx.ellipse(X(d.x), Y(floor.y - c.lift), r * S, r * c.flat * S, 0, 0, 7);
+  ctx.fill();
+  ctx.restore();
 }
 
 export function drawDrone(st) {

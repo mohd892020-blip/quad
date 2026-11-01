@@ -1,9 +1,10 @@
-import { CAMERA, FIXED_DT, GROUND, HUD_INTERVAL, IDLE_SEED, MAX_FRAME_DT } from './config.js';
+import { initAudio, updateRotor } from './audio.js';
+import { CAMERA, DRONE, DUST, FIXED_DT, GROUND, HUD_INTERVAL, IDLE_SEED, MAX_FRAME_DT } from './config.js';
 import { newGame, stepCargo, stepRestaurant, drawPointer, drawTarget } from './delivery.js';
-import { drawDrone, stepDrone } from './drone.js';
+import { drawDrone, drawShadow, stepDrone } from './drone.js';
 import { initInput, keys } from './input.js';
 import { drawRope, stepRope } from './rope.js';
-import { ctx, drawFx, endShift, hideOverlay, hud, onStart, stepFx, view } from './ui.js';
+import { ctx, drawFx, endShift, hideOverlay, hud, kickDust, onStart, shakeOffset, stepFx, view } from './ui.js';
 import { drawCity, drawSky, genWorld, stepCamera, stepWind } from './world.js';
 
 let st = null, hudT = 0, last = performance.now();
@@ -11,7 +12,10 @@ let st = null, hudT = 0, last = performance.now();
 function step(dt) {
   st.t += dt;
   stepWind(st, dt);
+  const fall = st.d.vy;
   const grounded = stepDrone(st, keys, dt);
+  if (grounded && !st.onGround && fall > DUST.minSpeed) kickDust(st, st.d.x, st.d.y + DRONE.radius, fall);
+  st.onGround = grounded;
   if (st.has) {
     stepRope(st, dt);
     stepCargo(st, dt);
@@ -24,8 +28,8 @@ function step(dt) {
 }
 
 function rememberPose() {
-  const { cam, d, box, has } = st;
-  st.prev = { camX: cam.x, camY: cam.y, x: d.x, y: d.y, a: d.a, boxX: box.x, boxY: box.y, has };
+  const { t, cam, d, box, has } = st;
+  st.prev = { t, camX: cam.x, camY: cam.y, x: d.x, y: d.y, a: d.a, boxX: box.x, boxY: box.y, has };
 }
 
 // A display faster than the physics gets frames with no new step, which would
@@ -36,6 +40,7 @@ function blended() {
   const t = Math.min(1, st.acc / FIXED_DT), mix = (a, b) => a + (b - a) * t;
   return {
     ...st,
+    t: mix(p.t, st.t),
     cam: { x: mix(p.camX, st.cam.x), y: mix(p.camY, st.cam.y) },
     d: { ...st.d, x: mix(p.x, st.d.x), y: mix(p.y, st.d.y), a: mix(p.a, st.d.a) },
     // a box picked up this step teleported to the drone, so it has nothing to blend from
@@ -48,10 +53,10 @@ function render() {
   ctx.setTransform(view.DPR, 0, 0, view.DPR, 0, 0);
   view.cam = s.cam;
   drawSky(s);
-  const sh = s.shake;
   ctx.save();
-  if (sh) ctx.translate((Math.random() - .5) * sh, (Math.random() - .5) * sh);
+  if (s.shake) ctx.translate(...shakeOffset(s));
   drawCity(s);
+  drawShadow(s);
   drawTarget(s);
   drawRope(s);
   drawDrone(s);
@@ -75,6 +80,7 @@ function loop(now) {
     if (hudT > HUD_INTERVAL) { hud(st); hudT = 0; }
   }
   render();
+  updateRotor(st.running && st.d.bat > 0, !!keys.u);
   requestAnimationFrame(loop);
 }
 
@@ -102,6 +108,7 @@ function idle() {
 }
 
 initInput();
+initAudio();
 onStart(start);
 genWorld(IDLE_SEED);
 idle();

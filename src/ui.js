@@ -1,4 +1,4 @@
-import { FX, G, VIEW } from './config.js';
+import { DUST, FX, G, SHAKE, VIEW } from './config.js';
 import { updateBest } from './storage.js';
 
 const $ = id => document.getElementById(id);
@@ -32,12 +32,48 @@ export function shade(hex, f) {
   return `rgb(${r},${g},${b})`;
 }
 
+// Smooth screen shake; follows the shift clock instead of a dice roll per frame.
+export function shakeOffset(st) {
+  const c = SHAKE, sh = st.shake;
+  const amp = sh * sh / (sh + c.soft) * c.amp * view.S;
+  const wave = ([a, b]) => (Math.sin(st.t * a) + Math.sin(st.t * b) * c.secondWave) / (1 + c.secondWave);
+  return [wave(c.freqX) * amp, wave(c.freqY) * amp];
+}
+
 /* ---------- popups and particles ---------- */
 export function pop(st, x, y, txt, col) {
   st.pops.push({ x, y, txt, col, t: 0 });
 }
 
+// Cosmetic variation that stays out of the gameplay random stream.
+function noise(i) {
+  const s = Math.sin(i * 12.9898) * 43758.5453;
+  return s - Math.floor(s);
+}
+
+export function kickDust(st, x, y, speed) {
+  const c = DUST, n = Math.min(c.countMax, c.countMin + Math.floor(speed * c.countPerSpeed));
+  for (let i = 0; i < n; i++) {
+    const k = st.dustN++, side = noise(k) * 2 - 1;
+    st.dust.push({
+      x: x + side * c.spawnWidth, y,
+      vx: side * c.spreadX * (.5 + .5 * noise(k + .5)),
+      vy: -c.riseMin - noise(k + .25) * c.riseRange,
+      t: 0, life: c.lifeMin + noise(k + .75) * c.lifeRange,
+    });
+  }
+}
+
 export function stepFx(st, dt) {
+  const drag = Math.pow(DUST.drag, dt);
+  for (const q of st.dust) {
+    q.t += dt;
+    q.vx *= drag;
+    q.vy *= drag;
+    q.x += (q.vx + st.wind * FX.steamDrift) * dt;
+    q.y += q.vy * dt;
+  }
+  st.dust = st.dust.filter(q => q.t < q.life);
   for (const q of st.pops) q.t += dt;
   st.pops = st.pops.filter(q => q.t < FX.popLife);
   for (const q of st.parts) {
@@ -51,6 +87,13 @@ export function stepFx(st, dt) {
 
 export function drawFx(st) {
   const { W, H, S } = view;
+  for (const q of st.dust) {
+    const age = q.t / q.life;
+    ctx.fillStyle = `rgba(216,187,152,${DUST.alpha * (1 - age)})`;
+    ctx.beginPath();
+    ctx.arc(X(q.x), Y(q.y), (DUST.sizeStart + age * DUST.sizeGrow) * S, 0, 7);
+    ctx.fill();
+  }
   for (const q of st.parts) {
     if (q.crumb) {
       ctx.fillStyle = q.t < .6 ? '#ffc23d' : '#e8492c';

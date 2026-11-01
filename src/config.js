@@ -127,6 +127,55 @@ export const FX = {
   steamDrift: .3,
 };
 
+export const SHAKE = {
+  amp: .45,
+  soft: 2,
+  freqX: [38, 61],
+  freqY: [47, 83],
+  secondWave: .5,
+};
+
+export const DUST = {
+  minSpeed: 60,
+  countMin: 6,
+  countPerSpeed: .05,
+  countMax: 22,
+  spawnWidth: 18,
+  spreadX: 130,
+  riseMin: 15,
+  riseRange: 45,
+  drag: .02,
+  lifeMin: .45,
+  lifeRange: .35,
+  sizeStart: 2.5,
+  sizeGrow: 13,
+  alpha: .5,
+};
+
+export const SHADOW = {
+  maxHeight: 420,
+  alpha: .42,
+  radius: 30,
+  radiusGrow: .06,
+  flat: .22,
+  lift: 3,
+};
+
+export const AUDIO = {
+  smooth: .07,
+  idleHz: 92,
+  liftHz: 148,
+  detune: 9,
+  idleCut: 520,
+  liftCut: 1250,
+  idleGain: .05,
+  liftGain: .11,
+  toneMix: .55,
+  noiseMix: .5,
+  noiseHz: 900,
+  noiseQ: .7,
+};
+
 export const CITY = {
   leftBuilding: { x: -330, w: 250, h: 190 },
   restaurant: { x: -10, w: 240, h: 150 },
