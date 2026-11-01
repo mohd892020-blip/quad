@@ -1,4 +1,4 @@
-import { BIRDS, CAMERA, CELL, CITY, GROUND, GROUND_BOX, MISSION, PEOPLE, PERSPECTIVE, SHOPS, SPRITE, TIMES, WIND, ZONES } from './config.js';
+import { BIRDS, CAMERA, CELL, CITY, CLOCK, GROUND, GROUND_BOX, PEOPLE, PERSPECTIVE, SHOPS, SPRITE, TIMES, WIND, ZONES } from './config.js';
 import { ctx, glow, shade, view, X, Y } from './ui.js';
 
 const CLOTHES = ['#e8492c', '#f2efe6', '#4fa3c2', '#ffc23d', '#7cc28f', '#d97aa8'];
@@ -6,7 +6,7 @@ const SHIRTS = ['#e8492c', '#4fa3c2', '#ffc23d', '#7cc28f', '#d97aa8', '#f2efe6'
 
 export const world = {
   B: [], solids: [], cells: [], edge: [], lines: [], targets: [], shops: [], rigs: [],
-  far1: [], far2: [], people: [], flocks: [], span: 1, time: 0, live: new Set(),
+  far1: [], far2: [], people: [], flocks: [], span: 1, clock: 0, pal: null, palKey: -1, live: new Set(),
 };
 
 function rng(a) {
@@ -29,14 +29,9 @@ export function zoneAt(x) {
   return zone;
 }
 
-// The charging pad and the job beacon sit at opposite ends of a shop roof,
-// so landing to charge never starts a job by accident.
+// The green pad on a shop roof: landing here orders the job and charges the battery.
 export function shopPad(b) {
   return { x: b.x + CITY.padInset, y: b.top };
-}
-
-export function shopBeacon(b) {
-  return { x: b.x + b.w - MISSION.beaconInset, y: b.top - MISSION.beaconLift };
 }
 
 export function nearestShop(x) {
@@ -212,9 +207,39 @@ export function dropSprites() {
   world.live.clear();
 }
 
-export function setTime(i) {
-  world.time = i % TIMES.length;
+function mixHex(a, b, t) {
+  const n = parseInt(a.slice(1), 16), m = parseInt(b.slice(1), 16);
+  const ch = sh => Math.round((n >> sh & 255) + ((m >> sh & 255) - (n >> sh & 255)) * t);
+  return `#${((1 << 24) + (ch(16) << 16) + (ch(8) << 8) + ch(0)).toString(16).slice(1)}`;
+}
+
+function blendTimes(a, b, t) {
+  const num = k => a[k] + (b[k] - a[k]) * t, col = k => mixHex(a[k], b[k], t);
+  return {
+    sky: a.sky.map(([at, c], i) => [at, mixHex(c, b.sky[i][1], t)]),
+    lit: a.lit.map((c, i) => mixHex(c, b.lit[i], t)),
+    stars: num('stars'), discCut: num('discCut'), light: num('light'), extraLit: num('extraLit'), windowGlow: num('windowGlow'), signGlow: num('signGlow'),
+    disc: col('disc'), discShade: col('discShade'), far1: col('far1'), far2: col('far2'), ground: col('ground'), walk: col('walk'),
+  };
+}
+
+// The sky blends every frame it changes, but buildings are cached images, so the
+// fade moves in small steps and each step repaints only what is on screen.
+export function setClock(seconds) {
+  const c = CLOCK, span = c.hold + c.fade, n = TIMES.length, day = span * n;
+  world.clock = (seconds % day + day) % day;
+  const i = Math.floor(world.clock / span), into = world.clock - i * span;
+  const t = into < c.hold ? 0 : Math.round((into - c.hold) / c.fade * c.steps) / c.steps;
+  const key = i + t * .99;
+  if (key === world.palKey) return;
+  world.palKey = key;
+  world.pal = blendTimes(TIMES[i], TIMES[(i + 1) % n], t);
   dropSprites();
+}
+setClock(CLOCK.startAt * (CLOCK.hold + CLOCK.fade));
+
+export function stepClock(dt) {
+  setClock(world.clock + dt);
 }
 
 export function stepWind(st, dt) {
@@ -238,12 +263,12 @@ export function stepCamera(st, dt) {
 
 /* ---------- render ---------- */
 export function drawSky(st) {
-  const { W, H, S } = view, time = TIMES[world.time];
+  const { W, H, S } = view, time = world.pal;
   const g = ctx.createLinearGradient(0, 0, 0, H);
   for (const [at, col] of time.sky) g.addColorStop(at, col);
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, W, H);
-  if (time.stars) {
+  if (time.stars > .02) {
     ctx.fillStyle = `rgba(255,243,223,${time.stars})`;
     for (let i = 0; i < 50; i++) {
       const sx = ((i * 137.5 - st.cam.x * .05) % W + W) % W, sy = (i * 71) % (H * .45);
@@ -255,10 +280,10 @@ export function drawSky(st) {
   ctx.beginPath();
   ctx.arc(mx, my, 26 * S, 0, 7);
   ctx.fill();
-  if (time.discShade) {
+  if (time.discCut > .02) {
     ctx.fillStyle = time.discShade;
     ctx.beginPath();
-    ctx.arc(mx + 10 * S, my - 6 * S, 23 * S, 0, 7);
+    ctx.arc(mx + 10 * S, my - 6 * S, 23 * S * time.discCut, 0, 7);
     ctx.fill();
   }
 }
@@ -291,7 +316,7 @@ function drawFar(st, arr, par, col, baseOff, scale) {
 
 // Paints the parts of a building that do not change with the camera, in world units.
 function paintBuilding(g, b) {
-  const time = TIMES[world.time], c = CITY, z = b.zone, style = z.style;
+  const time = world.pal, c = CITY, z = b.zone, style = z.style;
   const L = b.x, T = b.top, Bt = GROUND + 60;
   g.fillStyle = shade(b.col, time.light);
   g.fillRect(L, T, b.w, Bt - T);
@@ -316,7 +341,11 @@ function paintBuilding(g, b) {
       g.arc(wx + z.winW / 2, wy, z.winW / 2, Math.PI, 0);
       g.fill();
     }
-    if (time.windowGlow && lit) glow(g, 'rgba(255,190,110,.5)', wx + z.winW / 2, wy + z.winH / 2, 22);
+    if (time.windowGlow > .05 && lit) {
+      g.globalAlpha = time.windowGlow;
+      glow(g, 'rgba(255,190,110,.5)', wx + z.winW / 2, wy + z.winH / 2, 22);
+      g.globalAlpha = 1;
+    }
     if (style !== 'tower') {
       g.fillStyle = sill;
       g.fillRect(wx - 2, wy + z.winH, z.winW + 4, 2.5);
@@ -370,7 +399,7 @@ function paintBuilding(g, b) {
     g.setLineDash([]);
     g.fillStyle = '#4fc27c';
     g.font = '700 11px Tajawal,sans-serif';
-    g.fillText('Charge', p.x, p.y - 10);
+    g.fillText('Pickup + Charge', p.x, p.y - 10);
   }
   if (b.tank) {
     const t = b.tank;
@@ -427,7 +456,7 @@ function spriteOf(b) {
 }
 
 function drawBuildings() {
-  const { W, S, DPR, viewW, viewH } = view, p = SPRITE, light = TIMES[world.time].light;
+  const { W, S, DPR, viewW, viewH } = view, p = SPRITE, light = world.pal.light;
   const vpx = view.cam.x + viewW / 2, vpy = view.cam.y + viewH * PERSPECTIVE.eyeY, f = PERSPECTIVE.depth;
   const back = (x, y) => [X(vpx + (x - vpx) * f), Y(vpy + (y - vpy) * f)];
   const vis = world.B.filter(b => X(b.x + b.w) > -120 && X(b.x) < W + 120)
@@ -543,7 +572,7 @@ function drawPeople(st) {
 function drawBirds(st) {
   if (view.lowQ) return;
   const { W, S } = view, c = BIRDS;
-  ctx.strokeStyle = TIMES[world.time].stars ? 'rgba(240,235,225,.75)' : 'rgba(40,40,55,.8)';
+  ctx.strokeStyle = world.pal.stars > .3 ? 'rgba(240,235,225,.75)' : 'rgba(40,40,55,.8)';
   ctx.lineWidth = 1.4 * S;
   ctx.beginPath();
   for (const f of world.flocks) {
@@ -610,7 +639,7 @@ export function drawMap(st) {
 }
 
 export function drawCity(st) {
-  const { W, H } = view, time = TIMES[world.time];
+  const { W, H } = view, time = world.pal;
   drawFar(st, world.far2, .25, time.far2, 40, .9);
   if (!view.lowQ) drawFar(st, world.far1, .5, time.far1, 10, 1);
   ctx.fillStyle = time.ground;

@@ -1,11 +1,11 @@
 import { clearAction, planMission } from './action.js';
 import { sfx } from './audio.js';
 import {
-  BOX, CAMERA, CITY_SEED, DELIVERY, DEV, DRONE, HEADING, ITEMS, MISSION, ORDERS, RESTAURANT, RINGS, RIVAL, ROPE, ROPE_CTL, WIND,
+  BOX, CAMERA, CITY_SEED, DELIVERY, DEV, DRONE, HEADING, ITEMS, MISSION, ORDERS, RESTAURANT, RIVAL, ROPE, ROPE_CTL, WIND,
 } from './config.js';
 import { loadProgress, saveProgress } from './storage.js';
 import { ctx, glow, hud, pop, showToast, view, X, Y } from './ui.js';
-import { genWorld, nearestShop, setTime, shopBeacon, shopPad, world } from './world.js';
+import { genWorld, nearestShop, shopPad, world } from './world.js';
 
 let current = null;
 export const currentShift = () => current;
@@ -20,7 +20,7 @@ export function newGame() {
     has: false, heat: 100, integ: 100, order: null, item: null, hold: 0, readyAt: 0,
     wind: 0, windT: 0, windNext: WIND.firstAt, pops: [], parts: [], shake: 0, acc: 0,
     dust: [], dustN: 0, onGround: true, ropeLen: ROPE, anchor: null, wrong: 0,
-    boost: 100, boosting: false, boostDir: 1, boostWait: 0, combo: 0, rings: [], ringsHit: 0, hawks: [], rival: null, lastX: p.x,
+    boost: 100, boosting: false, boostDir: 1, boostWait: 0, hawks: [], rival: null, prep: null,
   };
   current = st;
   return st;
@@ -42,9 +42,13 @@ function pickTarget(st, shop) {
   return pool[(Math.random() * pool.length) | 0];
 }
 
-export function startMission(st, shop) {
-  const m = MISSION, t = pickTarget(st, shop), items = shop.shop.items;
-  const item = ITEMS[items[(Math.random() * items.length) | 0]];
+const pickItem = shop => {
+  const items = shop.shop.items;
+  return ITEMS[items[(Math.random() * items.length) | 0]];
+};
+
+export function startMission(st, shop, item = pickItem(shop)) {
+  const m = MISSION, t = pickTarget(st, shop), p = shopPad(shop);
   const dist = Math.abs(t.x - st.d.x);
   let limit = m.baseTime + dist / m.speed + Math.max(0, item.weight - 1) * m.heavyTime;
   if (item.urgent) limit *= m.urgentTime;
@@ -54,8 +58,8 @@ export function startMission(st, shop) {
   st.integ = 100;
   st.has = true;
   st.ropeLen = ROPE;
-  st.box.x = st.box.px = st.d.x;
-  st.box.y = st.box.py = st.d.y + BOX.anchorY + ROPE;
+  st.box.x = st.box.px = st.d.x + RESTAURANT.boxOffsetX;
+  st.box.y = st.box.py = p.y - RESTAURANT.boxLift;
   planMission(st, shop);
   sfx('pickup');
   hud(st);
@@ -72,7 +76,6 @@ function endMission(st) {
 }
 
 export function failMission(st, why) {
-  st.combo = 0;
   endMission(st);
   showToast('MISSION FAILED', why, false);
   hud(st);
@@ -82,31 +85,45 @@ function passMission(st) {
   const c = DELIVERY, o = st.order, secs = st.t - o.start;
   const base = c.tipBase + st.heat * c.tipHeat + st.integ * c.tipBox + (secs < c.tipFastSecs ? c.tipFastBonus : secs < c.tipOkSecs ? c.tipOkBonus : 0);
   const beat = st.rival ? RIVAL.bonus : 0;
-  const tip = Math.round(st.item.urgent ? base * c.urgentTip : base) + st.ringsHit * RINGS.tipEach + beat;
+  const tip = Math.round(st.item.urgent ? base * c.urgentTip : base) + beat;
   st.money += tip;
   st.del++;
   endMission(st);
   showToast('MISSION PASSED', beat ? `+$${tip} · Rival beaten` : `+$${tip}`, true);
   pop(st, o.t.x, o.t.y - 50, `+$${tip}`, '#ffc23d');
   sfx('deliver');
-  setTime(world.time + 1);
   saveProgress(st.del, st.money);
   hud(st);
 }
 
 export const missionLeft = st => Math.max(0, st.order.deadline - st.t);
 
-// Starts a job on entering a beacon, and ends one that has run out of time or power.
-export function stepMission(st) {
-  const d = st.d;
+// Landing on a green pad orders a job; the shop needs the item's prep time to make it,
+// and taking off first cancels the order. A running job ends on time or power.
+export function stepMission(st, dt) {
+  const d = st.d, c = MISSION;
   if (st.has) {
     if (st.t >= st.order.deadline) failMission(st, "Time's up");
     else if (d.bat <= 0) failMission(st, 'Battery dead');
     return;
   }
-  if (st.t < st.readyAt) return;
-  const shop = nearestShop(d.x), b = shopBeacon(shop);
-  if (Math.hypot(d.x - b.x, d.y - b.y) < MISSION.beaconRadius) startMission(st, shop);
+  const shop = nearestShop(d.x), p = shopPad(shop);
+  const parked = Math.abs(d.x - p.x) < c.padReach && d.y < p.y && d.y > p.y - DRONE.radius - c.padGap && Math.hypot(d.vx, d.vy) < c.padSpeed;
+  if (!parked || st.t < st.readyAt) {
+    st.prep = null;
+    return;
+  }
+  if (!st.prep) {
+    const item = pickItem(shop);
+    st.prep = { shop, item, left: item.prep };
+    hud(st);
+  }
+  st.prep.left -= dt;
+  if (st.prep.left <= 0) {
+    const { item } = st.prep;
+    st.prep = null;
+    startMission(st, shop, item);
+  }
 }
 
 const NO_ZONE = { rope: false, hold: false };
@@ -124,8 +141,8 @@ export function zones(st) {
 // Where the player should be heading: the customer, or the closest job.
 function goal(st) {
   if (st.has && st.order) return { x: st.order.t.x, y: st.order.t.y, label: 'Customer' };
-  const shop = nearestShop(st.d.x), b = shopBeacon(shop);
-  return { x: b.x, y: b.y, label: shop.shop.name };
+  const shop = nearestShop(st.d.x), p = shopPad(shop);
+  return { x: p.x, y: p.y - 20, label: shop.shop.name };
 }
 
 export function stepHeading(st, dt) {
@@ -186,25 +203,45 @@ export function stepShop(st, grounded, dt) {
 }
 
 /* ---------- render ---------- */
-export function drawBeacons(st) {
-  if (st.has || st.t < st.readyAt) return;
-  const { W, S } = view, pulse = .5 + .5 * Math.sin(st.t * 4);
+// The soft column of light standing on each green pad while a job is free.
+export function drawHalos(st) {
+  if (st.has) return;
+  const { W, S } = view, c = MISSION, pulse = .5 + .5 * Math.sin(st.t * 4);
   for (const shop of world.shops) {
-    const b = shopBeacon(shop), sx = X(b.x);
+    const p = shopPad(shop), sx = X(p.x);
     if (sx < -80 || sx > W + 80) continue;
-    const r = MISSION.beaconRadius;
-    const shaft = ctx.createLinearGradient(0, Y(b.y - 240), 0, Y(shop.top));
+    const top = Y(p.y - c.haloHeight), bottom = Y(p.y);
+    const shaft = ctx.createLinearGradient(0, top, 0, bottom);
     shaft.addColorStop(0, 'rgba(255,194,61,0)');
     shaft.addColorStop(1, `rgba(255,194,61,${.28 + .14 * pulse})`);
     ctx.fillStyle = shaft;
-    ctx.fillRect(sx - r * .55 * S, Y(b.y - 240), r * 1.1 * S, (240 + shop.top - b.y) * S);
-    ctx.strokeStyle = `rgba(255,194,61,${.55 + .45 * pulse})`;
-    ctx.lineWidth = 3 * S;
-    ctx.beginPath();
-    ctx.ellipse(sx, Y(b.y), (r - 6 + pulse * 6) * S, (r - 6 + pulse * 6) * S, 0, 0, 7);
-    ctx.stroke();
-    if (!view.lowQ) glow(ctx, '#ffc23d', sx, Y(b.y), r * .9 * S);
+    ctx.fillRect(sx - c.haloWidth / 2 * S, top, c.haloWidth * S, bottom - top);
+    if (!view.lowQ) glow(ctx, '#ffc23d', sx, Y(p.y - 6), (34 + pulse * 8) * S);
   }
+}
+
+// The same ring as the delivery bar, filling while the shop makes the order.
+export function drawPrep(st) {
+  const p = st.prep;
+  if (!p) return;
+  const S = view.S, x = X(st.d.x), y = Y(st.d.y), done = 1 - p.left / p.item.prep;
+  ctx.lineWidth = 4 * S;
+  ctx.strokeStyle = 'rgba(255,255,255,.25)';
+  ctx.beginPath();
+  ctx.arc(x, y, 30 * S, 0, 7);
+  ctx.stroke();
+  ctx.strokeStyle = '#4fc27c';
+  ctx.beginPath();
+  ctx.arc(x, y, 30 * S, -Math.PI / 2, -Math.PI / 2 + done * Math.PI * 2);
+  ctx.stroke();
+  const text = `Preparing ${p.item.label}`;
+  ctx.font = `${Math.round(16 * S)}px Lalezar,Tajawal,sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = 'rgba(20,15,40,.8)';
+  ctx.strokeText(text, x, y - 40 * S);
+  ctx.fillStyle = '#fff3df';
+  ctx.fillText(text, x, y - 40 * S);
 }
 
 export function drawTarget(st) {

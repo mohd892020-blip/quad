@@ -1,8 +1,8 @@
-import { drawBoost, drawHawks, drawRings, drawRival, stepAction } from './action.js';
+import { drawBoost, drawHawks, drawRival, stepAction } from './action.js';
 import { initAudio, updateRotor } from './audio.js';
 import { CAMERA, CITY_SEED, DRONE, DUST, FIXED_DT, GROUND, HUD_INTERVAL, MAX_FRAME_DT, QUALITY } from './config.js';
 import {
-  autoDeliver, chargeDrone, drawBeacons, drawHeading, drawPointer, drawTarget, failMission, newGame, stepCargo, stepHeading, stepMission,
+  autoDeliver, chargeDrone, drawHalos, drawHeading, drawPointer, drawPrep, drawTarget, failMission, newGame, stepCargo, stepHeading, stepMission,
   stepShop, zones,
 } from './delivery.js';
 import { drawAirframe, drawDrone, drawShadow, rotorLoad, stepBoost, stepDrone, stepHold } from './drone.js';
@@ -13,13 +13,14 @@ import {
   ctx, drawFx, hideOverlay, hud, initSheet, kickDust, onDevActions, onStart, previewCanvas, setLowQ, shakeOffset, sheetOpen,
   showActions, stepFx, view,
 } from './ui.js';
-import { drawCity, drawMap, drawSky, dropSprites, genWorld, stepCamera, stepWind } from './world.js';
+import { drawCity, drawMap, drawSky, dropSprites, genWorld, stepCamera, stepClock, stepWind } from './world.js';
 
 let st = null, hudT = 0, last = performance.now();
 const pace = { t: 0, n: 0 };
 
 function step(dt) {
   st.t += dt;
+  stepClock(dt);
   stepWind(st, dt);
   const zone = zones(st);
   stepHold(st, keys, zone.hold);
@@ -33,7 +34,7 @@ function step(dt) {
     stepRope(st, dt);
     stepCargo(st, dt);
   }
-  stepMission(st);
+  stepMission(st, dt);
   if (stepAction(st, dt) && st.has) failMission(st, 'The rival got there first');
   stepShop(st, grounded, dt);
   stepHeading(st, dt);
@@ -71,15 +72,14 @@ function render() {
   ctx.save();
   if (s.shake) ctx.translate(...shakeOffset(s));
   drawCity(s);
-  drawBeacons(s);
+  drawHalos(s);
   drawShadow(s);
   drawTarget(s);
-  drawRings(s, false);
   drawRival(s);
   drawRope(s);
   drawBoost(s);
   drawDrone(s);
-  drawRings(s, true);
+  drawPrep(s);
   drawHawks(s);
   drawHeading(s);
   drawFx(s);

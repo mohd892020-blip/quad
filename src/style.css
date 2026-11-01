@@ -121,3 +121,5 @@ body{background:var(--night);color:var(--ink);font-family:var(--body);overflow:h
   #dev{gap:4px}
   #dev .act{min-height:34px;padding:0 8px;font-size:12px}
 }
+#hud{justify-content:flex-start}
+#meters{margin-left:auto}

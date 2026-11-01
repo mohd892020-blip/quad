@@ -1,23 +1,14 @@
 import { sfx } from './audio.js';
-import { HAWKS, RINGS, RIVAL } from './config.js';
+import { HAWKS, RIVAL } from './config.js';
 import { drawAirframe } from './drone.js';
-import { ctx, glow, pop, view, X, Y } from './ui.js';
+import { ctx, pop, view, X, Y } from './ui.js';
 import { roofAt } from './world.js';
 
 const lerp = (st, q, k) => q['p' + k] + (q[k] - q['p' + k]) * (st.blend ?? 1);
 
-// Lays out the rings, hawks and rival for a job that has just started.
+// Lays out the hawks and rival for a job that has just started.
 export function planMission(st, shop) {
   const t = st.order.t, del = st.del, from = st.d.x, span = t.x - from;
-  const count = Math.min(RINGS.max, RINGS.min + Math.floor(del / RINGS.perDeliveries), Math.floor(Math.abs(span) / RINGS.spacing));
-  st.rings = [];
-  for (let i = 1; i <= count; i++) {
-    const x = from + span * i / (count + 1);
-    const y = Math.max(RINGS.ceiling, roofAt(x, RINGS.radius * 2) - RINGS.lift - Math.random() * RINGS.liftRange);
-    st.rings.push({ x, y, done: false });
-  }
-  st.ringsHit = 0;
-
   const hawks = del < HAWKS.from ? 0 : del < HAWKS.twoFrom ? 1 : del < HAWKS.threeFrom ? 2 : 3;
   st.hawks = [];
   for (let i = 0; i < hawks; i++) {
@@ -37,29 +28,8 @@ export function planMission(st, shop) {
 }
 
 export function clearAction(st) {
-  st.rings = [];
   st.rival = null;
   for (const h of st.hawks) if (h.state !== 'flee') { h.state = 'flee'; h.t = 0; }
-}
-
-function stepRings(st) {
-  const d = st.d;
-  for (const r of st.rings) {
-    if (r.done || (st.lastX - r.x) * (d.x - r.x) > 0) continue;
-    r.done = true;
-    if (Math.abs(d.y - r.y) < RINGS.radius) {
-      st.combo++;
-      st.ringsHit++;
-      const reward = RINGS.reward * st.combo;
-      st.money += reward;
-      pop(st, r.x, r.y - 40, `+$${reward}  x${st.combo}`, '#ffc23d');
-      sfx('ring');
-    } else if (st.combo) {
-      st.combo = 0;
-      pop(st, r.x, r.y - 40, 'Combo lost', '#c9b8d6');
-    }
-  }
-  st.lastX = d.x;
 }
 
 function stepHawks(st, dt) {
@@ -122,28 +92,11 @@ function stepRival(st, dt) {
 }
 
 export function stepAction(st, dt) {
-  stepRings(st);
   stepHawks(st, dt);
   return stepRival(st, dt);
 }
 
 /* ---------- render ---------- */
-// A ring is split so the drone can fly through it: back half before, front half after.
-export function drawRings(st, front) {
-  const { W, S } = view, c = RINGS, rx = c.radius * .42 * S, ry = c.radius * S;
-  ctx.lineWidth = 5 * S;
-  for (const r of st.rings) {
-    if (r.done) continue;
-    const sx = X(r.x), sy = Y(r.y);
-    if (sx < -60 || sx > W + 60) continue;
-    if (!front && !view.lowQ) glow(ctx, 'rgba(255,194,61,.3)', sx, sy, ry * 1.2);
-    ctx.strokeStyle = front ? '#ffd86b' : '#c8922a';
-    ctx.beginPath();
-    ctx.ellipse(sx, sy, rx, ry, 0, front ? -Math.PI / 2 : Math.PI / 2, front ? Math.PI / 2 : Math.PI * 1.5);
-    ctx.stroke();
-  }
-}
-
 export function drawHawks(st) {
   const S = view.S;
   for (const h of st.hawks) {

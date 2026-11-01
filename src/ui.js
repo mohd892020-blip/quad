@@ -162,10 +162,10 @@ export function drawFx(st) {
 /* ---------- HUD ---------- */
 export function hud(st) {
   $('money').firstChild.nodeValue = `$${st.money}`;
-  $('del').textContent = `${st.del} ${st.del === 1 ? 'delivery' : 'deliveries'}${st.combo ? ` · x${st.combo}` : ''}`;
+  $('del').textContent = `${st.del} ${st.del === 1 ? 'delivery' : 'deliveries'}`;
   const clock = $('clock'), o = st.has ? st.order : null;
-  const left = o ? Math.max(0, o.deadline - st.t) : 0, whole = Math.ceil(left);
-  clock.textContent = o ? `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}` : '--:--';
+  const left = o ? Math.max(0, o.deadline - st.t) : st.prep ? st.prep.left : 0, whole = Math.ceil(left);
+  clock.textContent = o || st.prep ? `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}` : '--:--';
   clock.classList.toggle('low', !!o && left < MISSION.lowTime);
   $('bBat').firstChild.style.width = st.d.bat + '%';
   $('bHeat').firstChild.style.width = (o && st.item.heat ? st.heat : 0) + '%';
@@ -181,9 +181,12 @@ export function hud(st) {
     const place = t.kind === 'bal' ? `Balcony, floor ${t.fl}` : t.kind === 'street' ? 'Street' : 'Rooftop';
     $('oTitle').textContent = item.urgent ? `${item.label} · URGENT` : item.label;
     $('oSub').textContent = `${o.shop.shop.name} → ${place} · ${dist} m`;
+  } else if (st.prep) {
+    $('oTitle').textContent = `Preparing ${st.prep.item.label}`;
+    $('oSub').textContent = `${st.prep.shop.shop.name} · Stay on the pad`;
   } else {
     $('oTitle').textContent = 'Find a job';
-    $('oSub').textContent = 'Fly into a yellow beacon on a shop roof';
+    $('oSub').textContent = 'Land on the green pad of any shop';
   }
 }
 

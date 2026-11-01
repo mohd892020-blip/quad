@@ -16,7 +16,7 @@ export const GROUND = 560;
 export const GROUND_BOX = { x: -2000, w: 20000, h: 200 };
 export const CITY_SEED = 7;
 
-// A job: its clock, when harder customers appear, and the beacon that starts it.
+// A job: its clock, when harder customers appear, and the pad that starts it.
 export const MISSION = {
   baseTime: 22,
   speed: 150,
@@ -27,9 +27,11 @@ export const MISSION = {
   balconyFrom: 2,
   streetFrom: 5,
   toastMs: 2600,
-  beaconInset: 44,
-  beaconLift: 58,
-  beaconRadius: 36,
+  padReach: 58,
+  padGap: 6,
+  padSpeed: 80,
+  haloHeight: 240,
+  haloWidth: 44,
 };
 
 // The one long city, left to right. Each zone sets its own buildings and obstacles.
@@ -137,10 +139,6 @@ export const AIRCRAFT = [
 
 export const BOOST = { force: 900, drain: 60, refill: 18, refillDelay: .6, batteryDrain: 2.5 };
 
-export const RINGS = {
-  min: 2, max: 5, perDeliveries: 2, spacing: 260, radius: 34, lift: 70, liftRange: 60, ceiling: -300, reward: 2, tipEach: 3,
-};
-
 export const HAWKS = {
   from: 1, twoFrom: 4, threeFrom: 8, pathMin: .3, pathRange: .5, lift: 90, orbit: 60, circleRate: 1.4,
   trigger: 200, diveSpeed: 380, diveTime: 3, hitDist: 22, shooDist: 30, damage: 16, hitShake: 6,
@@ -164,16 +162,17 @@ export const WIND = {
 };
 
 // Pizza is the prototype's baseline: every factor is 1, so its flight matches prototype.html.
+// prep is how many seconds the shop needs to make the order.
 export const ITEMS = {
-  pizza: { key: 'pizza', label: 'Pizza', weight: 1, size: 1, fragile: 1, heat: 1, wind: 1 },
-  falafel: { key: 'falafel', label: 'Falafel', weight: .8, size: .8, fragile: .6, heat: .9, wind: .9 },
-  kunafa: { key: 'kunafa', label: 'Kunafa', weight: 1.1, size: 1.1, fragile: 1.2, heat: 1.1, wind: 1 },
-  coffee: { key: 'coffee', label: 'Coffee', weight: .6, size: .6, fragile: 1.6, heat: 1.4, wind: .8 },
-  cake: { key: 'cake', label: 'Cake', weight: 1, size: 1, fragile: 2, heat: 0, wind: 1.1 },
-  medicine: { key: 'medicine', label: 'Medicine', weight: .3, size: .5, fragile: .5, heat: 0, wind: .7, urgent: true },
-  flowers: { key: 'flowers', label: 'Flowers', weight: .4, size: .9, fragile: 1.3, heat: 0, wind: 1.8 },
-  watermelon: { key: 'watermelon', label: 'Watermelon', weight: 1.8, size: 1, fragile: .7, heat: 0, wind: .5 },
-  tv: { key: 'tv', label: 'TV', weight: 2, size: 1.6, fragile: 1.8, heat: 0, wind: 1.6 },
+  pizza: { key: 'pizza', prep: 7, label: 'Pizza', weight: 1, size: 1, fragile: 1, heat: 1, wind: 1 },
+  falafel: { key: 'falafel', prep: 3.5, label: 'Falafel', weight: .8, size: .8, fragile: .6, heat: .9, wind: .9 },
+  kunafa: { key: 'kunafa', prep: 5.5, label: 'Kunafa', weight: 1.1, size: 1.1, fragile: 1.2, heat: 1.1, wind: 1 },
+  coffee: { key: 'coffee', prep: 2.5, label: 'Coffee', weight: .6, size: .6, fragile: 1.6, heat: 1.4, wind: .8 },
+  cake: { key: 'cake', prep: 4.5, label: 'Cake', weight: 1, size: 1, fragile: 2, heat: 0, wind: 1.1 },
+  medicine: { key: 'medicine', prep: 1.5, label: 'Medicine', weight: .3, size: .5, fragile: .5, heat: 0, wind: .7, urgent: true },
+  flowers: { key: 'flowers', prep: 3, label: 'Flowers', weight: .4, size: .9, fragile: 1.3, heat: 0, wind: 1.8 },
+  watermelon: { key: 'watermelon', prep: 2, label: 'Watermelon', weight: 1.8, size: 1, fragile: .7, heat: 0, wind: .5 },
+  tv: { key: 'tv', prep: 4, label: 'TV', weight: 2, size: 1.6, fragile: 1.8, heat: 0, wind: 1.6 },
 };
 
 // How much a load above or below pizza weight changes lift and battery use.
@@ -190,22 +189,24 @@ export const SHOPS = [
   { name: 'Café', items: ['coffee'], glow: '#c89a6a' },
 ];
 
-// The first entry is the prototype's sunset. lit = window colours for off, dim and bright.
+// One day: each time holds, then fades into the next. lit = window colours for off, dim and bright.
+// Sky stops must line up across times so they can blend; discCut is how much of the disc is shaded.
+export const CLOCK = { hold: 120, fade: 20, steps: 16, startAt: 2 };
 export const TIMES = [
   {
     name: 'Sunset', sky: [[0, '#140f2a'], [.45, '#3b2452'], [.8, '#b4505a'], [1, '#f0a259']],
-    stars: .7, disc: '#fff1d0', discShade: '#3b2452', far1: '#3d2849', far2: '#2c1d40',
-    ground: '#2a1d2c', walk: '#3a2c33', light: 1, lit: ['#4a3a52', '#f2a65a', '#ffd27a'], extraLit: 0, windowGlow: false, signGlow: .5,
+    stars: .7, disc: '#fff1d0', discShade: '#3b2452', discCut: 1, far1: '#3d2849', far2: '#2c1d40',
+    ground: '#2a1d2c', walk: '#3a2c33', light: 1, lit: ['#4a3a52', '#f2a65a', '#ffd27a'], extraLit: 0, windowGlow: 0, signGlow: .5,
   },
   {
-    name: 'Night', sky: [[0, '#05060f'], [.55, '#0d1230'], [1, '#232a52']],
-    stars: 1, disc: '#e8ecff', discShade: '#0a0e26', far1: '#141a38', far2: '#0e1228',
-    ground: '#10131f', walk: '#1a1c2a', light: .48, lit: ['#1f2233', '#e8a24f', '#ffd884'], extraLit: .22, windowGlow: true, signGlow: .75,
+    name: 'Night', sky: [[0, '#05060f'], [.45, '#0b0f28'], [.8, '#171d40'], [1, '#232a52']],
+    stars: 1, disc: '#e8ecff', discShade: '#0a0e26', discCut: 1, far1: '#141a38', far2: '#0e1228',
+    ground: '#10131f', walk: '#1a1c2a', light: .48, lit: ['#1f2233', '#e8a24f', '#ffd884'], extraLit: .22, windowGlow: 1, signGlow: .75,
   },
   {
-    name: 'Day', sky: [[0, '#3f8fd6'], [.6, '#9fd1ef'], [1, '#eaf4f2']],
-    stars: 0, disc: '#fff3c4', discShade: null, far1: '#9db8cc', far2: '#b7cddd',
-    ground: '#6f6a62', walk: '#8c867b', light: 1.08, lit: ['#5f7f95', '#7c9bb0', '#a8c4d6'], extraLit: 0, windowGlow: false, signGlow: .2,
+    name: 'Day', sky: [[0, '#3f8fd6'], [.45, '#7db8e8'], [.8, '#b9dcef'], [1, '#eaf4f2']],
+    stars: 0, disc: '#fff3c4', discShade: '#7db8e8', discCut: 0, far1: '#9db8cc', far2: '#b7cddd',
+    ground: '#6f6a62', walk: '#8c867b', light: 1.08, lit: ['#5f7f95', '#7c9bb0', '#a8c4d6'], extraLit: 0, windowGlow: 0, signGlow: .2,
   },
 ];
 
