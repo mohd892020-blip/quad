@@ -1,10 +1,14 @@
-import { CAMERA, CITY, G, GROUND, GROUND_BOX, PERSPECTIVE, WIND } from './config.js';
-import { ctx, shade, view, X, Y } from './ui.js';
+import { BIRDS, CAMERA, CELL, CITY, GROUND, GROUND_BOX, PEOPLE, PERSPECTIVE, SHOPS, SPRITE, TIMES, WIND } from './config.js';
+import { ctx, glow, shade, view, X, Y } from './ui.js';
 
 const STONES = ['#c9a27a', '#b8916c', '#d4b08a', '#a98463', '#c09673', '#d8bb98'];
 const CLOTHES = ['#e8492c', '#f2efe6', '#4fa3c2', '#ffc23d', '#7cc28f', '#d97aa8'];
+const SHIRTS = ['#e8492c', '#4fa3c2', '#ffc23d', '#7cc28f', '#d97aa8', '#f2efe6', '#5a6b8c'];
 
-export const world = { B: [], solids: [], colliders: [], lines: [], targets: [], rest: null, far1: [], far2: [] };
+export const world = {
+  B: [], solids: [], cells: [], edge: [], lines: [], targets: [], shops: [], rigs: [],
+  far1: [], far2: [], people: [], flocks: [], span: 1, time: 0, live: new Set(),
+};
 
 function rng(a) {
   return () => {
@@ -15,13 +19,43 @@ function rng(a) {
   };
 }
 
-export function restPad() {
-  return { x: world.rest.x + world.rest.w / 2, y: world.rest.top };
+function hash(i) {
+  const s = Math.sin(i * 12.9898) * 43758.5453;
+  return s - Math.floor(s);
+}
+
+export function shopPad(b) {
+  return { x: b.x + b.w / 2, y: b.top };
+}
+
+export function nearestShop(x) {
+  let best = world.shops[0];
+  for (const b of world.shops) if (Math.abs(b.x + b.w / 2 - x) < Math.abs(best.x + best.w / 2 - x)) best = b;
+  return best;
+}
+
+// Everything solid near x, in generation order with the ground last. A rect sits in
+// every cell it comes within CELL.margin of, so one lookup covers anything that can touch.
+export function nearby(x) {
+  return world.cells[Math.floor((x - CELL.base) / CELL.size)] || world.edge;
+}
+
+export function indexColliders(solids) {
+  const ground = { x: GROUND_BOX.x, y: GROUND, w: GROUND_BOX.w, h: GROUND_BOX.h };
+  const cells = [];
+  const cellOf = x => Math.max(0, Math.floor((x - CELL.base) / CELL.size));
+  for (const R of solids) {
+    for (let i = cellOf(R.x - CELL.margin); i <= cellOf(R.x + R.w + CELL.margin); i++) (cells[i] ||= []).push(R);
+  }
+  const last = cellOf(ground.x + ground.w);
+  for (let i = 0; i <= last; i++) (cells[i] ||= []).push(ground);
+  world.cells = cells;
+  world.edge = [ground];
 }
 
 export function genWorld(seed) {
   const c = CITY, r = rng(seed);
-  const B = [], solids = [], lines = [], targets = [];
+  const B = [], solids = [], lines = [], targets = [], shops = [], rigs = [];
 
   const mk = (x, w, h) => {
     const top = GROUND - h;
@@ -34,19 +68,49 @@ export function genWorld(seed) {
     solids.push({ x, y: top, w, h });
     return b;
   };
+  const mkShop = (x, h) => {
+    const b = mk(x, c.restaurant.w, h);
+    b.shop = SHOPS[shops.length % SHOPS.length];
+    shops.push(b);
+    return b;
+  };
 
   mk(c.leftBuilding.x, c.leftBuilding.w, c.leftBuilding.h);
-  const rest = mk(c.restaurant.x, c.restaurant.w, c.restaurant.h);
-  rest.isRest = true;
+  const rest = mkShop(c.restaurant.x, c.restaurant.h);
 
-  let x = rest.x + rest.w + c.firstGap;
+  let x = rest.x + rest.w + c.firstGap, nextShop = rest.x + c.shopEvery;
   while (x < c.endX) {
+    if (x >= nextShop) {
+      const b = mkShop(x, c.restaurant.h + r() * c.shopHRange);
+      nextShop += c.shopEvery;
+      x += b.w + c.gapMin + r() * c.gapRange;
+      continue;
+    }
     const w = c.widthMin + r() * c.widthRange, h = c.heightMin + r() * c.heightRange, b = mk(x, w, h);
     if (r() < c.tankChance) {
-      b.tank = { x: b.x + c.tankInset + r() * (w - c.tankSlack), y: b.top - c.tankH, w: c.tankW, h: c.tankH };
+      const tw = c.tankW + r() * c.tankWRange;
+      b.tank = { x: b.x + c.tankInset + r() * (w - c.tankSlack - (tw - c.tankW)), y: b.top - c.tankH, w: tw, h: c.tankH };
       solids.push(b.tank);
     }
-    if (r() < c.dishChance) b.dish = { x: b.x + w - c.dishInset, y: b.top };
+    if (r() < c.dishChance) {
+      b.dish = { x: b.x + w - c.dishInset, y: b.top };
+      solids.push({ x: b.dish.x - c.dishW / 2, y: b.top - c.dishH, w: c.dishW, h: c.dishH });
+    }
+    if (w > c.rigMinW) {
+      const mx = b.x + w / 2;
+      if (h > c.craneMinH && r() < c.craneChance) {
+        const mastH = c.craneMastHMin + r() * c.craneMastHRange, jibY = b.top - mastH, jibX = mx - c.craneJibLen / 2;
+        const mast = { x: mx - c.craneMastW / 2, y: jibY, w: c.craneMastW, h: mastH };
+        const jib = { x: jibX, y: jibY, w: c.craneJibLen, h: c.craneJibH };
+        solids.push(mast, jib);
+        rigs.push({ kind: 'crane', mast, jib });
+      } else if (r() < c.towerChance) {
+        const towerH = c.towerHMin + r() * c.towerHRange;
+        const mast = { x: mx - c.towerW / 2, y: b.top - towerH, w: c.towerW, h: towerH };
+        solids.push(mast);
+        rigs.push({ kind: 'tower', mast });
+      }
+    }
     if (h > c.balconyMinH) {
       const n = h > c.balconyTwoH ? 2 : 1;
       for (let k = 0; k < n; k++) {
@@ -70,7 +134,7 @@ export function genWorld(seed) {
 
   for (let i = 1; i < B.length - 1; i++) {
     const a = B[i], d = B[i + 1];
-    if (a.isRest || a.h < c.lineMinH || d.h < c.lineMinH) continue;
+    if (a.shop || a.h < c.lineMinH || d.h < c.lineMinH) continue;
     if (r() < c.lineChance) {
       const ya = Math.max(a.top, d.top) + c.lineDropMin + r() * c.lineDropRange, yb = ya + (r() - .5) * c.lineTilt;
       const p0 = { x: a.x + a.w, y: ya }, p1 = { x: d.x, y: yb };
@@ -79,14 +143,16 @@ export function genWorld(seed) {
         const t = k / c.linePoints;
         pts.push({ x: p0.x + (p1.x - p0.x) * t, y: p0.y + (p1.y - p0.y) * t + Math.sin(t * Math.PI) * c.lineSag });
       }
-      const clothes = [];
-      for (let k = c.clothFirst; k < c.clothLast; k += c.clothStep + ((r() * c.clothStepRange) | 0)) {
-        clothes.push({
-          k, c: CLOTHES[(r() * CLOTHES.length) | 0],
-          h: c.clothHMin + r() * c.clothHRange, w: c.clothWMin + r() * c.clothWRange,
-        });
+      const power = r() < c.powerChance, clothes = [];
+      if (!power) {
+        for (let k = c.clothFirst; k < c.clothLast; k += c.clothStep + ((r() * c.clothStepRange) | 0)) {
+          clothes.push({
+            k, c: CLOTHES[(r() * CLOTHES.length) | 0],
+            h: c.clothHMin + r() * c.clothHRange, w: c.clothWMin + r() * c.clothWRange,
+          });
+        }
       }
-      lines.push({ pts, clothes });
+      lines.push({ pts, clothes, power, minX: p0.x, maxX: p1.x });
     }
   }
 
@@ -96,8 +162,34 @@ export function genWorld(seed) {
     far2.push({ w: c.far2WMin + r() * c.far2WRange, h: c.far2HMin + r() * c.far2HRange, m: r() < c.far2MinaretChance });
   }
 
-  const colliders = solids.concat([{ x: GROUND_BOX.x, y: GROUND, w: GROUND_BOX.w, h: GROUND_BOX.h }]);
-  Object.assign(world, { B, solids, colliders, lines, targets, rest, far1, far2 });
+  const span = c.endX - c.leftBuilding.x;
+  const people = [], flocks = [];
+  for (let i = 0; i < span / PEOPLE.spacing; i++) {
+    people.push({
+      x: r() * span, speed: (r() < .5 ? -1 : 1) * (PEOPLE.speedMin + r() * PEOPLE.speedRange),
+      shirt: SHIRTS[(r() * SHIRTS.length) | 0], phase: r() * 7,
+    });
+  }
+  for (let i = 0; i < span / BIRDS.spacing; i++) {
+    flocks.push({
+      x: c.leftBuilding.x + r() * span, y: GROUND - c.heightMin - BIRDS.heightMin - r() * BIRDS.heightRange,
+      n: BIRDS.countMin + ((r() * BIRDS.countRange) | 0), phase: r() * 7,
+    });
+  }
+
+  dropSprites();
+  indexColliders(solids);
+  Object.assign(world, { B, solids, lines, targets, shops, rigs, far1, far2, people, flocks, span });
+}
+
+export function dropSprites() {
+  for (const b of world.live) b.sprite = null;
+  world.live.clear();
+}
+
+export function setTime(i) {
+  world.time = i % TIMES.length;
+  dropSprites();
 }
 
 export function stepWind(st, dt) {
@@ -121,25 +213,29 @@ export function stepCamera(st, dt) {
 
 /* ---------- render ---------- */
 export function drawSky(st) {
-  const { W, H, S } = view;
+  const { W, H, S } = view, time = TIMES[world.time];
   const g = ctx.createLinearGradient(0, 0, 0, H);
-  g.addColorStop(0, '#140f2a'); g.addColorStop(.45, '#3b2452'); g.addColorStop(.8, '#b4505a'); g.addColorStop(1, '#f0a259');
+  for (const [at, col] of time.sky) g.addColorStop(at, col);
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, W, H);
-  ctx.fillStyle = 'rgba(255,243,223,.7)';
-  for (let i = 0; i < 50; i++) {
-    const sx = ((i * 137.5 - st.cam.x * .05) % W + W) % W, sy = (i * 71) % (H * .45);
-    ctx.fillRect(sx, sy, 1.5, 1.5);
+  if (time.stars) {
+    ctx.fillStyle = `rgba(255,243,223,${time.stars})`;
+    for (let i = 0; i < 50; i++) {
+      const sx = ((i * 137.5 - st.cam.x * .05) % W + W) % W, sy = (i * 71) % (H * .45);
+      ctx.fillRect(sx, sy, 1.5, 1.5);
+    }
   }
   const mx = W * .78 - st.cam.x * .02 * S, my = H * .16;
-  ctx.fillStyle = '#fff1d0';
+  ctx.fillStyle = time.disc;
   ctx.beginPath();
   ctx.arc(mx, my, 26 * S, 0, 7);
   ctx.fill();
-  ctx.fillStyle = '#3b2452';
-  ctx.beginPath();
-  ctx.arc(mx + 10 * S, my - 6 * S, 23 * S, 0, 7);
-  ctx.fill();
+  if (time.discShade) {
+    ctx.fillStyle = time.discShade;
+    ctx.beginPath();
+    ctx.arc(mx + 10 * S, my - 6 * S, 23 * S, 0, 7);
+    ctx.fill();
+  }
 }
 
 function drawFar(st, arr, par, col, baseOff, scale) {
@@ -168,8 +264,113 @@ function drawFar(st, arr, par, col, baseOff, scale) {
   }
 }
 
+// Paints the parts of a building that do not change with the camera, in world units.
+function paintBuilding(g, b) {
+  const time = TIMES[world.time], c = CITY;
+  const L = b.x, T = b.top, Bt = GROUND + 60;
+  g.fillStyle = shade(b.col, time.light);
+  g.fillRect(L, T, b.w, Bt - T);
+  g.fillStyle = shade(b.col, .85 * time.light);
+  g.fillRect(L, T, b.w, 5);
+  for (let y = T + c.floorH; y < GROUND; y += c.floorH) {
+    g.fillStyle = 'rgba(0,0,0,.06)';
+    g.fillRect(L, y, b.w, 1.5);
+  }
+  const sill = shade(b.col, .6 * time.light);
+  const gx = (b.w - b.cols * c.cellW) / 2 + 8;
+  for (let r = 0; r < b.rows; r++) for (let col = 0; col < b.cols; col++) {
+    const i = r * b.cols + col, wx = L + gx + col * c.cellW, wy = GROUND - (r + 1) * c.floorH + 10;
+    if (wy < T + 8) continue;
+    const lit = b.lit[i] || (hash(i + b.idx * 97) < time.extraLit ? 1 : 0);
+    g.fillStyle = time.lit[lit];
+    g.fillRect(wx, wy, 14, 20);
+    if (time.windowGlow && lit) glow(g, 'rgba(255,190,110,.5)', wx + 7, wy + 10, 22);
+    g.fillStyle = sill;
+    g.fillRect(wx - 2, wy + 20, 18, 2.5);
+  }
+  if (b.shop) {
+    g.fillStyle = '#2b1b14';
+    g.fillRect(L + 20, GROUND - 50, b.w - 40, 50);
+    // the glow stays on the wall: past it the sprite is transparent and would smear
+    g.save();
+    g.beginPath();
+    g.rect(L, T, b.w, Bt - T);
+    g.clip();
+    g.globalAlpha = time.signGlow;
+    glow(g, b.shop.glow, L + b.w / 2, T + 31, 85);
+    g.restore();
+    g.fillStyle = 'rgba(32,18,20,.88)';
+    g.fillRect(L + b.w / 2 - 72, T + 15, 144, 32);
+    g.font = '22px Lalezar, Tajawal, sans-serif';
+    g.textAlign = 'center';
+    g.fillStyle = '#ffe9dc';
+    g.fillText(b.shop.name, L + b.w / 2, T + 39);
+    const p = shopPad(b);
+    g.strokeStyle = 'rgba(79,194,124,.9)';
+    g.lineWidth = 3;
+    g.setLineDash([8, 6]);
+    g.strokeRect(p.x - 50, p.y - 4, 100, 4);
+    g.setLineDash([]);
+    g.fillStyle = '#4fc27c';
+    g.font = '700 11px Tajawal,sans-serif';
+    g.fillText('Charge + Pickup', p.x, p.y - 10);
+  }
+  if (b.tank) {
+    const t = b.tank;
+    g.fillStyle = '#7d8a96';
+    g.fillRect(t.x + 4, t.y + 16, 3, 10);
+    g.fillRect(t.x + t.w - 7, t.y + 16, 3, 10);
+    g.fillStyle = '#e9e4dc';
+    g.beginPath();
+    g.ellipse(t.x + t.w / 2, t.y + 9, t.w / 2, 9, 0, 0, 7);
+    g.fill();
+    g.fillStyle = '#c8c1b5';
+    g.fillRect(t.x, t.y + 8, t.w, 3);
+  }
+  if (b.dish) {
+    g.strokeStyle = '#ddd';
+    g.lineWidth = 2;
+    g.beginPath();
+    g.moveTo(b.dish.x, b.dish.y);
+    g.lineTo(b.dish.x, b.dish.y - 12);
+    g.stroke();
+    g.fillStyle = '#eee';
+    g.beginPath();
+    g.ellipse(b.dish.x - 3, b.dish.y - 16, 8, 4, -.6, 0, 7);
+    g.fill();
+  }
+  for (const bl of b.bal) {
+    g.fillStyle = shade(b.col, .7 * time.light);
+    g.fillRect(bl.x, bl.y, bl.w, 8);
+    g.strokeStyle = 'rgba(40,30,30,.75)';
+    g.lineWidth = 1.5;
+    g.beginPath();
+    for (let k = 0; k <= bl.w; k += 6) { g.moveTo(bl.x + k, bl.y); g.lineTo(bl.x + k, bl.y - 14); }
+    g.moveTo(bl.x, bl.y - 14);
+    g.lineTo(bl.x + bl.w, bl.y - 14);
+    g.stroke();
+  }
+}
+
+// Each visible building is kept as a ready image, so a frame only blits it.
+function spriteOf(b) {
+  const k = view.S * view.DPR, p = SPRITE;
+  if (b.sprite && b.spriteK === k) return b.sprite;
+  const s = document.createElement('canvas');
+  s.width = Math.ceil((b.w + p.padX * 2) * k);
+  s.height = Math.ceil((GROUND + 60 - b.top + p.padTop) * k);
+  const g = s.getContext('2d');
+  g.scale(k, k);
+  g.translate(p.padX - b.x, p.padTop - b.top);
+  paintBuilding(g, b);
+  b.sprite = s;
+  b.spriteK = k;
+  world.live.add(b);
+  return s;
+}
+
 function drawBuildings() {
-  const { W, S, viewW, viewH } = view;
+  const { W, S, DPR, viewW, viewH } = view, p = SPRITE, light = TIMES[world.time].light;
   const vpx = view.cam.x + viewW / 2, vpy = view.cam.y + viewH * PERSPECTIVE.eyeY, f = PERSPECTIVE.depth;
   const back = (x, y) => [X(vpx + (x - vpx) * f), Y(vpy + (y - vpy) * f)];
   const vis = world.B.filter(b => X(b.x + b.w) > -120 && X(b.x) < W + 120)
@@ -177,7 +378,7 @@ function drawBuildings() {
   for (const b of vis) {
     const L = b.x, Rt = b.x + b.w, T = b.top, Bt = GROUND + 60;
     // side face toward vanishing point
-    ctx.fillStyle = shade(b.col, .55);
+    ctx.fillStyle = shade(b.col, .55 * light);
     ctx.beginPath();
     if (b.x + b.w / 2 > vpx) {
       const [x1, y1] = back(L, T), [x2, y2] = back(L, Bt);
@@ -190,100 +391,62 @@ function drawBuildings() {
     // roof (visible when below eye level)
     if (T > vpy) {
       const [a1, a2] = back(L, T), [b1, b2] = back(Rt, T);
-      ctx.fillStyle = shade(b.col, .78);
+      ctx.fillStyle = shade(b.col, .78 * light);
       ctx.beginPath();
       ctx.moveTo(X(L), Y(T)); ctx.lineTo(a1, a2); ctx.lineTo(b1, b2); ctx.lineTo(X(Rt), Y(T));
       ctx.fill();
     }
-    // front
-    ctx.fillStyle = b.col;
-    ctx.fillRect(X(L), Y(T), b.w * S, (Bt - T) * S);
-    ctx.fillStyle = shade(b.col, .85);
-    ctx.fillRect(X(L), Y(T), b.w * S, 5 * S);
-    for (let y = T + CITY.floorH; y < GROUND; y += CITY.floorH) {
-      ctx.fillStyle = 'rgba(0,0,0,.06)';
-      ctx.fillRect(X(L), Y(y), b.w * S, 1.5 * S);
+    const s = spriteOf(b);
+    ctx.drawImage(s, Math.round(X(L - p.padX) * DPR) / DPR, Math.round(Y(T - p.padTop) * DPR) / DPR, s.width / DPR, s.height / DPR);
+  }
+  for (const b of world.live) {
+    if (Math.abs(b.x - vpx) > viewW + p.evictMargin) { b.sprite = null; world.live.delete(b); }
+  }
+}
+
+function drawRigs(st) {
+  const { W, S } = view;
+  for (const rig of world.rigs) {
+    const m = rig.mast, reach = rig.jib ? rig.jib : m;
+    if (X(reach.x + reach.w) < -40 || X(reach.x) > W + 40) continue;
+    ctx.fillStyle = rig.kind === 'crane' ? '#e0a52c' : '#8b95a3';
+    ctx.fillRect(X(m.x), Y(m.y), m.w * S, m.h * S);
+    ctx.strokeStyle = 'rgba(30,22,30,.55)';
+    ctx.lineWidth = 1 * S;
+    ctx.beginPath();
+    for (let y = m.y + 10; y < m.y + m.h; y += 16) {
+      ctx.moveTo(X(m.x), Y(y));
+      ctx.lineTo(X(m.x + m.w), Y(y + 8));
     }
-    // windows
-    const gx = (b.w - b.cols * CITY.cellW) / 2 + 8;
-    for (let r = 0; r < b.rows; r++) for (let c = 0; c < b.cols; c++) {
-      const lit = b.lit[r * b.cols + c];
-      const wx = L + gx + c * CITY.cellW, wy = GROUND - (r + 1) * CITY.floorH + 10;
-      if (wy < T + 8) continue;
-      ctx.fillStyle = lit === 2 ? '#ffd27a' : lit === 1 ? '#f2a65a' : '#4a3a52';
-      ctx.fillRect(X(wx), Y(wy), 14 * S, 20 * S);
-      ctx.fillStyle = shade(b.col, .6);
-      ctx.fillRect(X(wx - 2), Y(wy + 20), 18 * S, 2.5 * S);
-    }
-    if (b.isRest) {
-      ctx.fillStyle = '#2b1b14';
-      ctx.fillRect(X(L + 20), Y(GROUND - 50), b.w * S - 40 * S, 50 * S);
-      ctx.save();
-      ctx.font = `${Math.round(22 * S)}px Lalezar, Tajawal, sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.direction = 'rtl';
-      ctx.shadowColor = '#ff5a3c';
-      ctx.shadowBlur = 14 * S;
-      ctx.fillStyle = '#ffd9c9';
-      ctx.fillText('بيتزا أبو سمير', X(L + b.w / 2), Y(T + 40));
-      ctx.restore();
-      const p = restPad();
-      ctx.strokeStyle = 'rgba(79,194,124,.9)';
-      ctx.lineWidth = 3 * S;
-      ctx.setLineDash([8 * S, 6 * S]);
-      ctx.strokeRect(X(p.x - 50), Y(p.y - 4), 100 * S, 4 * S);
-      ctx.setLineDash([]);
-      ctx.fillStyle = '#4fc27c';
-      ctx.font = `700 ${Math.round(11 * S)}px Tajawal,sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.fillText('شحن + استلام', X(p.x), Y(p.y - 10));
-    }
-    if (b.tank) {
-      const t = b.tank;
-      ctx.fillStyle = '#7d8a96';
-      ctx.fillRect(X(t.x + 4), Y(t.y + 16), 3 * S, 10 * S);
-      ctx.fillRect(X(t.x + t.w - 7), Y(t.y + 16), 3 * S, 10 * S);
-      ctx.fillStyle = '#e9e4dc';
+    ctx.stroke();
+    if (rig.jib) {
+      const j = rig.jib;
+      ctx.fillStyle = '#e0a52c';
+      ctx.fillRect(X(j.x), Y(j.y), j.w * S, j.h * S);
+      ctx.fillStyle = '#5a6470';
+      ctx.fillRect(X(j.x), Y(j.y + j.h), 22 * S, 14 * S);
+      ctx.strokeStyle = '#2b2233';
       ctx.beginPath();
-      ctx.ellipse(X(t.x + t.w / 2), Y(t.y + 9), t.w / 2 * S, 9 * S, 0, 0, 7);
-      ctx.fill();
-      ctx.fillStyle = '#c8c1b5';
-      ctx.fillRect(X(t.x), Y(t.y + 8), t.w * S, 3 * S);
-    }
-    if (b.dish) {
-      ctx.strokeStyle = '#ddd';
-      ctx.lineWidth = 2 * S;
-      ctx.beginPath();
-      ctx.moveTo(X(b.dish.x), Y(b.dish.y));
-      ctx.lineTo(X(b.dish.x), Y(b.dish.y - 12));
+      ctx.moveTo(X(j.x + j.w - 24), Y(j.y + j.h));
+      ctx.lineTo(X(j.x + j.w - 24), Y(j.y + j.h + 46));
       ctx.stroke();
-      ctx.fillStyle = '#eee';
-      ctx.beginPath();
-      ctx.ellipse(X(b.dish.x - 3), Y(b.dish.y - 16), 8 * S, 4 * S, -.6, 0, 7);
-      ctx.fill();
-    }
-    for (const bl of b.bal) {
-      ctx.fillStyle = shade(b.col, .7);
-      ctx.fillRect(X(bl.x), Y(bl.y), bl.w * S, 8 * S);
-      ctx.strokeStyle = 'rgba(40,30,30,.75)';
-      ctx.lineWidth = 1.5 * S;
-      ctx.beginPath();
-      for (let k = 0; k <= bl.w; k += 6) { ctx.moveTo(X(bl.x + k), Y(bl.y)); ctx.lineTo(X(bl.x + k), Y(bl.y - 14)); }
-      ctx.moveTo(X(bl.x), Y(bl.y - 14));
-      ctx.lineTo(X(bl.x + bl.w), Y(bl.y - 14));
-      ctx.stroke();
-    }
+    } else glow(ctx, '#ff3b3b', X(m.x + m.w / 2), Y(m.y), (8 + 5 * Math.abs(Math.sin(st.t * 2))) * S);
   }
 }
 
 function drawLines(st) {
-  const { S } = view;
+  const { W, S } = view;
   for (const L of world.lines) {
-    ctx.strokeStyle = 'rgba(30,22,30,.8)';
-    ctx.lineWidth = 1.3 * S;
+    if (X(L.maxX) < -20 || X(L.minX) > W + 20) continue;
+    ctx.strokeStyle = L.power ? 'rgba(16,14,20,.95)' : 'rgba(30,22,30,.8)';
+    ctx.lineWidth = (L.power ? 2 : 1.3) * S;
     ctx.beginPath();
     L.pts.forEach((p, i) => i ? ctx.lineTo(X(p.x), Y(p.y)) : ctx.moveTo(X(p.x), Y(p.y)));
     ctx.stroke();
+    if (L.power) {
+      ctx.fillStyle = '#7ad0ff';
+      for (const i of [3, 7, 11]) ctx.fillRect(X(L.pts[i].x) - 2 * S, Y(L.pts[i].y) - 2 * S, 4 * S, 4 * S);
+    }
     for (const c of L.clothes) {
       const p = L.pts[c.k];
       const sw = Math.sin(st.t * 2 + c.k) * st.wind * .01;
@@ -297,12 +460,60 @@ function drawLines(st) {
   }
 }
 
+function drawPeople(st) {
+  const { W, S, lowQ } = view, c = PEOPLE, y = GROUND + c.sidewalk + c.height, span = world.span;
+  const left = CITY.leftBuilding.x;
+  for (let i = 0; i < world.people.length; i += lowQ ? 2 : 1) {
+    const p = world.people[i];
+    const x = left + ((p.x + st.t * p.speed) % span + span) % span, sx = X(x);
+    if (sx < -20 || sx > W + 20) continue;
+    const walk = Math.sin(st.t * c.walkRate + p.phase) * 4;
+    ctx.strokeStyle = '#1d1420';
+    ctx.lineWidth = 2 * S;
+    ctx.beginPath();
+    ctx.moveTo(sx, Y(y - 8)); ctx.lineTo(X(x + walk), Y(y));
+    ctx.moveTo(sx, Y(y - 8)); ctx.lineTo(X(x - walk), Y(y));
+    ctx.stroke();
+    ctx.fillStyle = p.shirt;
+    ctx.fillRect(sx - 3 * S, Y(y - 17), 6 * S, 10 * S);
+    ctx.fillStyle = '#e0b48c';
+    ctx.beginPath();
+    ctx.arc(sx, Y(y - 20), 3 * S, 0, 7);
+    ctx.fill();
+  }
+}
+
+function drawBirds(st) {
+  if (view.lowQ) return;
+  const { W, S } = view, c = BIRDS;
+  ctx.strokeStyle = TIMES[world.time].stars ? 'rgba(240,235,225,.75)' : 'rgba(40,40,55,.8)';
+  ctx.lineWidth = 1.4 * S;
+  ctx.beginPath();
+  for (const f of world.flocks) {
+    const cx = f.x + Math.cos(st.t * c.speed + f.phase) * c.radius, cy = f.y + Math.sin(st.t * c.speed * 2 + f.phase) * 18;
+    if (X(cx) < -80 || X(cx) > W + 80) continue;
+    for (let i = 0; i < f.n; i++) {
+      const bx = X(cx + hash(i + f.phase) * 60 - 30), by = Y(cy + hash(i * 3 + f.phase) * 30 - 15);
+      const wing = Math.sin(st.t * c.flap + i) * 3 * S;
+      ctx.moveTo(bx - 4 * S, by - wing);
+      ctx.lineTo(bx, by);
+      ctx.lineTo(bx + 4 * S, by - wing);
+    }
+  }
+  ctx.stroke();
+}
+
 export function drawCity(st) {
-  const { W, H } = view;
-  drawFar(st, world.far2, .25, '#2c1d40', 40, .9);
-  drawFar(st, world.far1, .5, '#3d2849', 10, 1);
-  ctx.fillStyle = '#2a1d2c';
+  const { W, H } = view, time = TIMES[world.time];
+  drawFar(st, world.far2, .25, time.far2, 40, .9);
+  if (!view.lowQ) drawFar(st, world.far1, .5, time.far1, 10, 1);
+  ctx.fillStyle = time.ground;
   ctx.fillRect(0, Y(GROUND), W, H);
   drawBuildings();
+  drawRigs(st);
+  ctx.fillStyle = time.walk;
+  ctx.fillRect(0, Y(GROUND + PEOPLE.sidewalk), W, H);
   drawLines(st);
+  drawPeople(st);
+  drawBirds(st);
 }

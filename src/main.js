@@ -1,13 +1,14 @@
 import { initAudio, updateRotor } from './audio.js';
-import { CAMERA, DRONE, DUST, FIXED_DT, GROUND, HUD_INTERVAL, IDLE_SEED, MAX_FRAME_DT } from './config.js';
-import { newGame, stepCargo, stepRestaurant, drawPointer, drawTarget } from './delivery.js';
+import { CAMERA, DRONE, DUST, FIXED_DT, GROUND, HUD_INTERVAL, IDLE_SEED, MAX_FRAME_DT, QUALITY } from './config.js';
+import { newGame, stepCargo, stepShop, drawPointer, drawTarget } from './delivery.js';
 import { drawDrone, drawShadow, stepDrone } from './drone.js';
 import { initInput, keys } from './input.js';
 import { drawRope, stepRope } from './rope.js';
-import { ctx, drawFx, endShift, hideOverlay, hud, kickDust, onStart, shakeOffset, stepFx, view } from './ui.js';
-import { drawCity, drawSky, genWorld, stepCamera, stepWind } from './world.js';
+import { ctx, drawFx, endShift, hideOverlay, hud, kickDust, onStart, setLowQ, shakeOffset, stepFx, view } from './ui.js';
+import { drawCity, drawSky, dropSprites, genWorld, stepCamera, stepWind } from './world.js';
 
 let st = null, hudT = 0, last = performance.now();
+const pace = { t: 0, n: 0 };
 
 function step(dt) {
   st.t += dt;
@@ -20,9 +21,9 @@ function step(dt) {
     stepRope(st, dt);
     stepCargo(st, dt);
   }
-  stepRestaurant(st, grounded, dt);
-  if (st.t >= st.shift) endShift(st, 'خلصت الوردية');
-  if (st.d.bat <= 0 && grounded) endShift(st, 'نفدت البطارية');
+  stepShop(st, grounded, dt);
+  if (st.t >= st.shift) endShift(st, 'Shift over');
+  if (st.d.bat <= 0 && grounded) endShift(st, 'Battery dead');
   stepCamera(st, dt);
   stepFx(st, dt);
 }
@@ -65,9 +66,24 @@ function render() {
   drawPointer(s);
 }
 
+// Lowers quality once and for good when the device cannot keep up.
+function watchPace(frame) {
+  if (view.lowQ || frame > QUALITY.maxFrameGap) return;
+  pace.t += frame;
+  pace.n++;
+  if (pace.t < QUALITY.window) return;
+  if (pace.t / pace.n > QUALITY.slowFrame) {
+    setLowQ();
+    dropSprites();
+  }
+  pace.t = pace.n = 0;
+}
+
 function loop(now) {
-  const dt = Math.min(MAX_FRAME_DT, (now - last) / 1000);
+  const frame = (now - last) / 1000;
+  const dt = Math.min(MAX_FRAME_DT, frame);
   last = now;
+  watchPace(frame);
   if (st.running) {
     st.acc += dt;
     while (st.acc >= FIXED_DT) {
@@ -111,4 +127,6 @@ initInput();
 initAudio();
 onStart(start);
 genWorld(IDLE_SEED);
+// building sprites hold shop signs, so repaint them once the web fonts arrive
+document.fonts?.ready.then(dropSprites);
 idle();

@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="ar">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>بيتزا طايرة</title>
+<title>Flying Pizza</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lalezar&family=Tajawal:wght@400;700;800&display=swap">
@@ -12,38 +12,32 @@
 <body>
 <div id="wrap">
   <canvas id="c"></canvas>
-  <div id="hud" dir="rtl">
-    <div class="pill" id="money">₪0<small id="del">0 توصيلات</small></div>
+  <div id="hud">
+    <div class="pill" id="money">$0<small id="del">0 deliveries</small></div>
     <div class="pill" id="order"><b id="oTitle">—</b><span id="oSub"></span></div>
     <div class="pill" id="meters">
-      <span>الوقت</span><span id="clock">3:00</span>
-      <span>بطارية</span><div class="bar" id="bBat"><i></i></div>
-      <span>حرارة</span><div class="bar" id="bHeat"><i></i></div>
-      <span>العلبة</span><div class="bar" id="bBox"><i></i></div>
+      <span>TIME</span><span id="clock">3:00</span>
+      <span>BATTERY</span><div class="bar" id="bBat"><i></i></div>
+      <span>HEAT</span><div class="bar" id="bHeat"><i></i></div>
+      <span>ORDER</span><div class="bar" id="bBox"><i></i></div>
     </div>
   </div>
-  <div id="controls" dir="ltr" hidden>
-    <div class="grp"><button class="btn" id="lt" aria-label="يسار">◀</button><button class="btn" id="rt" aria-label="يمين">▶</button></div>
-    <div class="grp"><button class="btn" id="up" aria-label="ارفع">ارفع</button></div>
+  <div id="controls" hidden>
+    <div class="grp"><button class="btn" id="lt" aria-label="Left">◀</button><button class="btn" id="rt" aria-label="Right">▶</button></div>
+    <div class="grp"><button class="btn" id="up" aria-label="Lift">LIFT</button></div>
   </div>
-  <div id="keys" dir="rtl" hidden>الأسهم ← → للميلان · ↑ أو مسافة للرفع</div>
-  <div id="overlay" dir="rtl">
+  <div id="keys" hidden>← → tilt · ↑ or Space lift</div>
+  <div id="overlay">
     <div class="card" id="cardStart">
-      <h1>بيتزا طايرة</h1>
-      <p class="tag">وردية مسائية عند بيتزا أبو سمير · 3 دقائق</p>
-      <ul>
-        <li>العلبة معلّقة بحبل وبتتمرجح. الحركة العنيفة بتخرّبها.</li>
-        <li>وصّل الطلب للبلكونة أو السطح المعلَّم، وخلّي العلبة تقعد عليه لحظة.</li>
-        <li>ارجع على سطح المطعم لتاخد البيتزا الجاية وتشحن البطارية.</li>
-        <li>البقشيش حسب حرارة البيتزا وسلامة العلبة. انتبه للهوا وحبال الغسيل.</li>
-      </ul>
-      <button class="go" id="start">ابدأ الوردية</button>
+      <h1>Flying Pizza</h1>
+      <p class="tag">Fly it there. Keep it in one piece.</p>
+      <button class="go" id="start">Play</button>
     </div>
     <div class="card" id="cardEnd" hidden>
-      <h1 id="endTitle">خلصت الوردية</h1>
-      <div class="big" id="endMoney">₪0</div>
+      <h1 id="endTitle">Shift over</h1>
+      <div class="big" id="endMoney">$0</div>
       <div class="stats"><span id="endDel"></span><span id="endBest"></span></div>
-      <button class="go" id="again">وردية جديدة</button>
+      <button class="go" id="again">Play again</button>
     </div>
   </div>
 </div>

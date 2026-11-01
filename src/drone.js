@@ -1,6 +1,7 @@
-import { DRONE, G, SHADOW } from './config.js';
-import { ctx, pop, view, X, Y } from './ui.js';
-import { world } from './world.js';
+import { sfx } from './audio.js';
+import { DRONE, G, LOAD, SHADOW } from './config.js';
+import { ctx, glow, kickDust, view, X, Y } from './ui.js';
+import { nearby } from './world.js';
 
 function circleRect(o, r, R) {
   const cx = Math.max(R.x, Math.min(o.x, R.x + R.w)), cy = Math.max(R.y, Math.min(o.y, R.y + R.h));
@@ -17,10 +18,12 @@ function circleRect(o, r, R) {
 // Returns whether the drone is resting on something this step.
 export function stepDrone(st, keys, dt) {
   const d = st.d, c = DRONE;
+  // an empty drone flies like one carrying pizza, the weight every factor is measured from
+  const over = st.has ? st.item.weight - 1 : 0;
   const powered = d.bat > 0;
   const tgt = (keys.r - keys.l) * c.tiltMax;
   d.a += (tgt - d.a) * Math.min(1, dt * c.tiltRate);
-  const thr = powered ? (keys.u ? c.thrustLift : c.thrustIdle) * G : 0;
+  const thr = powered ? (keys.u ? c.thrustLift : c.thrustIdle) * G * (1 - over * LOAD.thrustLoss) : 0;
   d.vx += (Math.sin(d.a) * thr + st.wind * c.windForce) * dt;
   d.vy += (G - Math.cos(d.a) * thr) * dt;
   const drag = Math.pow(c.dragX, dt);
@@ -28,12 +31,12 @@ export function stepDrone(st, keys, dt) {
   d.vy *= Math.pow(c.dragY, dt);
   d.x += d.vx * dt;
   d.y += d.vy * dt;
-  if (powered) d.bat = Math.max(0, d.bat - dt * (c.batDrain + keys.u * c.batDrainLift));
+  if (powered) d.bat = Math.max(0, d.bat - dt * (c.batDrain + keys.u * c.batDrainLift) * (1 + over * LOAD.drainGain));
   if (d.y < c.ceiling) { d.y = c.ceiling; d.vy = Math.max(0, d.vy); }
 
   let grounded = false;
   const dr = { x: d.x, y: d.y };
-  for (const R of world.colliders) {
+  for (const R of nearby(dr.x)) {
     const hit = circleRect(dr, c.radius, R);
     if (!hit) continue;
     dr.x += hit.nx * hit.p;
@@ -43,8 +46,9 @@ export function stepDrone(st, keys, dt) {
       const sp = Math.abs(vn);
       if (sp > c.hitSpeed) {
         st.shake = Math.min(c.hitShakeMax, sp / c.hitShakeDiv);
-        if (st.has) st.integ -= sp * c.hitDamage;
-        pop(st, d.x, d.y - 24, 'طاخ!', '#ffc23d');
+        if (st.has) st.integ -= sp * c.hitDamage * st.item.fragile;
+        kickDust(st, d.x, d.y, sp * .5);
+        sfx('crash');
       }
       d.vx -= c.bounce * vn * hit.nx;
       d.vy -= c.bounce * vn * hit.ny;
@@ -63,7 +67,7 @@ export function stepDrone(st, keys, dt) {
 export function drawShadow(st) {
   const d = st.d, S = view.S, c = SHADOW;
   let floor = null;
-  for (const R of world.colliders) {
+  for (const R of nearby(d.x)) {
     if (d.x >= R.x && d.x <= R.x + R.w && R.y >= d.y && (!floor || R.y < floor.y)) floor = R;
   }
   if (!floor) return;
@@ -127,5 +131,13 @@ export function drawDrone(st) {
   ctx.fillRect(-33, -3, 3, 3);
   ctx.fillStyle = blink ? '#4dff8a' : '#1d5b33';
   ctx.fillRect(30, -3, 3, 3);
+  // LEDs on the rotors
+  if (!view.lowQ) {
+    const pulse = 9 + spin * 4;
+    glow(ctx, '#ff3b3b', -29, -8, pulse);
+    glow(ctx, '#4dff8a', 29, -8, pulse);
+    glow(ctx, 'rgba(255,240,200,.8)', -18, -9, pulse * .7);
+    glow(ctx, 'rgba(255,240,200,.8)', 24, -9, pulse * .7);
+  }
   ctx.restore();
 }

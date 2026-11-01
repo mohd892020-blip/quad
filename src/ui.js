@@ -1,4 +1,4 @@
-import { DUST, FX, G, SHAKE, VIEW } from './config.js';
+import { DUST, FX, G, QUALITY, SHAKE, VIEW } from './config.js';
 import { updateBest } from './storage.js';
 
 const $ = id => document.getElementById(id);
@@ -7,10 +7,12 @@ const cv = $('c');
 export const ctx = cv.getContext('2d');
 
 /* ---------- view ---------- */
-export const view = { W: 0, H: 0, DPR: 1, S: 1, viewW: 0, viewH: 0, cam: null };
+export const view = { W: 0, H: 0, DPR: 1, S: 1, viewW: 0, viewH: 0, cam: null, lowQ: false };
 
 function resize() {
-  view.DPR = Math.min(VIEW.maxDPR, window.devicePixelRatio || 1);
+  // a hidden frame reports zero size; keep the last real one or the camera turns to NaN
+  if (!innerWidth || !innerHeight) return;
+  view.DPR = view.lowQ ? QUALITY.lowDPR : Math.min(VIEW.maxDPR, window.devicePixelRatio || 1);
   view.W = innerWidth;
   view.H = innerHeight;
   cv.width = Math.round(view.W * view.DPR);
@@ -22,6 +24,11 @@ function resize() {
 addEventListener('resize', resize);
 resize();
 
+export function setLowQ() {
+  view.lowQ = true;
+  resize();
+}
+
 export const X = x => (x - view.cam.x) * view.S;
 export const Y = y => (y - view.cam.y) * view.S;
 
@@ -30,6 +37,26 @@ export function shade(hex, f) {
   let r = n >> 16, g = n >> 8 & 255, b = n & 255;
   r = Math.round(r * f); g = Math.round(g * f); b = Math.round(b * f);
   return `rgb(${r},${g},${b})`;
+}
+
+// Soft light from a prebuilt sprite, far cheaper per frame than canvas shadowBlur.
+const glows = new Map();
+export function glow(g, color, x, y, r) {
+  let s = glows.get(color);
+  if (!s) {
+    s = document.createElement('canvas');
+    s.width = s.height = 64;
+    const sg = s.getContext('2d'), grad = sg.createRadialGradient(32, 32, 0, 32, 32, 32);
+    grad.addColorStop(0, color);
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    sg.fillStyle = grad;
+    sg.fillRect(0, 0, 64, 64);
+    glows.set(color, s);
+  }
+  const op = g.globalCompositeOperation;
+  g.globalCompositeOperation = 'lighter';
+  g.drawImage(s, x - r, y - r, r * 2, r * 2);
+  g.globalCompositeOperation = op;
 }
 
 // Smooth screen shake; follows the shift clock instead of a dice roll per frame.
@@ -118,7 +145,6 @@ export function drawFx(st) {
     }
   }
   ctx.textAlign = 'center';
-  ctx.direction = 'rtl';
   for (const q of st.pops) {
     ctx.globalAlpha = Math.min(1, 2 * (FX.popLife - q.t));
     ctx.font = `${Math.round(20 * S)}px Lalezar,Tajawal,sans-serif`;
@@ -133,20 +159,20 @@ export function drawFx(st) {
 
 /* ---------- HUD ---------- */
 export function hud(st) {
-  $('money').firstChild.nodeValue = `₪${st.money}`;
-  $('del').textContent = `${st.del} ${st.del === 1 ? 'توصيلة' : 'توصيلات'}`;
+  $('money').firstChild.nodeValue = `$${st.money}`;
+  $('del').textContent = `${st.del} ${st.del === 1 ? 'delivery' : 'deliveries'}`;
   const left = Math.max(0, st.shift - st.t);
   $('clock').textContent = `${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}`;
   $('bBat').firstChild.style.width = st.d.bat + '%';
-  $('bHeat').firstChild.style.width = (st.has ? st.heat : 0) + '%';
+  $('bHeat').firstChild.style.width = (st.has && st.item.heat ? st.heat : 0) + '%';
   $('bBox').firstChild.style.width = (st.has ? st.integ : 0) + '%';
   if (st.has && st.order) {
-    const t = st.order.t;
-    $('oTitle').textContent = `${st.order.name}`;
-    $('oSub').textContent = `عمارة ${t.b.idx} · ${t.kind === 'bal' ? `بلكونة الطابق ${t.fl}` : 'على السطح'}`;
+    const t = st.order.t, item = st.item;
+    $('oTitle').textContent = item.urgent ? `${item.label} · URGENT` : item.label;
+    $('oSub').textContent = `Building ${t.b.idx} · ${t.kind === 'bal' ? `Balcony, floor ${t.fl}` : 'Rooftop'}`;
   } else {
-    $('oTitle').textContent = 'ارجع للمطعم';
-    $('oSub').textContent = 'انزل على السطح الأخضر لتستلم الطلب الجاي';
+    $('oTitle').textContent = 'Back to a shop';
+    $('oSub').textContent = 'Land on a green pad for the next order';
   }
 }
 
@@ -160,9 +186,9 @@ export function endShift(st, why) {
   st.running = false;
   const best = updateBest(st.money);
   $('endTitle').textContent = why;
-  $('endMoney').textContent = `₪${st.money}`;
-  $('endDel').textContent = `${st.del} توصيلات`;
-  $('endBest').textContent = st.money > best ? 'رقم قياسي جديد!' : `أفضل نتيجة: ₪${best}`;
+  $('endMoney').textContent = `$${st.money}`;
+  $('endDel').textContent = `${st.del} ${st.del === 1 ? 'delivery' : 'deliveries'}`;
+  $('endBest').textContent = st.money > best ? 'New record!' : `Best: $${best}`;
   $('cardStart').hidden = true;
   $('cardEnd').hidden = false;
   $('overlay').hidden = false;

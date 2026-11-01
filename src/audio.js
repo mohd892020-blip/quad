@@ -1,14 +1,12 @@
 import { AUDIO } from './config.js';
 
-let ac = null, master, filter, oscs, state = '';
+let ac = null, master, bus, filter, air, oscs, noiseBuf, state = '', voices = 0;
+const lastPlayed = {};
 
-function noiseLoop() {
-  const buf = ac.createBuffer(1, ac.sampleRate * 2, ac.sampleRate), data = buf.getChannelData(0);
+function makeNoise() {
+  noiseBuf = ac.createBuffer(1, ac.sampleRate * 2, ac.sampleRate);
+  const data = noiseBuf.getChannelData(0);
   for (let i = 0; i < data.length; i++) data[i] = Math.sin(i * 12.9898) * 43758.5453 % 1;
-  const src = ac.createBufferSource();
-  src.buffer = buf;
-  src.loop = true;
-  return src;
 }
 
 function build() {
@@ -16,9 +14,18 @@ function build() {
   if (!AC) return;
   const c = AUDIO;
   ac = new AC();
+  makeNoise();
+
+  // everything goes through one limiter so stacked sounds cannot clip
+  bus = ac.createDynamicsCompressor();
+  bus.threshold.value = c.limiter.threshold;
+  bus.ratio.value = c.limiter.ratio;
+  bus.attack.value = c.limiter.attack;
+  bus.release.value = c.limiter.release;
+  bus.connect(ac.destination);
   master = ac.createGain();
   master.gain.value = 0;
-  master.connect(ac.destination);
+  master.connect(bus);
 
   // two detuned saws beat against each other like a pair of rotors
   filter = ac.createBiquadFilter();
@@ -38,13 +45,15 @@ function build() {
   });
 
   // air rushing past the blades
-  const air = ac.createBiquadFilter();
+  air = ac.createBiquadFilter();
   air.type = 'bandpass';
   air.frequency.value = c.noiseHz;
   air.Q.value = c.noiseQ;
   const airGain = ac.createGain();
   airGain.gain.value = c.noiseMix;
-  const noise = noiseLoop();
+  const noise = ac.createBufferSource();
+  noise.buffer = noiseBuf;
+  noise.loop = true;
   noise.connect(air).connect(airGain).connect(master);
   noise.start();
 }
@@ -72,5 +81,66 @@ export function updateRotor(active, lift) {
   const c = AUDIO, t = ac.currentTime, up = next === 'lift';
   master.gain.setTargetAtTime(next === 'off' ? 0 : up ? c.liftGain : c.idleGain, t, c.smooth);
   filter.frequency.setTargetAtTime(up ? c.liftCut : c.idleCut, t, c.smooth);
+  air.frequency.setTargetAtTime(up ? c.noiseLiftHz : c.noiseHz, t, c.smooth);
   for (const o of oscs) o.frequency.setTargetAtTime(up ? c.liftHz : c.idleHz, t, c.smooth);
+}
+
+function finish(source, nodes) {
+  source.onended = () => {
+    voices--;
+    source.disconnect();
+    nodes.forEach(n => n.disconnect());
+  };
+}
+
+function envelope(level, at, dur) {
+  const g = ac.createGain();
+  g.gain.setValueAtTime(level * AUDIO.sfxGain, at);
+  g.gain.exponentialRampToValueAtTime(.001, at + dur);
+  g.connect(bus);
+  return g;
+}
+
+function tone(from, to, at, dur, level, type = 'triangle') {
+  if (voices >= AUDIO.maxVoices) return;
+  voices++;
+  const o = ac.createOscillator(), g = envelope(level, at, dur);
+  o.type = type;
+  o.frequency.setValueAtTime(from, at);
+  o.frequency.exponentialRampToValueAtTime(to, at + dur);
+  o.connect(g);
+  finish(o, [g]);
+  o.start(at);
+  o.stop(at + dur);
+}
+
+function burst(at, dur, level, cut, type = 'lowpass') {
+  if (voices >= AUDIO.maxVoices) return;
+  voices++;
+  const n = ac.createBufferSource(), f = ac.createBiquadFilter(), g = envelope(level, at, dur);
+  n.buffer = noiseBuf;
+  f.type = type;
+  f.frequency.value = cut;
+  n.connect(f).connect(g);
+  finish(n, [f, g]);
+  n.start(at);
+  n.stop(at + dur);
+}
+
+const SOUNDS = {
+  crash: t => { burst(t, .22, .9, 420); tone(120, 50, t, .18, .5, 'sine'); },
+  box: t => burst(t, .12, .55, 950),
+  spill: t => { burst(t, .4, 1, 260); tone(200, 60, t, .35, .4, 'sawtooth'); },
+  spark: t => burst(t, .09, .45, 3200, 'highpass'),
+  deliver: t => { tone(660, 660, t, .12, .5); tone(990, 990, t + .1, .22, .5); },
+  pickup: t => tone(520, 780, t, .14, .4),
+};
+
+// Short one-shots; repeats of one sound inside sfxGap are dropped so contact does not buzz.
+export function sfx(name) {
+  if (!ac || ac.state !== 'running') return;
+  const t = ac.currentTime;
+  if (t - (lastPlayed[name] ?? -1) < AUDIO.sfxGap) return;
+  lastPlayed[name] = t;
+  SOUNDS[name](t);
 }
