@@ -1,4 +1,5 @@
-import { AIRCRAFT, DEV, DUST, FX, G, MISSION, QUALITY, SHAKE, VIEW } from './config.js';
+import { toggleMute } from './audio.js';
+import { AIRCRAFT, DEV, DUST, FX, G, MISSION, QUALITY, ROPE, ROPE_CTL, SHAKE, VIEW, WIND } from './config.js';
 import { applyControls } from './input.js';
 import { saveSettings, settings } from './storage.js';
 
@@ -8,7 +9,7 @@ const cv = $('c');
 export const ctx = cv.getContext('2d');
 
 /* ---------- view ---------- */
-export const view = { W: 0, H: 0, DPR: 1, S: 1, viewW: 0, viewH: 0, cam: null, lowQ: false };
+export const view = { W: 0, H: 0, DPR: 1, S: 1, viewW: 0, viewH: 0, cam: null, lowQ: false, top: 140 };
 
 function resize() {
   // a hidden frame reports zero size; keep the last real one or the camera turns to NaN
@@ -170,6 +171,11 @@ export function hud(st) {
   $('bHeat').firstChild.style.width = (o && st.item.heat ? st.heat : 0) + '%';
   $('bBox').firstChild.style.width = (o ? st.integ : 0) + '%';
   $('bBoost').firstChild.style.width = st.boost + '%';
+  $('bRope').firstChild.style.width = (st.ropeLen - ROPE) / (ROPE_CTL.max - ROPE) * 100 + '%';
+  const reach = WIND.base + WIND.maxDeliveries * WIND.perDelivery;
+  $('windNeedle').style.left = 50 + Math.max(-1, Math.min(1, st.wind / reach)) * 50 + '%';
+  view.top = $('hud').getBoundingClientRect().bottom || view.top;
+  $('toast').style.top = view.top + 12 + 'px';
   if (o) {
     const t = o.t, item = st.item, dist = Math.round(Math.abs(t.x - st.d.x) / 10);
     const place = t.kind === 'bal' ? `Balcony, floor ${t.fl}` : t.kind === 'street' ? 'Street' : 'Rooftop';
@@ -256,6 +262,15 @@ export function initSheet() {
   markControls();
   showDev();
   $('gear').addEventListener('click', () => { $('sheet').hidden = false; });
+  $('mute').classList.toggle('off', settings.muted);
+  const flipMute = () => {
+    toggleMute();
+    $('mute').classList.toggle('off', settings.muted);
+  };
+  $('mute').addEventListener('click', flipMute);
+  addEventListener('keydown', e => {
+    if (e.code === 'KeyM' && !e.repeat && e.target?.tagName !== 'INPUT') flipMute();
+  });
   $('sheetClose').addEventListener('click', () => { $('sheet').hidden = true; });
   $('ctlJoy').addEventListener('click', () => setControls('joystick'));
   $('ctlArrows').addEventListener('click', () => setControls('arrows'));

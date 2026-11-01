@@ -263,9 +263,9 @@ export function drawPointer(st) {
   const { W, H } = view;
   const { x: tx, y: ty, label } = goal(st);
   const sx = X(tx), sy = Y(ty), m = 56;
-  if (sx > m && sx < W - m && sy > 140 && sy < H - m) return;
+  if (sx > m && sx < W - m && sy > view.top && sy < H - m) return;
   const cx = W / 2, cy = H / 2, ang = Math.atan2(sy - cy, sx - cx);
-  const px = Math.max(m, Math.min(W - m, sx)), py = Math.max(150, Math.min(H - 120, sy));
+  const px = Math.max(m, Math.min(W - m, sx)), py = Math.max(view.top + 24, Math.min(H - 120, sy));
   ctx.save();
   ctx.translate(px, py);
   ctx.rotate(ang);

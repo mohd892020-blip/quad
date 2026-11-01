@@ -15,7 +15,8 @@
   <canvas id="c"></canvas>
   <div id="hud">
     <div class="pill" id="money">$0<small id="del">0 deliveries</small></div>
-    <button class="pill" id="gear" aria-label="Settings">⚙</button>
+    <button class="pill icon" id="gear" aria-label="Settings">⚙</button>
+    <button class="pill icon" id="mute" aria-label="Mute">♪</button>
     <div class="pill" id="order"><b id="oTitle">—</b><span id="oSub"></span></div>
     <div class="pill" id="meters">
       <span>TIME</span><span id="clock">--:--</span>
@@ -23,8 +24,10 @@
       <span>HEAT</span><div class="bar" id="bHeat"><i></i></div>
       <span>ORDER</span><div class="bar" id="bBox"><i></i></div>
       <span>BOOST</span><div class="bar" id="bBoost"><i></i></div>
+      <span>ROPE</span><div class="bar" id="bRope"><i></i></div>
     </div>
     <canvas id="map" aria-label="City map"></canvas>
+    <div id="wind" aria-label="Wind"><span>WIND</span><div id="windTrack"><i id="windNeedle"></i></div></div>
   </div>
   <div id="toast" hidden role="status"><b id="toastTitle"></b><span id="toastWhy"></span></div>
   <div id="controls" hidden>
@@ -41,7 +44,7 @@
     <button class="act" id="devAuto">Auto deliver</button>
     <button class="act" id="devCharge">Charge</button>
   </div>
-  <div id="keys" hidden>← → tilt · ↑ or Space lift · Shift boost · ↓ lower rope · Q raise · H hold</div>
+  <div id="keys" hidden>← → tilt · ↑ or Space lift · Shift boost · ↓ lower rope · Q raise · H hold · M mute</div>
   <div id="overlay">
     <div class="card" id="cardStart">
       <h1>Flying Pizza</h1>
