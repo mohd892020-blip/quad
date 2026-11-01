@@ -1,9 +1,11 @@
+import { drawBoost, drawHawks, drawRings, drawRival, stepAction } from './action.js';
 import { initAudio, updateRotor } from './audio.js';
 import { CAMERA, CITY_SEED, DRONE, DUST, FIXED_DT, GROUND, HUD_INTERVAL, MAX_FRAME_DT, QUALITY } from './config.js';
 import {
-  autoDeliver, chargeDrone, drawBeacons, drawHeading, drawPointer, drawTarget, newGame, stepCargo, stepHeading, stepMission, stepShop, zones,
+  autoDeliver, chargeDrone, drawBeacons, drawHeading, drawPointer, drawTarget, failMission, newGame, stepCargo, stepHeading, stepMission,
+  stepShop, zones,
 } from './delivery.js';
-import { drawAirframe, drawDrone, drawShadow, stepDrone, stepHold } from './drone.js';
+import { drawAirframe, drawDrone, drawShadow, stepBoost, stepDrone, stepHold } from './drone.js';
 import { initInput, keys } from './input.js';
 import { drawRope, stepRope, stepRopeLength } from './rope.js';
 import { settings } from './storage.js';
@@ -22,6 +24,7 @@ function step(dt) {
   const zone = zones(st);
   stepHold(st, keys, zone.hold);
   stepRopeLength(st, keys, zone, dt);
+  stepBoost(st, keys, dt);
   const fall = st.d.vy;
   const grounded = stepDrone(st, keys, dt);
   if (grounded && !st.onGround && fall > DUST.minSpeed) kickDust(st, st.d.x, st.d.y + DRONE.radius, fall);
@@ -31,6 +34,7 @@ function step(dt) {
     stepCargo(st, dt);
   }
   stepMission(st);
+  if (stepAction(st, dt) && st.has) failMission(st, 'The rival got there first');
   stepShop(st, grounded, dt);
   stepHeading(st, dt);
   stepCamera(st, dt);
@@ -50,6 +54,7 @@ function blended() {
   const t = Math.min(1, st.acc / FIXED_DT), mix = (a, b) => a + (b - a) * t;
   return {
     ...st,
+    blend: t,
     t: mix(p.t, st.t),
     cam: { x: mix(p.camX, st.cam.x), y: mix(p.camY, st.cam.y) },
     d: { ...st.d, x: mix(p.x, st.d.x), y: mix(p.y, st.d.y), a: mix(p.a, st.d.a) },
@@ -69,8 +74,13 @@ function render() {
   drawBeacons(s);
   drawShadow(s);
   drawTarget(s);
+  drawRings(s, false);
+  drawRival(s);
   drawRope(s);
+  drawBoost(s);
   drawDrone(s);
+  drawRings(s, true);
+  drawHawks(s);
   drawHeading(s);
   drawFx(s);
   ctx.restore();

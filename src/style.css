@@ -83,3 +83,7 @@ body{background:var(--night);color:var(--ink);font-family:var(--body);overflow:h
 #toast.bad b{color:#ff7a5c}
 #toast span{font-size:14px;font-weight:700;color:var(--ink)}
 #cardStart{display:grid;gap:14px;justify-items:center}
+#bBoost i{background:#7ad0ff}
+#boost{width:64px;height:64px;font-size:15px;align-self:flex-end}
+@media (max-width:420px){#joy{width:140px}}
+@media (max-height:480px){#actions{right:calc(200px + max(16px,env(safe-area-inset-right,0px)))}}

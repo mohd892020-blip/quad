@@ -134,6 +134,9 @@ const SOUNDS = {
   spark: t => burst(t, .09, .45, 3200, 'highpass'),
   deliver: t => { tone(660, 660, t, .12, .5); tone(990, 990, t + .1, .22, .5); },
   pickup: t => tone(520, 780, t, .14, .4),
+  whoosh: t => burst(t, .3, .4, 1400, 'bandpass'),
+  ring: t => { tone(880, 1320, t, .1, .4); tone(1320, 1760, t + .07, .14, .35); },
+  hawk: t => tone(1900, 900, t, .32, .35, 'sawtooth'),
 };
 
 // Short one-shots; repeats of one sound inside sfxGap are dropped so contact does not buzz.

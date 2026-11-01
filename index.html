@@ -22,6 +22,7 @@
       <span>BATTERY</span><div class="bar" id="bBat"><i></i></div>
       <span>HEAT</span><div class="bar" id="bHeat"><i></i></div>
       <span>ORDER</span><div class="bar" id="bBox"><i></i></div>
+      <span>BOOST</span><div class="bar" id="bBoost"><i></i></div>
     </div>
     <canvas id="map" aria-label="City map"></canvas>
   </div>
@@ -29,7 +30,7 @@
   <div id="controls" hidden>
     <div class="grp" id="arrows" hidden><button class="btn" id="lt" aria-label="Left">◀</button><button class="btn" id="rt" aria-label="Right">▶</button></div>
     <div id="joy" hidden aria-label="Steer left or right"><i id="knob"></i></div>
-    <div class="grp"><button class="btn" id="up" aria-label="Lift">LIFT</button></div>
+    <div class="grp"><button class="btn" id="boost" aria-label="Boost">BOOST</button><button class="btn" id="up" aria-label="Lift">LIFT</button></div>
   </div>
   <div id="actions">
     <button class="act" id="ropeUp" hidden>Rope ▲</button>
@@ -40,7 +41,7 @@
     <button class="act" id="devAuto">Auto deliver</button>
     <button class="act" id="devCharge">Charge</button>
   </div>
-  <div id="keys" hidden>← → tilt · ↑ or Space lift · ↓ lower rope · Q raise · H hold</div>
+  <div id="keys" hidden>← → tilt · ↑ or Space lift · Shift boost · ↓ lower rope · Q raise · H hold</div>
   <div id="overlay">
     <div class="card" id="cardStart">
       <h1>Flying Pizza</h1>

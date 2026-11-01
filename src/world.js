@@ -51,6 +51,15 @@ export function nearby(x) {
   return world.cells[Math.floor((x - CELL.base) / CELL.size)] || world.edge;
 }
 
+// The highest solid surface within reach of x.
+export function roofAt(x, reach) {
+  let top = GROUND;
+  for (const px of [x - reach, x, x + reach]) {
+    for (const R of nearby(px)) if (R.x <= x + reach && R.x + R.w >= x - reach && R.y < top) top = R.y;
+  }
+  return top;
+}
+
 export function indexColliders(solids) {
   const ground = { x: GROUND_BOX.x, y: GROUND, w: GROUND_BOX.w, h: GROUND_BOX.h };
   const cells = [];

@@ -1,6 +1,7 @@
+import { clearAction, planMission } from './action.js';
 import { sfx } from './audio.js';
 import {
-  BOX, CAMERA, CITY_SEED, DELIVERY, DEV, DRONE, HEADING, ITEMS, MISSION, ORDERS, RESTAURANT, ROPE, ROPE_CTL, WIND,
+  BOX, CAMERA, CITY_SEED, DELIVERY, DEV, DRONE, HEADING, ITEMS, MISSION, ORDERS, RESTAURANT, RINGS, RIVAL, ROPE, ROPE_CTL, WIND,
 } from './config.js';
 import { loadProgress, saveProgress } from './storage.js';
 import { ctx, glow, hud, pop, showToast, view, X, Y } from './ui.js';
@@ -19,6 +20,7 @@ export function newGame() {
     has: false, heat: 100, integ: 100, order: null, item: null, hold: 0, readyAt: 0,
     wind: 0, windT: 0, windNext: WIND.firstAt, pops: [], parts: [], shake: 0, acc: 0,
     dust: [], dustN: 0, onGround: true, ropeLen: ROPE, anchor: null, wrong: 0,
+    boost: 100, boosting: false, boostDir: 1, boostWait: 0, combo: 0, rings: [], ringsHit: 0, hawks: [], rival: null, lastX: p.x,
   };
   current = st;
   return st;
@@ -54,6 +56,7 @@ export function startMission(st, shop) {
   st.ropeLen = ROPE;
   st.box.x = st.box.px = st.d.x;
   st.box.y = st.box.py = st.d.y + BOX.anchorY + ROPE;
+  planMission(st, shop);
   sfx('pickup');
   hud(st);
 }
@@ -65,9 +68,11 @@ function endMission(st) {
   st.hold = 0;
   st.anchor = null;
   st.readyAt = st.t + MISSION.cooldown;
+  clearAction(st);
 }
 
 export function failMission(st, why) {
+  st.combo = 0;
   endMission(st);
   showToast('MISSION FAILED', why, false);
   hud(st);
@@ -76,11 +81,12 @@ export function failMission(st, why) {
 function passMission(st) {
   const c = DELIVERY, o = st.order, secs = st.t - o.start;
   const base = c.tipBase + st.heat * c.tipHeat + st.integ * c.tipBox + (secs < c.tipFastSecs ? c.tipFastBonus : secs < c.tipOkSecs ? c.tipOkBonus : 0);
-  const tip = Math.round(st.item.urgent ? base * c.urgentTip : base);
+  const beat = st.rival ? RIVAL.bonus : 0;
+  const tip = Math.round(st.item.urgent ? base * c.urgentTip : base) + st.ringsHit * RINGS.tipEach + beat;
   st.money += tip;
   st.del++;
   endMission(st);
-  showToast('MISSION PASSED', `+$${tip}`, true);
+  showToast('MISSION PASSED', beat ? `+$${tip} · Rival beaten` : `+$${tip}`, true);
   pop(st, o.t.x, o.t.y - 50, `+$${tip}`, '#ffc23d');
   sfx('deliver');
   setTime(world.time + 1);

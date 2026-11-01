@@ -1,5 +1,5 @@
 import { sfx } from './audio.js';
-import { DRONE, G, HOLD, LOAD, SHADOW } from './config.js';
+import { BOOST, DRONE, G, HOLD, LOAD, SHADOW } from './config.js';
 import { settings } from './storage.js';
 import { ctx, glow, kickDust, view, X, Y } from './ui.js';
 import { nearby } from './world.js';
@@ -14,6 +14,21 @@ function circleRect(o, r, R) {
     return { nx: opts[1], ny: opts[2], p: opts[0] + r };
   }
   return { nx: dx / d, ny: dy / d, p: r - d };
+}
+
+// Boost energy empties fast and comes back on its own after a short rest.
+export function stepBoost(st, keys, dt) {
+  const c = BOOST, steer = keys.r - keys.l + keys.axis;
+  const was = st.boosting;
+  st.boosting = !!keys.boost && st.boost > 0 && !st.anchor && st.d.bat > 0;
+  if (st.boosting) {
+    st.boostDir = Math.sign(steer) || Math.sign(st.d.vx) || st.boostDir;
+    st.boost = Math.max(0, st.boost - c.drain * dt);
+    st.boostWait = c.refillDelay;
+    st.d.bat = Math.max(0, st.d.bat - c.batteryDrain * dt);
+    if (!was) sfx('whoosh');
+  } else if (st.boostWait > 0) st.boostWait -= dt;
+  else st.boost = Math.min(100, st.boost + c.refill * dt);
 }
 
 // Hold pins the drone where it was pressed; any flight input hands control back.
@@ -48,6 +63,7 @@ export function stepDrone(st, keys, dt) {
     const thr = powered ? (keys.u ? c.thrustLift : c.thrustIdle) * G * (1 - over * LOAD.thrustLoss) : 0;
     d.vx += (Math.sin(d.a) * thr + st.wind * c.windForce) * dt;
     d.vy += (G - Math.cos(d.a) * thr) * dt;
+    if (st.boosting) d.vx += st.boostDir * BOOST.force * dt;
     const drag = Math.pow(c.dragX, dt);
     d.vx *= drag;
     d.vy *= Math.pow(c.dragY, dt);

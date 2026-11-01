@@ -161,7 +161,7 @@ export function drawFx(st) {
 /* ---------- HUD ---------- */
 export function hud(st) {
   $('money').firstChild.nodeValue = `$${st.money}`;
-  $('del').textContent = `${st.del} ${st.del === 1 ? 'delivery' : 'deliveries'}`;
+  $('del').textContent = `${st.del} ${st.del === 1 ? 'delivery' : 'deliveries'}${st.combo ? ` · x${st.combo}` : ''}`;
   const clock = $('clock'), o = st.has ? st.order : null;
   const left = o ? Math.max(0, o.deadline - st.t) : 0, whole = Math.ceil(left);
   clock.textContent = o ? `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}` : '--:--';
@@ -169,6 +169,7 @@ export function hud(st) {
   $('bBat').firstChild.style.width = st.d.bat + '%';
   $('bHeat').firstChild.style.width = (o && st.item.heat ? st.heat : 0) + '%';
   $('bBox').firstChild.style.width = (o ? st.integ : 0) + '%';
+  $('bBoost').firstChild.style.width = st.boost + '%';
   if (o) {
     const t = o.t, item = st.item, dist = Math.round(Math.abs(t.x - st.d.x) / 10);
     const place = t.kind === 'bal' ? `Balcony, floor ${t.fl}` : t.kind === 'street' ? 'Street' : 'Rooftop';

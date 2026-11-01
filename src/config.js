@@ -18,8 +18,8 @@ export const CITY_SEED = 7;
 
 // A job: its clock, when harder customers appear, and the beacon that starts it.
 export const MISSION = {
-  baseTime: 16,
-  speed: 170,
+  baseTime: 22,
+  speed: 150,
   urgentTime: .75,
   heavyTime: 6,
   lowTime: 10,
@@ -134,6 +134,23 @@ export const AIRCRAFT = [
   { key: 'heavy', name: 'Heavy Lifter' },
   { key: 'vtol', name: 'VTOL Wing' },
 ];
+
+export const BOOST = { force: 900, drain: 60, refill: 18, refillDelay: .6, batteryDrain: 2.5 };
+
+export const RINGS = {
+  min: 2, max: 5, perDeliveries: 2, spacing: 260, radius: 34, lift: 70, liftRange: 60, ceiling: -300, reward: 2, tipEach: 3,
+};
+
+export const HAWKS = {
+  from: 1, twoFrom: 4, threeFrom: 8, pathMin: .3, pathRange: .5, lift: 90, orbit: 60, circleRate: 1.4,
+  trigger: 200, diveSpeed: 380, diveTime: 3, hitDist: 22, shooDist: 30, damage: 16, hitShake: 6,
+  fleeX: 240, fleeY: 200, fleeTime: 2.5,
+};
+
+export const RIVAL = {
+  from: 2, chance: .5, delayMin: 5, delayRange: 2, speed: 135, speedPerDelivery: 8, speedMax: 280,
+  padLift: 30, clearance: 70, lookAhead: 90, climb: 3, approach: 140, hover: 60, arrive: 12, arriveY: 26, bonus: 15, scale: 1.05,
+};
 
 export const WIND = {
   firstAt: 22,

@@ -2,11 +2,12 @@ import { JOY } from './config.js';
 import { settings } from './storage.js';
 
 // l/r/u/rd/ru are held states, axis is the joystick in -1..1, holdTap is a one-shot press.
-export const keys = { l: 0, r: 0, u: 0, rd: 0, ru: 0, axis: 0, holdTap: 0 };
+export const keys = { l: 0, r: 0, u: 0, rd: 0, ru: 0, boost: 0, axis: 0, holdTap: 0 };
 
 const km = {
   ArrowLeft: 'l', KeyA: 'l', ArrowRight: 'r', KeyD: 'r', ArrowUp: 'u', KeyW: 'u', Space: 'u',
   ArrowDown: 'rd', KeyS: 'rd', KeyQ: 'ru', KeyE: 'ru',
+  ShiftLeft: 'boost', ShiftRight: 'boost', KeyB: 'boost',
 };
 
 const coarse = () => matchMedia('(pointer:coarse)').matches;
@@ -82,12 +83,12 @@ export function initInput() {
     if (k) { keys[k] = 0; e.preventDefault(); }
   });
 
-  [['lt', 'l'], ['rt', 'r'], ['up', 'u'], ['ropeDown', 'rd'], ['ropeUp', 'ru']].forEach(([id, k]) => bindHeld(id, k));
+  [['lt', 'l'], ['rt', 'r'], ['up', 'u'], ['boost', 'boost'], ['ropeDown', 'rd'], ['ropeUp', 'ru']].forEach(([id, k]) => bindHeld(id, k));
   bindJoystick();
   $('hold').addEventListener('click', () => { keys.holdTap = 1; });
   lockPage();
 
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) keys.l = keys.r = keys.u = keys.rd = keys.ru = keys.axis = 0;
+    if (document.hidden) keys.l = keys.r = keys.u = keys.rd = keys.ru = keys.boost = keys.axis = 0;
   });
 }
