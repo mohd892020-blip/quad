@@ -1,7 +1,7 @@
 import { BIRDS, CAMERA, CELL, CITY, CLOCK, GROUND, GROUND_BOX, PEOPLE, PERSPECTIVE, SHOPS, SPRITE, TIMES, WIND, ZONES } from './config.js';
 import { ctx, glow, shade, view, X, Y } from './ui.js';
 
-const CLOTHES = ['#e8492c', '#f2efe6', '#4fa3c2', '#ffc23d', '#7cc28f', '#d97aa8'];
+const CLOTHES = ['#e8492c', '#f2efe6', '#4fa3c2', '#ffc23d', '#7cc28f', '#d97aa8', '#3f5f8f', '#fafafa'];
 const SHIRTS = ['#e8492c', '#4fa3c2', '#ffc23d', '#7cc28f', '#d97aa8', '#f2efe6', '#5a6b8c'];
 
 export const world = {
@@ -167,7 +167,7 @@ export function genWorld(seed) {
       if (!power) {
         for (let k = c.clothFirst; k < c.clothLast; k += c.clothStep + ((r() * c.clothStepRange) | 0)) {
           clothes.push({
-            k, c: CLOTHES[(r() * CLOTHES.length) | 0],
+            k, kind: CLOTH_KINDS[(r() * CLOTH_KINDS.length) | 0], c: CLOTHES[(r() * CLOTHES.length) | 0],
             h: c.clothHMin + r() * c.clothHRange, w: c.clothWMin + r() * c.clothWRange,
           });
         }
@@ -483,7 +483,7 @@ function drawBuildings() {
       ctx.fill();
     }
     const s = spriteOf(b);
-    ctx.drawImage(s, Math.round(X(L - p.padX) * DPR) / DPR, Math.round(Y(T - p.padTop) * DPR) / DPR, s.width / DPR, s.height / DPR);
+    ctx.drawImage(s, X(L - p.padX), Y(T - p.padTop), s.width / DPR, s.height / DPR);
   }
   for (const b of world.live) {
     if (Math.abs(b.x - vpx) > viewW + p.evictMargin) { b.sprite = null; world.live.delete(b); }
@@ -520,11 +520,75 @@ function drawRigs(st) {
   }
 }
 
+// Each piece is a path in pixels from the line down; f pushes the hem sideways.
+const CLOTH = {
+  shirt(w, h, f) {
+    ctx.moveTo(-w * .26, 0);
+    ctx.lineTo(-w * .62, h * .16); ctx.lineTo(-w * .48, h * .36); ctx.lineTo(-w * .28, h * .24);
+    ctx.lineTo(-w * .28 + f, h); ctx.lineTo(w * .28 + f, h);
+    ctx.lineTo(w * .28, h * .24); ctx.lineTo(w * .48, h * .36); ctx.lineTo(w * .62, h * .16);
+    ctx.lineTo(w * .26, 0);
+    ctx.quadraticCurveTo(0, h * .14, -w * .26, 0);
+  },
+  pants(w, h, f) {
+    ctx.moveTo(-w * .36, 0); ctx.lineTo(w * .36, 0);
+    ctx.lineTo(w * .42 + f, h * 1.25); ctx.lineTo(w * .1 + f, h * 1.25);
+    ctx.lineTo(0, h * .36);
+    ctx.lineTo(-w * .1 + f, h * 1.25); ctx.lineTo(-w * .42 + f, h * 1.25);
+  },
+  dress(w, h, f) {
+    ctx.moveTo(-w * .2, 0); ctx.lineTo(w * .2, 0); ctx.lineTo(w * .24, h * .38);
+    ctx.quadraticCurveTo(w * .5 + f * .5, h * .8, w * .52 + f, h * 1.2);
+    ctx.quadraticCurveTo(f, h * 1.12, -w * .52 + f, h * 1.2);
+    ctx.quadraticCurveTo(-w * .5 + f * .5, h * .8, -w * .24, h * .38);
+  },
+  towel(w, h, f) {
+    ctx.moveTo(-w * .5, 0); ctx.lineTo(w * .5, 0); ctx.lineTo(w * .5 + f, h);
+    ctx.quadraticCurveTo(f, h - w * .12, -w * .5 + f, h);
+  },
+  socks(w, h, f) {
+    for (const x of [-w * .3, w * .12]) {
+      ctx.moveTo(x, 0); ctx.lineTo(x + w * .18, 0); ctx.lineTo(x + w * .18 + f * .4, h * .42);
+      ctx.lineTo(x + w * .34 + f * .4, h * .5); ctx.lineTo(x + w * .3 + f * .4, h * .62); ctx.lineTo(x + f * .4, h * .55);
+    }
+  },
+};
+const CLOTH_KINDS = Object.keys(CLOTH);
+
+function drawCloth(c, p, st) {
+  const S = view.S, w = c.w * S, h = c.h * S;
+  const f = (Math.sin(st.t * 2.6 + c.k) * 1.6 + st.wind * .03) * S;
+  ctx.save();
+  ctx.translate(X(p.x), Y(p.y));
+  ctx.rotate(Math.sin(st.t * 1.4 + c.k * 2) * .035 + st.wind * .0012);
+  ctx.beginPath();
+  CLOTH[c.kind](w, h, f);
+  ctx.closePath();
+  ctx.fillStyle = shade(c.c, world.pal.light);
+  ctx.fill();
+  if (!view.lowQ) {
+    // a soft fold down one side, plus the stripe a towel has
+    ctx.clip();
+    ctx.fillStyle = 'rgba(0,0,0,.13)';
+    ctx.fillRect(w * .08, 0, w, h * 1.4);
+    if (c.kind === 'towel') {
+      ctx.fillStyle = 'rgba(255,255,255,.45)';
+      ctx.fillRect(-w, h * .62, w * 2, h * .1);
+    }
+  }
+  ctx.restore();
+  ctx.save();
+  ctx.translate(X(p.x), Y(p.y));
+  ctx.fillStyle = '#b98f5e';
+  for (const x of c.kind === 'socks' ? [-w * .21, w * .21] : [-w * .24, w * .24]) ctx.fillRect(x - 1.1 * S, -3 * S, 2.2 * S, 6 * S);
+  ctx.restore();
+}
+
 function drawLines(st) {
   const { W, S } = view;
   for (const L of world.lines) {
     if (X(L.maxX) < -20 || X(L.minX) > W + 20) continue;
-    ctx.strokeStyle = L.power ? 'rgba(16,14,20,.95)' : 'rgba(30,22,30,.8)';
+    ctx.strokeStyle = L.power ? 'rgba(16,14,20,.95)' : shade('#d8d2c4', world.pal.light);
     ctx.lineWidth = (L.power ? 2 : 1.3) * S;
     ctx.beginPath();
     L.pts.forEach((p, i) => i ? ctx.lineTo(X(p.x), Y(p.y)) : ctx.moveTo(X(p.x), Y(p.y)));
@@ -533,16 +597,11 @@ function drawLines(st) {
       ctx.fillStyle = '#7ad0ff';
       for (const i of [3, 7, 11]) ctx.fillRect(X(L.pts[i].x) - 2 * S, Y(L.pts[i].y) - 2 * S, 4 * S, 4 * S);
     }
-    for (const c of L.clothes) {
-      const p = L.pts[c.k];
-      const sw = Math.sin(st.t * 2 + c.k) * st.wind * .01;
-      ctx.save();
-      ctx.translate(X(p.x), Y(p.y));
-      ctx.rotate(sw * .6);
-      ctx.fillStyle = c.c;
-      ctx.fillRect(-c.w / 2 * S, 0, c.w * S, c.h * S);
-      ctx.restore();
+    if (!L.power) {
+      ctx.fillStyle = '#3a3038';
+      for (const p of [L.pts[0], L.pts[L.pts.length - 1]]) ctx.fillRect(X(p.x) - 2.5 * S, Y(p.y) - 2.5 * S, 5 * S, 5 * S);
     }
+    for (const c of L.clothes) drawCloth(c, L.pts[c.k], st);
   }
 }
 

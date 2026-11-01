@@ -125,7 +125,7 @@ function loop(now) {
     if (hudT > HUD_INTERVAL) { hud(st); drawMap(st); hudT = 0; }
   }
   render();
-  showActions(zones(st), !!st.anchor);
+  showActions(zones(st), !!st.anchor, st.boosting);
   updateRotor(!paused && st.d.bat > 0, rotorLoad(st, keys));
   requestAnimationFrame(loop);
 }

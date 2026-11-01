@@ -123,3 +123,9 @@ body{background:var(--night);color:var(--ink);font-family:var(--body);overflow:h
 }
 #hud{justify-content:flex-start}
 #meters{margin-left:auto}
+#boost small{display:none}
+.desk #joy,.desk #arrows,.desk #up{display:none!important}
+.desk #controls{justify-content:flex-end;padding-bottom:calc(52px + env(safe-area-inset-bottom,0px))}
+.desk #boost{width:78px;height:78px;font-size:17px;cursor:pointer;line-height:1.1}
+.desk #boost small{display:block;font-family:var(--body);font-weight:700;font-size:11px;color:var(--muted)}
+.desk #actions{bottom:calc(142px + env(safe-area-inset-bottom,0px))}

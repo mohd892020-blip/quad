@@ -211,7 +211,9 @@ function show(id, on) {
   if (el.hidden === on) el.hidden = !on;
 }
 
-export function showActions(zone, anchored) {
+export function showActions(zone, anchored, boosting) {
+  const boost = $('boost');
+  if (boost.classList.contains('on') !== boosting) boost.classList.toggle('on', boosting);
   show('ropeDown', zone.rope);
   show('ropeUp', zone.rope);
   show('hold', zone.hold || anchored);
