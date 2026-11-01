@@ -2,19 +2,20 @@ import { AUDIO } from './config.js';
 import { saveSettings, settings } from './storage.js';
 
 let ac = null, output, master, bus, filter, air, oscs, noiseBuf, voices = 0, nextUpdate = 0;
-const lastPlayed = {};
+const lastPlayed = {}, aimed = new Map();
 
 function makeNoise() {
   noiseBuf = ac.createBuffer(1, ac.sampleRate * 2, ac.sampleRate);
   const data = noiseBuf.getChannelData(0);
-  for (let i = 0; i < data.length; i++) data[i] = Math.sin(i * 12.9898) * 43758.5453 % 1;
+  // a sine hash here keeps the sign of its sine, which is a loud steady tone near 3 kHz
+  for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
 }
 
 function build() {
   const AC = window.AudioContext || window.webkitAudioContext;
   if (!AC) return;
   const c = AUDIO;
-  ac = new AC();
+  ac = new AC({ latencyHint: c.latency });
   makeNoise();
 
   // everything goes through one limiter so stacked sounds cannot clip
@@ -28,7 +29,11 @@ function build() {
   bus.connect(output).connect(ac.destination);
   master = ac.createGain();
   master.gain.value = 0;
-  master.connect(bus);
+  // phone speakers peak around 3 kHz, so the rotor stays under that; one-shots keep their edge
+  const soft = ac.createBiquadFilter();
+  soft.type = 'lowpass';
+  soft.frequency.value = c.softCut;
+  master.connect(soft).connect(bus);
 
   // two detuned saws beat against each other like a pair of rotors
   filter = ac.createBiquadFilter();
@@ -88,6 +93,8 @@ export function toggleMute() {
 }
 
 function aim(param, value) {
+  if (aimed.get(param) === value) return;
+  aimed.set(param, value);
   const t = ac.currentTime;
   param.cancelScheduledValues(t);
   param.setTargetAtTime(value, t, AUDIO.smooth);
@@ -103,10 +110,12 @@ export function updateRotor(active, throttle, model) {
   const mix = (a, b) => a + (b - a) * throttle;
   // filters follow the motor pitch, so a small fast prop sounds thin and a big one deep
   const tone = Math.sqrt(model.hz[0] / c.idleHz);
-  aim(master.gain, active ? mix(c.idleGain, c.liftGain) : 0);
-  aim(filter.frequency, mix(c.idleCut, c.liftCut) * tone);
-  aim(air.frequency, mix(c.noiseHz, c.noiseLiftHz) * tone);
-  for (const o of oscs) aim(o.frequency, mix(model.hz[0], model.hz[1]));
+  // high pitches sit where the ear and a phone speaker are keenest, so they play quieter
+  const trim = Math.min(1, (c.idleHz / model.hz[0]) ** c.pitchTrim);
+  aim(master.gain, active ? mix(c.idleGain, c.liftGain) * trim : 0);
+  aim(filter.frequency, Math.min(c.maxCut, mix(c.idleCut, c.liftCut) * tone));
+  aim(air.frequency, Math.min(c.maxNoiseHz, mix(c.noiseHz, c.noiseLiftHz) * tone));
+  for (const o of oscs) aim(o.frequency, Math.min(c.maxHz, mix(model.hz[0], model.hz[1])));
 }
 
 function finish(source, nodes) {
@@ -160,7 +169,7 @@ const SOUNDS = {
   pickup: t => tone(520, 780, t, .14, .4),
   whoosh: t => burst(t, .3, .4, 1400, 'bandpass'),
   boom: t => { burst(t, .7, 1, 240); tone(90, 32, t, .6, .8, 'sine'); },
-  hawk: t => tone(1900, 900, t, .32, .35, 'sawtooth'),
+  hawk: t => tone(1900, 900, t, .32, .35),
 };
 
 // Short one-shots; repeats of one sound inside sfxGap are dropped so contact does not buzz.

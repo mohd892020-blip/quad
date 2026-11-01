@@ -62,7 +62,7 @@ body{background:var(--night);color:var(--ink);font-family:var(--body);overflow:h
 .seg{display:flex;gap:6px}
 .seg button,.chips button,#devForm button{font-family:var(--body);font-weight:700;font-size:14px;min-height:38px;padding:0 12px;border-radius:8px;border:1px solid rgba(42,27,20,.35);background:transparent;color:#2a1b14;cursor:pointer}
 .seg button[aria-pressed=true],.chips button[aria-pressed=true]{background:var(--tomato);border-color:var(--tomato);color:#fff}
-.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:6px;margin-top:8px}
 #devForm{display:flex;gap:6px}
 #devCode{flex:1;min-width:0;font:inherit;font-size:16px;padding:0 10px;min-height:38px;border-radius:8px;border:1px solid rgba(42,27,20,.35);background:#fff7ea;color:#2a1b14;-webkit-user-select:text;user-select:text}
 #devMsg{margin:6px 0 0;font-size:13px;min-height:1em}
@@ -136,6 +136,12 @@ body{background:var(--night);color:var(--ink);font-family:var(--body);overflow:h
 #hangarTip{position:absolute;left:0;right:0;top:40%;margin-inline:auto;width:fit-content;max-width:min(86vw,360px);z-index:2;pointer-events:auto;cursor:pointer;
   font-family:var(--body);font-weight:800;font-size:14px;min-height:40px;padding:0 16px;border-radius:20px;border:2px solid var(--cheese);background:rgba(26,20,48,.82);color:var(--cheese)}
 #hangarTip:focus-visible{outline:3px solid var(--cheese);outline-offset:2px}
+.chips button{display:grid;justify-items:center;align-content:center;gap:4px;min-height:50px;padding:5px 3px;font-size:13px;line-height:1.1;white-space:nowrap}
+.chips small{font-size:11px;font-weight:800;line-height:1;padding:3px 7px 2px;border-radius:9px;color:#fff;background:#6b6259}
+.chips small.thrust{background:#7a3ea8}
+.chips small.speed{background:#2a6a9c}
+.chips small.battery{background:#2b7a4b}
+.chips small.tough{background:#5a4030}
 #planeNote{margin:8px 0 6px;font-size:14px;font-weight:700}
 #planeStats{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;align-items:center;font-size:12px;font-weight:700}
 #planeStats i{height:7px;border-radius:4px;background:rgba(42,27,20,.16);overflow:hidden}
