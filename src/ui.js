@@ -1,5 +1,6 @@
-import { DUST, FX, G, QUALITY, SHAKE, VIEW } from './config.js';
-import { updateBest } from './storage.js';
+import { AIRCRAFT, DEV, DUST, FX, G, QUALITY, SHAKE, VIEW } from './config.js';
+import { applyControls } from './input.js';
+import { saveSettings, settings, updateBest } from './storage.js';
 
 const $ = id => document.getElementById(id);
 
@@ -178,6 +179,86 @@ export function hud(st) {
 
 export function hideOverlay() {
   $('overlay').hidden = true;
+}
+
+// Writes only on change: this runs every frame.
+function show(id, on) {
+  const el = $(id);
+  if (el.hidden === on) el.hidden = !on;
+}
+
+export function showActions(zone, anchored) {
+  show('ropeDown', zone.rope);
+  show('ropeUp', zone.rope);
+  show('hold', zone.hold || anchored);
+  const hold = $('hold'), label = anchored ? 'Release' : 'Hold';
+  if (hold.textContent !== label) {
+    hold.textContent = label;
+    hold.classList.toggle('on', anchored);
+  }
+}
+
+/* ---------- settings ---------- */
+export const sheetOpen = () => !$('sheet').hidden;
+export const previewCanvas = () => $('preview');
+
+function markControls() {
+  $('ctlJoy').setAttribute('aria-pressed', settings.controls === 'joystick');
+  $('ctlArrows').setAttribute('aria-pressed', settings.controls === 'arrows');
+}
+
+function markPlanes() {
+  for (const b of $('planes').children) b.setAttribute('aria-pressed', b.dataset.key === settings.plane);
+}
+
+function setControls(mode) {
+  settings.controls = mode;
+  saveSettings();
+  markControls();
+  applyControls();
+}
+
+function showDev() {
+  $('dev').hidden = !settings.dev;
+  $('devForm').hidden = settings.dev;
+  $('devMsg').textContent = settings.dev ? 'Developer mode is on.' : '';
+}
+
+export function initSheet() {
+  const planes = $('planes');
+  for (const a of AIRCRAFT) {
+    const b = document.createElement('button');
+    b.textContent = a.name;
+    b.dataset.key = a.key;
+    b.addEventListener('click', () => {
+      settings.plane = a.key;
+      saveSettings();
+      markPlanes();
+    });
+    planes.appendChild(b);
+  }
+  markPlanes();
+  markControls();
+  showDev();
+  $('gear').addEventListener('click', () => { $('sheet').hidden = false; });
+  $('sheetClose').addEventListener('click', () => { $('sheet').hidden = true; });
+  $('ctlJoy').addEventListener('click', () => setControls('joystick'));
+  $('ctlArrows').addEventListener('click', () => setControls('arrows'));
+  $('devForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const code = $('devCode');
+    if (code.value === DEV.password) {
+      settings.dev = true;
+      saveSettings();
+      showDev();
+    } else $('devMsg').textContent = 'Wrong password. Try again.';
+    code.value = '';
+  });
+}
+
+export function onDevActions(auto, charge) {
+  $('devAuto').addEventListener('click', auto);
+  $('devCharge').addEventListener('click', charge);
 }
 
 export function endShift(st, why) {

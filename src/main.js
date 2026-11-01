@@ -1,10 +1,14 @@
 import { initAudio, updateRotor } from './audio.js';
 import { CAMERA, DRONE, DUST, FIXED_DT, GROUND, HUD_INTERVAL, IDLE_SEED, MAX_FRAME_DT, QUALITY } from './config.js';
-import { newGame, stepCargo, stepShop, drawPointer, drawTarget } from './delivery.js';
-import { drawDrone, drawShadow, stepDrone } from './drone.js';
+import { autoDeliver, chargeDrone, drawHeading, drawPointer, drawTarget, newGame, stepCargo, stepHeading, stepShop, zones } from './delivery.js';
+import { drawAirframe, drawDrone, drawShadow, stepDrone, stepHold } from './drone.js';
 import { initInput, keys } from './input.js';
-import { drawRope, stepRope } from './rope.js';
-import { ctx, drawFx, endShift, hideOverlay, hud, kickDust, onStart, setLowQ, shakeOffset, stepFx, view } from './ui.js';
+import { drawRope, stepRope, stepRopeLength } from './rope.js';
+import { settings } from './storage.js';
+import {
+  ctx, drawFx, endShift, hideOverlay, hud, initSheet, kickDust, onDevActions, onStart, previewCanvas, setLowQ, shakeOffset, sheetOpen,
+  showActions, stepFx, view,
+} from './ui.js';
 import { drawCity, drawSky, dropSprites, genWorld, stepCamera, stepWind } from './world.js';
 
 let st = null, hudT = 0, last = performance.now();
@@ -13,6 +17,9 @@ const pace = { t: 0, n: 0 };
 function step(dt) {
   st.t += dt;
   stepWind(st, dt);
+  const zone = zones(st);
+  stepHold(st, keys, zone.hold);
+  stepRopeLength(st, keys, zone, dt);
   const fall = st.d.vy;
   const grounded = stepDrone(st, keys, dt);
   if (grounded && !st.onGround && fall > DUST.minSpeed) kickDust(st, st.d.x, st.d.y + DRONE.radius, fall);
@@ -22,6 +29,7 @@ function step(dt) {
     stepCargo(st, dt);
   }
   stepShop(st, grounded, dt);
+  stepHeading(st, dt);
   if (st.t >= st.shift) endShift(st, 'Shift over');
   if (st.d.bat <= 0 && grounded) endShift(st, 'Battery dead');
   stepCamera(st, dt);
@@ -61,9 +69,17 @@ function render() {
   drawTarget(s);
   drawRope(s);
   drawDrone(s);
+  drawHeading(s);
   drawFx(s);
   ctx.restore();
   drawPointer(s);
+}
+
+function drawPreview(time) {
+  const c = previewCanvas(), g = c.getContext('2d'), k = c.height / 62;
+  g.setTransform(k, 0, 0, k, c.width / 2, c.height / 2);
+  g.clearRect(-c.width, -c.height, c.width * 2, c.height * 2);
+  drawAirframe(g, settings.plane, time);
 }
 
 // Lowers quality once and for good when the device cannot keep up.
@@ -83,8 +99,10 @@ function loop(now) {
   const frame = (now - last) / 1000;
   const dt = Math.min(MAX_FRAME_DT, frame);
   last = now;
-  watchPace(frame);
-  if (st.running) {
+  const paused = sheetOpen();
+  if (!paused) watchPace(frame);
+  if (paused) drawPreview(now / 1000);
+  else if (st.running) {
     st.acc += dt;
     while (st.acc >= FIXED_DT) {
       rememberPose();
@@ -96,7 +114,8 @@ function loop(now) {
     if (hudT > HUD_INTERVAL) { hud(st); hudT = 0; }
   }
   render();
-  updateRotor(st.running && st.d.bat > 0, !!keys.u);
+  showActions(st.running ? zones(st) : { rope: false, hold: false }, !!st.anchor);
+  updateRotor(st.running && !paused && st.d.bat > 0, !!keys.u);
   requestAnimationFrame(loop);
 }
 
@@ -120,12 +139,15 @@ function idle() {
   view.cam = fake.cam;
   drawSky(fake);
   drawCity(fake);
+  if (sheetOpen()) drawPreview(performance.now() / 1000);
   requestAnimationFrame(idle);
 }
 
 initInput();
 initAudio();
+initSheet();
 onStart(start);
+onDevActions(() => autoDeliver(st), () => chargeDrone(st));
 genWorld(IDLE_SEED);
 // building sprites hold shop signs, so repaint them once the web fonts arrive
 document.fonts?.ready.then(dropSprites);

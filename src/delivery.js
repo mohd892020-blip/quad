@@ -1,5 +1,5 @@
 import { sfx } from './audio.js';
-import { BOX, CAMERA, DELIVERY, DRONE, ITEMS, ORDERS, RESTAURANT, SHIFT, WIND } from './config.js';
+import { BOX, CAMERA, DELIVERY, DEV, DRONE, HEADING, ITEMS, ORDERS, RESTAURANT, ROPE, ROPE_CTL, SHIFT, WIND } from './config.js';
 import { ctx, pop, view, X, Y } from './ui.js';
 import { genWorld, nearestShop, setTime, shopPad, world } from './world.js';
 
@@ -16,7 +16,7 @@ export function newGame() {
     box: { x: p.x, y: p.y - BOX.startAbovePad, px: p.x, py: p.y - BOX.startAbovePad },
     has: true, heat: 100, integ: 100, order: null, item: null, hold: 0, charge: 0,
     wind: 0, windT: 0, windNext: WIND.firstAt, pops: [], parts: [], shake: 0, over: false, running: true, acc: 0,
-    dust: [], dustN: 0, onGround: false,
+    dust: [], dustN: 0, onGround: false, ropeLen: ROPE, anchor: null, wrong: 0,
   };
   current = st;
   pickOrder(st, shop);
@@ -40,6 +40,39 @@ function pickOrder(st, shop) {
   st.integ = 100;
 }
 
+const NO_ZONE = { rope: false, hold: false };
+
+// Where rope and hold controls apply: rope right above the customer, hold over a wider area.
+export function zones(st) {
+  if (!st.has || !st.order) return NO_ZONE;
+  const c = ROPE_CTL, T = st.order.t, dx = Math.abs(T.x - st.d.x), dy = T.y - st.d.y;
+  return {
+    rope: dx < c.zoneX && dy > 0 && dy < c.zoneY,
+    hold: dx < c.holdX && dy > -c.holdAbove && dy < c.holdY,
+  };
+}
+
+// Where the player should be heading: the customer, or the closest shop.
+function goal(st) {
+  if (st.has && st.order) return { x: st.order.t.x, y: st.order.t.y, label: 'Customer' };
+  const shop = nearestShop(st.d.x), p = shopPad(shop);
+  return { x: p.x, y: p.y - 20, label: shop.shop.name };
+}
+
+export function stepHeading(st, dt) {
+  const c = HEADING, g = goal(st), gap = g.x - st.d.x;
+  const astray = Math.abs(gap) > c.minDist && st.d.vx * Math.sign(gap) < -c.minSpeed;
+  st.wrong += ((astray ? 1 : 0) - st.wrong) * Math.min(1, dt * c.fade);
+}
+
+export function autoDeliver(st) {
+  if (st && st.running && st.has && st.order) deliver(st);
+}
+
+export function chargeDrone(st) {
+  if (st) st.d.bat = DEV.chargeTo;
+}
+
 // Everything the carried order does each step after the rope has moved it.
 export function stepCargo(st, dt) {
   const d = st.d, bx = st.box, c = DELIVERY, item = st.item;
@@ -58,7 +91,8 @@ export function stepCargo(st, dt) {
     }
   }
   const T = st.order && st.order.t;
-  if (T && Math.hypot(bx.x - T.x, bx.y - T.y) < c.reach && Math.hypot(d.vx, d.vy) < c.maxDroneSpeed) {
+  const reach = st.anchor ? c.holdReach : c.reach;
+  if (T && Math.hypot(bx.x - T.x, bx.y - T.y) < reach && Math.hypot(d.vx, d.vy) < c.maxDroneSpeed) {
     st.hold += dt;
     if (st.hold > c.holdTime) deliver(st);
   } else st.hold = Math.max(0, st.hold - dt * c.holdDecay);
@@ -137,15 +171,27 @@ export function drawTarget(st) {
   ctx.restore();
 }
 
+// Soft chevrons by the drone when it is flying away from where it should go.
+export function drawHeading(st) {
+  if (st.wrong < .03) return;
+  const c = HEADING, S = view.S, g = goal(st), dir = Math.sign(g.x - st.d.x), y = Y(st.d.y);
+  ctx.lineWidth = 3 * S;
+  ctx.lineCap = 'round';
+  for (let i = 0; i < c.chevrons; i++) {
+    const x = X(st.d.x + dir * (c.offset + i * c.gap));
+    ctx.strokeStyle = `rgba(255,243,223,${st.wrong * (.3 + .35 * (.5 + .5 * Math.sin(st.t * 6 - i)))})`;
+    ctx.beginPath();
+    ctx.moveTo(x - dir * 5 * S, y - 7 * S);
+    ctx.lineTo(x + dir * 3 * S, y);
+    ctx.lineTo(x - dir * 5 * S, y + 7 * S);
+    ctx.stroke();
+  }
+  ctx.lineCap = 'butt';
+}
+
 export function drawPointer(st) {
   const { W, H } = view;
-  let tx, ty, label;
-  if (st.has && st.order) {
-    tx = st.order.t.x; ty = st.order.t.y; label = 'Customer';
-  } else {
-    const shop = nearestShop(st.d.x), p = shopPad(shop);
-    tx = p.x; ty = p.y - 20; label = shop.shop.name;
-  }
+  const { x: tx, y: ty, label } = goal(st);
   const sx = X(tx), sy = Y(ty), m = 56;
   if (sx > m && sx < W - m && sy > 140 && sy < H - m) return;
   const cx = W / 2, cy = H / 2, ang = Math.atan2(sy - cy, sx - cx);

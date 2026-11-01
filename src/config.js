@@ -62,6 +62,36 @@ export const BOX = {
   swingDamage: .09,
 };
 
+// Rope play over a customer. Zones are measured from the drone to the target.
+export const ROPE_CTL = {
+  speed: 95,
+  max: 220,
+  zoneX: 70,
+  zoneY: 260,
+  holdX: 150,
+  holdAbove: 20,
+  holdY: 340,
+};
+
+// Hold is a critically damped spring on the spot where it was pressed.
+export const HOLD = { spring: 14, damp: 7.5, drain: .5 };
+
+export const JOY = { dead: .12, knobInset: 28 };
+
+export const HEADING = { minDist: 150, minSpeed: 60, fade: 6, chevrons: 3, gap: 14, offset: 44 };
+
+export const DEV = { password: '930933', chargeTo: 100 };
+
+export const AIRCRAFT = [
+  { key: 'courier', name: 'Courier' },
+  { key: 'miniFold', name: 'Mini Fold' },
+  { key: 'hexa', name: 'Hexa' },
+  { key: 'x8', name: 'X8 Cargo' },
+  { key: 'fpv', name: 'FPV Racer' },
+  { key: 'heavy', name: 'Heavy Lifter' },
+  { key: 'vtol', name: 'VTOL Wing' },
+];
+
 export const WIND = {
   firstAt: 22,
   calmChance: .25,
@@ -132,6 +162,7 @@ export const ORDERS = {
 
 export const DELIVERY = {
   reach: 20,
+  holdReach: 36,
   maxDroneSpeed: 160,
   holdTime: .7,
   holdDecay: 2,

@@ -1,7 +1,13 @@
 import { sfx } from './audio.js';
-import { BOX, CITY, G, ROPE } from './config.js';
+import { BOX, CITY, G, ROPE, ROPE_CTL } from './config.js';
 import { ctx, kickDust, shade, view, X, Y } from './ui.js';
 import { nearby, world } from './world.js';
+
+// Pays the rope out over a customer; anywhere else it winds itself back in.
+export function stepRopeLength(st, keys, zone, dt) {
+  const dir = zone.rope ? keys.rd - keys.ru : -1;
+  st.ropeLen = Math.max(ROPE, Math.min(ROPE_CTL.max, st.ropeLen + dir * ROPE_CTL.speed * dt));
+}
 
 // The load is a single verlet point hanging from the drone. Pizza is the baseline:
 // its item factors are all 1, which leaves the prototype's numbers untouched.
@@ -17,8 +23,8 @@ export function stepRope(st, dt) {
 
   const ax = d.x, ay = d.y + c.anchorY;
   const dx = bx.x - ax, dy = bx.y - ay, dist = Math.hypot(dx, dy);
-  if (dist > ROPE) {
-    const k = (dist - ROPE) / dist;
+  if (dist > st.ropeLen) {
+    const k = (dist - st.ropeLen) / dist;
     const pullDrone = c.pullDrone * item.weight, pullBox = c.pullBox - (pullDrone - c.pullDrone);
     bx.x -= dx * k * pullBox;
     bx.y -= dy * k * pullBox;
@@ -150,8 +156,8 @@ export function drawRope(st) {
   ctx.lineWidth = 1.6 * S;
   ctx.beginPath();
   ctx.moveTo(ax, ay);
-  if (dist < ROPE - 2) {
-    const sag = (ROPE - dist) * .7;
+  if (dist < st.ropeLen - 2) {
+    const sag = (st.ropeLen - dist) * .7;
     ctx.quadraticCurveTo((ax + X(bx.x)) / 2, (ay + Y(bx.y)) / 2 + sag * S, X(bx.x), Y(bx.y - 5));
   } else ctx.lineTo(X(bx.x), Y(bx.y - 5));
   ctx.stroke();
