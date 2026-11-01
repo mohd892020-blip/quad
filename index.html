@@ -33,6 +33,7 @@
   </div>
   <button id="hangarTip" hidden></button>
   <div id="toast" hidden role="status"><b id="toastTitle"></b><span id="toastWhy"></span></div>
+  <div id="lesson" hidden role="status"><small id="lessonStep"></small><b id="lessonTitle"></b><span id="lessonText"></span><button id="lessonSkip">Skip</button></div>
   <div id="controls" hidden>
     <div class="grp" id="arrows" hidden><button class="btn" id="lt" aria-label="Left">◀</button><button class="btn" id="rt" aria-label="Right">▶</button></div>
     <div id="joy" hidden aria-label="Steer left or right"><i id="knob"></i></div>
@@ -57,7 +58,6 @@
   <div id="levels" hidden>
     <div id="levelsBar">
       <b>Flying Pizza</b><span id="levelsMoney">$0</span>
-      <button id="freeRoam">Free Roam</button>
       <button class="icon" id="levelsGear" aria-label="Settings">⚙</button>
     </div>
     <div id="levelsScroll"><div id="levelsPath"></div></div>
@@ -98,6 +98,10 @@
         <div class="chips" id="planes"></div>
         <p id="planeNote"></p>
         <div id="planeStats"></div>
+      </section>
+      <section>
+        <h3>Training</h3>
+        <button class="ghost" id="openTraining">Practice flying and delivery</button>
       </section>
       <section>
         <h3>Developer</h3>

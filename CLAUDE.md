@@ -4,7 +4,7 @@
 - التقنية: JavaScript (ES modules) مع Canvas 2D وVite. ممنوع محركات ألعاب أو React أو مكتبات فيزياء.
 - النشر: `npm run build` يطلّع `dist/flying-pizza.html` للـArtifact بنفس المسار عشان يضل الرابط نفسه، والموقع العام github.io بيعرض فرع master مباشرة، فأي رفع على master بيحدّثه.
 - prototype.html مرجع فيزياء الدرون والحبل: البيتزا تضل بقيم النموذج بالضبط، وباقي الطلبات مضاعفات فوقها.
-- الملفات في src/: main، config، drone، rope، world، delivery، action، levels، ui، input، audio، storage. ملف لكل مسؤولية.
+- الملفات في src/: main، config، drone، rope، world، delivery، action، levels، training، ui، input، audio، storage. ملف لكل مسؤولية.
 - كل الأرقام القابلة للضبط في src/config.js فقط.
 - فيزياء بخطوة ثابتة 1/120 ثانية، والرسم يمزج بين آخر خطوتين.
 - كل النصوص إنجليزية فقط، ولا نص عربي بالواجهة. خطّا Lalezar وTajawal.

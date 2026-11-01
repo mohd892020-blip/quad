@@ -42,6 +42,7 @@ export function measureHud() {
   view.mapW = $('map').clientWidth || view.mapW;
   view.mapH = $('map').clientHeight || view.mapH;
   $('toast').style.top = view.top + 12 + 'px';
+  $('lesson').style.top = view.top + 8 + 'px';
 }
 addEventListener('resize', resize);
 resize();
@@ -291,12 +292,12 @@ const text = (id, value) => put(id, value, v => { $(id).textContent = v; });
 const bar = (id, percent) => put(id, Math.round(percent), v => { $(id).firstChild.style.transform = `scaleX(${v / 100})`; });
 
 export function hud(st) {
-  const tag = st.level ? `Level ${st.level.n} · ` : '';
+  const training = st.level.training, tag = training ? '' : `Level ${st.level.n} · `;
   put('money', `$${st.money}`, v => { $('money').firstChild.nodeValue = v; });
   text('del', `${st.del} ${st.del === 1 ? 'delivery' : 'deliveries'}`);
   const o = st.has ? st.order : null;
   const left = o ? Math.max(0, o.deadline - st.t) : st.prep ? st.prep.left : 0, whole = Math.ceil(left);
-  text('clock', o || st.prep ? `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}` : '--:--');
+  text('clock', (o || st.prep) && whole < Infinity ? `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}` : '--:--');
   put('clockLow', !!o && left < MISSION.lowTime, v => { $('clock').classList.toggle('low', v); });
   bar('bBat', st.d.bat);
   bar('bHp', st.hp);
@@ -313,13 +314,23 @@ export function hud(st) {
   } else if (st.prep) {
     text('oTitle', `${tag}Preparing ${st.prep.item.label}`);
     text('oSub', `${st.prep.shop.shop.name} · Stay on the pad`);
-  } else if (st.level) {
-    text('oTitle', `Level ${st.level.n}`);
-    text('oSub', `Land on the green pad at ${st.level.shop.shop.name}`);
   } else {
-    text('oTitle', 'Free Roam');
-    text('oSub', 'Land on the green pad of any shop');
+    text('oTitle', training ? 'Training' : `Level ${st.level.n}`);
+    text('oSub', training ? 'Follow the steps' : `Land on the green pad at ${st.level.shop.shop.name}`);
   }
+}
+
+// The training panel, and a ring around the control it is talking about.
+let taught = [];
+export function showLesson(step, title, body, teach = []) {
+  for (const id of taught) $(id).classList.remove('teach');
+  taught = teach;
+  for (const id of teach) $(id).classList.add('teach');
+  $('lesson').hidden = !title;
+  if (!title) return;
+  $('lessonStep').textContent = step;
+  $('lessonTitle').textContent = title;
+  $('lessonText').textContent = body;
 }
 
 let toastTimer = 0;
@@ -421,9 +432,9 @@ export function showResult(o, level, hasNext) {
   resultLevel = level;
   const card = $('resultCard');
   card.classList.toggle('bad', !o.passed);
-  $('resultTitle').textContent = o.passed ? 'MISSION PASSED' : 'MISSION FAILED';
-  $('resultStars').textContent = o.passed ? starText(o.stars) : '';
-  $('resultWhy').textContent = o.passed ? `+$${o.tip}${o.beat ? ' · Rival beaten' : ''}` : o.cost ? `${o.why} · -$${o.cost}` : o.why;
+  $('resultTitle').textContent = o.training ? 'TRAINING COMPLETE' : o.passed ? 'MISSION PASSED' : 'MISSION FAILED';
+  $('resultStars').textContent = o.passed && !o.training ? starText(o.stars) : '';
+  $('resultWhy').textContent = o.training ? 'You are ready for Level 1' : o.passed ? `+$${o.tip}${o.beat ? ' · Rival beaten' : ''}` : o.cost ? `${o.why} · -$${o.cost}` : o.why;
   $('resultNext').hidden = !o.passed || !hasNext;
   card.hidden = false;
 }
@@ -444,7 +455,14 @@ export function initLevels(levels, handlers) {
   });
   $('levelClose').addEventListener('click', () => { $('levelCard').hidden = true; });
   $('levelPlay').addEventListener('click', () => acts.play(picked));
-  $('freeRoam').addEventListener('click', () => acts.play(null));
+  $('openTraining').addEventListener('click', () => {
+    $('sheet').hidden = true;
+    acts.training();
+  });
+  $('lessonSkip').addEventListener('click', () => {
+    acts.leave();
+    showLevels();
+  });
   $('levelsGear').addEventListener('click', () => { $('sheet').hidden = false; });
   $('toMap').addEventListener('click', openPause);
   $('pauseBack').addEventListener('click', () => { $('pauseCard').hidden = true; });

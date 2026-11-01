@@ -20,7 +20,7 @@ export function planMission(st, shop) {
   }
 
   st.rival = null;
-  if (st.level ? st.level.rival : tier >= RIVAL.from && Math.random() < RIVAL.chance) {
+  if (st.level.rival) {
     const x = shop.x + shop.w / 2, y = shop.top - RIVAL.padLift;
     st.rival = {
       x, y, px: x, py: y,

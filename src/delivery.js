@@ -1,7 +1,7 @@
 import { clearAction, planMission } from './action.js';
 import { sfx } from './audio.js';
 import {
-  AIRCRAFT, CAMERA, DELIVERY, DEV, DRONE, HANGAR, HEADING, HEALTH, ITEMS, LEVELS, MISSION, ORDERS, POINTER, RESTAURANT, RIVAL, ROPE, ROPE_CTL, WIND,
+  AIRCRAFT, CAMERA, DELIVERY, DEV, DRONE, HANGAR, HEADING, HEALTH, LEVELS, MISSION, ORDERS, POINTER, RESTAURANT, RIVAL, ROPE, ROPE_CTL, WIND,
 } from './config.js';
 import { loadProgress, saveProgress, settings } from './storage.js';
 import { addMark, blast, ctx, glow, hud, pop, puff, showToast, view, X, Y } from './ui.js';
@@ -10,11 +10,11 @@ import { nearby, nearestShop, shopPad, world } from './world.js';
 let current = null;
 export const currentShift = () => current;
 
-// A level starts on its shop's pad; free roam starts at the first shop.
-export function newGame(level = null) {
-  const shop = level ? level.shop : world.shops[0], p = shopPad(shop), saved = loadProgress();
+// A level starts on its shop's pad.
+export function newGame(level) {
+  const shop = level.shop, p = shopPad(shop), saved = loadProgress();
   const st = {
-    t: 0, money: saved.money, del: saved.del, level, tier: level ? level.tier : saved.del, outcome: null, done: false, cam: { x: p.x - view.viewW * CAMERA.leadX, y: 0 },
+    t: 0, money: saved.money, del: saved.del, level, tier: level.tier, outcome: null, done: false, cam: { x: p.x - view.viewW * CAMERA.leadX, y: 0 },
     d: { x: p.x, y: p.y - DRONE.radius, vx: 0, vy: 0, a: 0, bat: 100 },
     box: { x: p.x, y: p.y, px: p.x, py: p.y },
     has: false, heat: 100, integ: 100, order: null, item: null, hold: 0, readyAt: 0,
@@ -46,15 +46,8 @@ export function timeLimit(item, dist) {
   return item.urgent ? limit * m.urgentTime : limit;
 }
 
-const pickItem = shop => {
-  const items = shop.shop.items;
-  return ITEMS[items[(Math.random() * items.length) | 0]];
-};
-
-export function startMission(st, shop, item = pickItem(shop)) {
-  const pool = st.level ? null : targetsFor(shop, st.tier);
-  const t = st.level ? st.level.t : pool[(Math.random() * pool.length) | 0];
-  const p = shopPad(shop), limit = timeLimit(item, Math.abs(t.x - st.d.x));
+export function startMission(st, shop, item) {
+  const t = st.level.t, p = shopPad(shop), limit = st.level.training ? Infinity : timeLimit(item, Math.abs(t.x - st.d.x));
   st.item = item;
   st.order = { t, shop, start: st.t, deadline: st.t + limit, limit };
   st.heat = 100;
@@ -87,16 +80,23 @@ function finish(st, outcome) {
 
 // charged: the player wrecked the goods, so they pay the shop for them.
 export function failMission(st, why, charged = false) {
-  const cost = charged && st.item ? Math.min(st.money, st.item.price) : 0;
+  const training = st.level.training, cost = charged && st.item && !training ? Math.min(st.money, st.item.price) : 0;
   st.money -= cost;
   endMission(st);
   if (cost) saveProgress(st.del, st.money);
-  if (st.level) finish(st, { passed: false, why, cost });
-  else showToast('MISSION FAILED', cost ? `${why} · -$${cost}` : why, false);
+  if (training) showToast('Try again', why, false);
+  else finish(st, { passed: false, why, cost });
   hud(st);
 }
 
 function passMission(st) {
+  if (st.level.training) {
+    endMission(st);
+    sfx('deliver');
+    finish(st, { passed: true, training: true });
+    hud(st);
+    return;
+  }
   const c = DELIVERY, o = st.order, item = st.item, secs = st.t - o.start;
   const base = c.tipBase + st.heat * c.tipHeat + st.integ * c.tipBox + (secs < c.tipFastSecs ? c.tipFastBonus : secs < c.tipOkSecs ? c.tipOkBonus : 0);
   const beat = st.rival ? RIVAL.bonus : 0;
@@ -105,13 +105,11 @@ function passMission(st) {
   const stars = 1 + (st.integ > c.starBox ? 1 : 0) + (fresh ? 1 : 0);
   st.money += tip;
   st.del++;
-  if (!st.level) st.tier = st.del;
   endMission(st);
   pop(st, o.t.x, o.t.y - c.popLift, `+$${tip}`, '#ffc23d');
   sfx('deliver');
-  saveProgress(st.del, st.money, st.level?.n, stars);
-  if (st.level) finish(st, { passed: true, stars, tip, beat });
-  else showToast('MISSION PASSED', beat ? `+$${tip} · Rival beaten` : `+$${tip}`, true);
+  saveProgress(st.del, st.money, st.level.n, stars);
+  finish(st, { passed: true, stars, tip, beat });
   hud(st);
 }
 
@@ -124,18 +122,18 @@ export function stepMission(st, dt) {
     else if (d.bat <= 0) failMission(st, 'Battery dead');
     return;
   }
-  if (st.level && (st.outcome || st.done)) {
+  if (st.outcome || st.done) {
     st.prep = null;
     return;
   }
-  const shop = st.level ? st.level.shop : nearestShop(d.x), p = shopPad(shop);
+  const shop = st.level.shop, p = shopPad(shop);
   const parked = Math.abs(d.x - p.x) < c.padReach && d.y < p.y && d.y > p.y - DRONE.radius - c.padGap && Math.hypot(d.vx, d.vy) < c.padSpeed;
   if (!parked || st.t < st.readyAt) {
     st.prep = null;
     return;
   }
   if (!st.prep) {
-    const item = st.level ? st.level.item : pickItem(shop);
+    const { item } = st.level;
     st.prep = { shop, item, left: item.prep };
     hud(st);
   }
@@ -150,7 +148,7 @@ export function stepMission(st, dt) {
 // While the shop works, it may suggest an aircraft that suits the order better.
 export function hangarHint(st) {
   const p = st.prep;
-  if (!p) return null;
+  if (!p || st.level.training) return null;
   const c = HANGAR, item = p.item, named = key => AIRCRAFT.find(a => a.key === key);
   const pick = item.weight >= c.heavyFrom ? ['heavy', `Heavy load: try ${named('heavy').name}`]
     : item.fragile >= c.fragileFrom ? ['cage', `Fragile order: try ${named('cage').name}`]
@@ -177,8 +175,9 @@ export function zones(st) {
 
 // Where the player should be heading: the customer, or the closest job.
 function goal(st) {
+  if (st.lesson?.goal) return st.lesson.goal;
   if (st.has && st.order) return { x: st.order.t.x, y: st.order.t.y, label: 'Customer' };
-  const shop = st.level ? st.level.shop : nearestShop(st.d.x), p = shopPad(shop);
+  const shop = st.level.shop, p = shopPad(shop);
   return { x: p.x, y: p.y - 20, label: shop.shop.name };
 }
 
@@ -249,9 +248,7 @@ function explode(st) {
   st.boosting = false;
   d.vx = d.vy = 0;
   sfx('boom');
-  if (st.has) failMission(st, 'Aircraft destroyed', true);
-  else if (st.level) failMission(st, 'Aircraft destroyed');
-  else showToast('MISSION FAILED', 'Aircraft destroyed', false);
+  failMission(st, 'Aircraft destroyed', st.has);
 }
 
 // Smoke, then fire that burns on until the drone is repaired or explodes.
@@ -292,18 +289,16 @@ export function stepShop(st, grounded, dt) {
 export function drawHalos(st) {
   if (st.has) return;
   const { W, S } = view, c = MISSION, pulse = .5 + .5 * Math.sin(st.t * 4);
-  if (st.level && (st.outcome || st.done)) return;
-  for (const shop of st.level ? [st.level.shop] : world.shops) {
-    const p = shopPad(shop), sx = X(p.x);
-    if (sx < -80 || sx > W + 80) continue;
-    const top = Y(p.y - c.haloHeight), bottom = Y(p.y);
-    const shaft = ctx.createLinearGradient(0, top, 0, bottom);
-    shaft.addColorStop(0, 'rgba(255,194,61,0)');
-    shaft.addColorStop(1, `rgba(255,194,61,${.28 + .14 * pulse})`);
-    ctx.fillStyle = shaft;
-    ctx.fillRect(sx - c.haloWidth / 2 * S, top, c.haloWidth * S, bottom - top);
-    if (!view.lowQ) glow(ctx, '#ffc23d', sx, Y(p.y - 6), (34 + pulse * 8) * S);
-  }
+  if (st.outcome || st.done) return;
+  const p = shopPad(st.level.shop), sx = X(p.x);
+  if (sx < -80 || sx > W + 80) return;
+  const top = Y(p.y - c.haloHeight), bottom = Y(p.y);
+  const shaft = ctx.createLinearGradient(0, top, 0, bottom);
+  shaft.addColorStop(0, 'rgba(255,194,61,0)');
+  shaft.addColorStop(1, `rgba(255,194,61,${.28 + .14 * pulse})`);
+  ctx.fillStyle = shaft;
+  ctx.fillRect(sx - c.haloWidth / 2 * S, top, c.haloWidth * S, bottom - top);
+  if (!view.lowQ) glow(ctx, '#ffc23d', sx, Y(p.y - 6), (34 + pulse * 8) * S);
 }
 
 // The same ring as the delivery bar, filling while the shop makes the order.

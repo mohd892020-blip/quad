@@ -151,7 +151,6 @@ body{background:var(--night);color:var(--ink);font-family:var(--body);overflow:h
 #levelsBar{display:flex;align-items:center;gap:10px;padding:calc(8px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 8px max(16px,env(safe-area-inset-left,0px));background:var(--panel)}
 #levelsBar b{font-family:var(--display);font-weight:400;font-size:24px;color:var(--cheese);line-height:1}
 #levelsBar span{font-family:var(--display);font-size:20px;color:var(--ink);margin-inline-end:auto}
-#freeRoam{font-family:var(--body);font-weight:800;font-size:14px;min-height:40px;padding:0 14px;border-radius:20px;border:2px solid var(--cheese);background:transparent;color:var(--cheese);cursor:pointer}
 #levelsGear{background:transparent;border:1px solid rgba(255,243,223,.3);border-radius:10px}
 #levelsScroll{flex:1;min-height:0;overflow-y:auto;touch-action:pan-y;overscroll-behavior:contain}
 #levelsPath{position:relative;max-width:520px;margin-inline:auto}
@@ -163,7 +162,7 @@ body{background:var(--night);color:var(--ink);font-family:var(--body);overflow:h
 .node.locked{background:#4a4258;color:#a79cb4;border-color:rgba(255,243,223,.3)}
 .node.next{border-color:var(--cheese);animation:nudge 1.3s ease-in-out infinite}
 @media (prefers-reduced-motion:reduce){.node.next{animation:none}}
-.node:focus-visible,#freeRoam:focus-visible,.ghost:focus-visible{outline:3px solid var(--cheese);outline-offset:3px}
+.node:focus-visible,.ghost:focus-visible{outline:3px solid var(--cheese);outline-offset:3px}
 .modal{position:absolute;inset:0;z-index:5;display:grid;place-items:center;overflow:auto;touch-action:pan-y;background:rgba(14,10,28,.6);padding:12px max(16px,env(safe-area-inset-right,0px)) 12px max(16px,env(safe-area-inset-left,0px))}
 .modal .card{display:grid;gap:8px;padding:18px 22px}
 .modal h2{font-family:var(--display);font-weight:400;font-size:34px;line-height:1;margin:0;color:var(--tomato)}
@@ -177,3 +176,16 @@ body{background:var(--night);color:var(--ink);font-family:var(--body);overflow:h
 .modal .row{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;align-items:center;position:relative;z-index:1}
 .ghost{font-family:var(--body);font-weight:800;font-size:15px;min-height:44px;padding:0 16px;border-radius:22px;border:2px solid rgba(42,27,20,.45);background:transparent;color:#2a1b14;cursor:pointer}
 .modal .go:disabled{background:#8e8378;font-size:16px;cursor:default}
+#lesson{position:absolute;left:0;right:0;margin-inline:auto;box-sizing:border-box;width:min(calc(100% - 32px),380px);display:grid;grid-template-columns:1fr auto;gap:0 10px;align-items:center;padding:8px 12px;border-radius:12px;background:var(--panel);border:2px solid var(--cheese);z-index:2}
+#lesson small{font-size:11px;font-weight:700;color:var(--muted);grid-column:1}
+#lesson b{font-family:var(--display);font-weight:400;font-size:20px;line-height:1.1;color:var(--cheese);grid-column:1}
+#lesson span{font-size:14px;font-weight:700;color:var(--ink);grid-column:1}
+#lessonSkip{grid-column:2;grid-row:1/4;font-family:var(--body);font-weight:800;font-size:14px;min-height:44px;padding:0 14px;border-radius:22px;border:2px solid rgba(255,243,223,.4);background:transparent;color:var(--ink);cursor:pointer}
+#lessonSkip:focus-visible{outline:3px solid var(--cheese);outline-offset:2px}
+.teach{outline:3px solid var(--cheese);outline-offset:3px}
+#openTraining{width:100%;color:#2a1b14}
+@media (max-height:480px){
+  #lesson{left:max(16px,env(safe-area-inset-left,0px));right:auto;margin-inline:0;width:230px;padding:6px 10px}
+  #lesson b{font-size:17px}
+  #lesson span{font-size:12px}
+}

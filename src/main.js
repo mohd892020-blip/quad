@@ -7,12 +7,13 @@ import {
   stepShop, zones,
 } from './delivery.js';
 import { currentModel, drawAirframe, drawDrone, drawShadow, rotorLoad, stepBoost, stepDrone, stepHold } from './drone.js';
+import { beginTraining, drawLesson, stepTraining, trainingLevel } from './training.js';
 import { initInput, keys } from './input.js';
 import { drawRope, stepRope, stepRopeLength } from './rope.js';
-import { settings } from './storage.js';
+import { loadProgress, settings } from './storage.js';
 import {
   ctx, drawFx, drawMarks, hideModals, hideOverlay, hud, initLevels, initSheet, kickDust, levelsOpen, lowerQuality, lowestTier, measureHud, modalOpen, onDevActions, onStart,
-  previewCanvas, shakeOffset, sheetOpen, showActions, showHangarTip, showLevels, showResult, stepFx, view,
+  previewCanvas, shakeOffset, sheetOpen, showActions, showHangarTip, showLesson, showLevels, showResult, stepFx, view,
 } from './ui.js';
 import { drawCity, drawMap, drawSky, dropSprites, genWorld, stepCamera, stepClock, stepWind } from './world.js';
 
@@ -44,6 +45,7 @@ function step(dt) {
   stepMission(st, dt);
   if (stepAction(st, dt) && st.has) failMission(st, 'The rival got there first');
   stepShop(st, grounded, dt);
+  if (st.lesson) stepTraining(st, zone, dt);
   stepHeading(st, dt);
   stepCamera(st, dt);
   stepFx(st, dt);
@@ -83,6 +85,7 @@ function render() {
   drawHalos(s);
   if (!s.wreck) drawShadow(s);
   drawTarget(s);
+  drawLesson(s);
   drawRival(s);
   drawRope(s);
   drawBoost(s);
@@ -154,6 +157,8 @@ function start(level) {
   hideModals();
   last = performance.now();
   pace.t = pace.n = 0;
+  showLesson();
+  if (level.training) beginTraining(st);
   hud(st);
   measureHud();
   drawMap(st);
@@ -161,7 +166,7 @@ function start(level) {
 
 // Walking out on an order in the air costs the same as ruining it.
 function leave() {
-  if (st.has) failMission(st, 'Left the mission', true);
+  if (st?.has) failMission(st, 'Left the mission', true);
 }
 
 // Idle demo city behind the start card, until play begins.
@@ -188,7 +193,9 @@ initAudio();
 initSheet();
 onStart(() => {
   hideOverlay();
-  showLevels();
+  // a brand new player flies the lessons first
+  if (settings.trained || loadProgress().del) showLevels();
+  else start(trainingLevel());
 });
 onDevActions(() => autoDeliver(st), () => chargeDrone(st));
 genWorld(CITY_SEED);
@@ -199,6 +206,11 @@ initLevels(levels, {
   retry() {
     leave();
     start(st.level);
+  },
+  training() {
+    leave();
+    hideOverlay();
+    start(trainingLevel());
   },
   stake: () => (st.has ? Math.min(st.money, st.item.price) : 0),
 });
