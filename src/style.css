@@ -129,3 +129,23 @@ body{background:var(--night);color:var(--ink);font-family:var(--body);overflow:h
 .desk #boost{width:78px;height:78px;font-size:17px;cursor:pointer;line-height:1.1}
 .desk #boost small{display:block;font-family:var(--body);font-weight:700;font-size:11px;color:var(--muted)}
 .desk #actions{bottom:calc(142px + env(safe-area-inset-bottom,0px))}
+#bHp i{background:#ff7a5c}
+#gear.dot::after{content:"";position:absolute;right:-3px;top:-3px;width:11px;height:11px;border-radius:50%;background:var(--cheese);animation:nudge 1.3s ease-in-out infinite}
+@keyframes nudge{50%{transform:scale(1.5);opacity:.55}}
+@media (prefers-reduced-motion:reduce){#gear.dot::after{animation:none}}
+#hangarTip{position:absolute;left:0;right:0;top:40%;margin-inline:auto;width:fit-content;max-width:min(86vw,360px);z-index:2;pointer-events:auto;cursor:pointer;
+  font-family:var(--body);font-weight:800;font-size:14px;min-height:40px;padding:0 16px;border-radius:20px;border:2px solid var(--cheese);background:rgba(26,20,48,.82);color:var(--cheese)}
+#hangarTip:focus-visible{outline:3px solid var(--cheese);outline-offset:2px}
+#planeNote{margin:8px 0 6px;font-size:14px;font-weight:700}
+#planeStats{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;align-items:center;font-size:12px;font-weight:700}
+#planeStats i{height:7px;border-radius:4px;background:rgba(42,27,20,.16);overflow:hidden}
+#planeStats b{display:block;height:100%;background:var(--tomato)}
+#planeStats em{font-style:normal}
+@media (max-height:480px){
+  #map{flex:1 1 55%;width:auto;min-width:0}
+  #wind{padding:1px 6px}
+  #windTrack{width:64px}
+}
+@media (max-height:480px){
+  #meters{grid-template-columns:repeat(4,auto 1fr);gap:1px 6px;padding:3px 8px}
+}

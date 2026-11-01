@@ -1,5 +1,5 @@
 import { toggleMute } from './audio.js';
-import { AIRCRAFT, DEV, DUST, FX, G, MISSION, QUALITY, ROPE, ROPE_CTL, SHAKE, VIEW, WIND } from './config.js';
+import { AIRCRAFT, DEV, DUST, FX, G, HEALTH, MISSION, QUALITY, ROPE, ROPE_CTL, SHAKE, VIEW, WIND } from './config.js';
 import { applyControls } from './input.js';
 import { saveSettings, settings } from './storage.js';
 
@@ -93,7 +93,44 @@ export function kickDust(st, x, y, speed) {
   }
 }
 
+// A scar left where the drone struck or blew up; bad ones keep burning for a while.
+export function addMark(st, x, y, size, burn, surface) {
+  st.marks.push({ x, y, size, burn, surface, seed: st.dustN++ });
+  if (st.marks.length > HEALTH.markMax) st.marks.shift();
+}
+
+export function puff(st, x, y, fire) {
+  const k = st.dustN++, side = noise(k) - .5;
+  st.smoke.push({
+    x: x + side * 10, y, vx: side * 22, vy: fire ? -60 - noise(k + .5) * 50 : -26 - noise(k + .5) * 22,
+    t: 0, life: fire ? .35 + noise(k + .25) * .25 : .9 + noise(k + .25) * .7, fire,
+  });
+}
+
+export function blast(st, x, y) {
+  const c = HEALTH;
+  st.blasts.push({ x, y, t: 0 });
+  for (let i = 0; i < c.debris; i++) {
+    const k = st.dustN++;
+    st.parts.push({ x, y, vx: (noise(k) - .5) * 380, vy: -noise(k + .5) * 340, t: 0, crumb: 1 });
+  }
+  for (let i = 0; i < 10; i++) puff(st, x, y, i % 2 === 0);
+}
+
 export function stepFx(st, dt) {
+  for (const q of st.smoke) {
+    q.t += dt;
+    q.x += (q.vx + st.wind * FX.steamDrift) * dt;
+    q.y += q.vy * dt;
+  }
+  st.smoke = st.smoke.filter(q => q.t < q.life);
+  for (const b of st.blasts) b.t += dt;
+  st.blasts = st.blasts.filter(b => b.t < HEALTH.blastLife);
+  for (const m of st.marks) {
+    if (m.burn <= 0) continue;
+    m.burn -= dt;
+    if (noise(st.dustN++) < dt * HEALTH.smokeRate) puff(st, m.x, m.y, noise(st.dustN++) < .4);
+  }
   const drag = Math.pow(DUST.drag, dt);
   for (const q of st.dust) {
     q.t += dt;
@@ -114,8 +151,59 @@ export function stepFx(st, dt) {
   st.parts = st.parts.filter(q => q.t < (q.crumb ? FX.crumbLife : FX.steamLife));
 }
 
+export function drawMarks(st) {
+  const { W, S } = view;
+  for (const m of st.marks) {
+    const sx = X(m.x), sy = Y(m.y), r = m.size * S;
+    if (sx < -r * 2 || sx > W + r * 2) continue;
+    // a scar stays on the thing it hit, never out in the air beside it
+    const R = m.surface;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(X(R.x), Y(R.y), R.w * S, R.h * S);
+    ctx.clip();
+    ctx.fillStyle = 'rgba(18,12,14,.5)';
+    ctx.beginPath();
+    ctx.ellipse(sx, sy, r, r * .8, 0, 0, 7);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(18,12,14,.8)';
+    ctx.beginPath();
+    ctx.ellipse(sx, sy, r * .5, r * .4, 0, 0, 7);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(18,12,14,.7)';
+    ctx.lineWidth = 1.2 * S;
+    ctx.beginPath();
+    for (let i = 0; i < 5; i++) {
+      const a = noise(m.seed + i * .37) * 6.28, len = r * (1 + noise(m.seed + i) * .8);
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(sx + Math.cos(a) * len, sy + Math.sin(a) * len * .8);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
 export function drawFx(st) {
   const { W, H, S } = view;
+  for (const b of st.blasts) {
+    const age = b.t / HEALTH.blastLife, r = HEALTH.blastRadius * (.3 + age * .9) * S, sx = X(b.x), sy = Y(b.y);
+    ctx.fillStyle = `rgba(255,190,90,${.75 * (1 - age)})`;
+    ctx.beginPath();
+    ctx.arc(sx, sy, r, 0, 7);
+    ctx.fill();
+    ctx.strokeStyle = `rgba(255,243,223,${.8 * (1 - age)})`;
+    ctx.lineWidth = 3 * S;
+    ctx.beginPath();
+    ctx.arc(sx, sy, r * 1.25, 0, 7);
+    ctx.stroke();
+  }
+  for (const q of st.smoke) {
+    const age = q.t / q.life;
+    ctx.fillStyle = q.fire ? `rgba(255,${120 + (1 - age) * 110 | 0},50,${.9 * (1 - age)})` : `rgba(60,56,62,${.55 * (1 - age)})`;
+    ctx.beginPath();
+    ctx.arc(X(q.x), Y(q.y), (q.fire ? 6 - age * 3 : 5 + age * 13) * S, 0, 7);
+    ctx.fill();
+  }
   for (const q of st.dust) {
     const age = q.t / q.life;
     ctx.fillStyle = `rgba(216,187,152,${DUST.alpha * (1 - age)})`;
@@ -168,6 +256,7 @@ export function hud(st) {
   clock.textContent = o || st.prep ? `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}` : '--:--';
   clock.classList.toggle('low', !!o && left < MISSION.lowTime);
   $('bBat').firstChild.style.width = st.d.bat + '%';
+  $('bHp').firstChild.style.width = st.hp + '%';
   $('bHeat').firstChild.style.width = (o && st.item.heat ? st.heat : 0) + '%';
   $('bBox').firstChild.style.width = (o ? st.integ : 0) + '%';
   $('bBoost').firstChild.style.width = st.boost + '%';
@@ -235,6 +324,25 @@ function markControls() {
 
 function markPlanes() {
   for (const b of $('planes').children) b.setAttribute('aria-pressed', b.dataset.key === settings.plane);
+  const m = AIRCRAFT.find(a => a.key === settings.plane) || AIRCRAFT[0];
+  $('planeNote').textContent = m.note;
+  const rows = [['Power', m.thrust, 1.6], ['Speed', m.speed, 1.7], ['Battery', m.battery, 1.4], ['Toughness', m.tough, 1.9]];
+  const pitch = m.hz[0] < 90 ? 'Deep rumble' : m.hz[0] < 160 ? 'Steady hum' : m.hz[0] < 250 ? 'Light buzz' : 'High whine';
+  $('planeStats').innerHTML = rows.map(([name, v, top]) => `<span>${name}</span><i><b style="width:${v / top * 100}%"></b></i>`).join('') + `<span>Sound</span><em>${pitch}</em>`;
+}
+
+// A pulsing dot on settings, plus the shop's suggestion while the order is made.
+let tipText = null;
+export function showHangarTip(text) {
+  if (text === tipText) return;
+  tipText = text;
+  const tip = $('hangarTip');
+  tip.hidden = !text;
+  if (text) {
+    tip.textContent = text;
+    tip.style.top = view.top + 76 + 'px';
+    $('gear').classList.add('dot');
+  }
 }
 
 function setControls(mode) {
@@ -266,7 +374,13 @@ export function initSheet() {
   markPlanes();
   markControls();
   showDev();
-  $('gear').addEventListener('click', () => { $('sheet').hidden = false; });
+  const openSheet = () => {
+    $('sheet').hidden = false;
+    $('gear').classList.remove('dot');
+  };
+  $('gear').classList.add('dot');
+  $('gear').addEventListener('click', openSheet);
+  $('hangarTip').addEventListener('click', openSheet);
   $('mute').classList.toggle('off', settings.muted);
   const flipMute = () => {
     toggleMute();

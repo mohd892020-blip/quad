@@ -56,7 +56,7 @@ export function roofAt(x, reach) {
 }
 
 export function indexColliders(solids) {
-  const ground = { x: GROUND_BOX.x, y: GROUND, w: GROUND_BOX.w, h: GROUND_BOX.h };
+  const ground = { x: GROUND_BOX.x, y: GROUND, w: GROUND_BOX.w, h: GROUND_BOX.h, mat: 'ground' };
   const cells = [];
   const cellOf = x => Math.max(0, Math.floor((x - CELL.base) / CELL.size));
   for (const R of solids) {
@@ -80,7 +80,7 @@ export function genWorld(seed) {
     b.cols = cols; b.rows = rows;
     for (let i = 0; i < cols * rows; i++) b.lit.push(r() < c.litChance ? (r() < c.brightChance ? 2 : 1) : 0);
     B.push(b);
-    solids.push({ x, y: top, w, h });
+    solids.push({ x, y: top, w, h, mat: 'wall' });
     return b;
   };
   const mkShop = (x, h) => {
@@ -105,24 +105,24 @@ export function genWorld(seed) {
     const w = z.widthMin + r() * z.widthRange, h = z.heightMin + r() * z.heightRange, b = mk(x, w, h);
     if (r() < z.tankChance) {
       const tw = c.tankW + r() * c.tankWRange;
-      b.tank = { x: b.x + c.tankInset + r() * (w - c.tankSlack - (tw - c.tankW)), y: b.top - c.tankH, w: tw, h: c.tankH };
+      b.tank = { x: b.x + c.tankInset + r() * (w - c.tankSlack - (tw - c.tankW)), y: b.top - c.tankH, w: tw, h: c.tankH, mat: 'tank' };
       solids.push(b.tank);
     }
     if (r() < z.dishChance) {
       b.dish = { x: b.x + w - c.dishInset, y: b.top };
-      solids.push({ x: b.dish.x - c.dishW / 2, y: b.top - c.dishH, w: c.dishW, h: c.dishH });
+      solids.push({ x: b.dish.x - c.dishW / 2, y: b.top - c.dishH, w: c.dishW, h: c.dishH, mat: 'dish' });
     }
     if (w > c.rigMinW) {
       const mx = b.x + w / 2;
       if (h > c.craneMinH && r() < z.craneChance) {
         const mastH = c.craneMastHMin + r() * c.craneMastHRange, jibY = b.top - mastH, jibX = mx - c.craneJibLen / 2;
-        const mast = { x: mx - c.craneMastW / 2, y: jibY, w: c.craneMastW, h: mastH };
-        const jib = { x: jibX, y: jibY, w: c.craneJibLen, h: c.craneJibH };
+        const mast = { x: mx - c.craneMastW / 2, y: jibY, w: c.craneMastW, h: mastH, mat: 'steel' };
+        const jib = { x: jibX, y: jibY, w: c.craneJibLen, h: c.craneJibH, mat: 'steel' };
         solids.push(mast, jib);
         rigs.push({ kind: 'crane', mast, jib });
       } else if (r() < z.towerChance) {
         const towerH = c.towerHMin + r() * c.towerHRange;
-        const mast = { x: mx - c.towerW / 2, y: b.top - towerH, w: c.towerW, h: towerH };
+        const mast = { x: mx - c.towerW / 2, y: b.top - towerH, w: c.towerW, h: towerH, mat: 'steel' };
         solids.push(mast);
         rigs.push({ kind: 'tower', mast });
       }
@@ -137,7 +137,7 @@ export function genWorld(seed) {
         const bw = c.balconyW;
         const bal = { x: side > 0 ? b.x + w : b.x - bw, y, w: bw, h: c.balconyH, side, fl, b };
         b.bal.push(bal);
-        solids.push({ x: bal.x, y: bal.y, w: bw, h: c.balconyH });
+        solids.push({ x: bal.x, y: bal.y, w: bw, h: c.balconyH, mat: 'balcony' });
         targets.push({ x: bal.x + bw / 2, y: bal.y - c.targetLift, kind: 'bal', fl, b, side, bal });
       }
     }

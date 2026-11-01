@@ -84,6 +84,33 @@ export const DRONE = {
   groundFriction: .02,
 };
 
+// Aircraft damage: a hit costs health by impact speed and what was struck. Low health
+// smokes, then burns, and burning eats health until the drone reaches a shop or explodes.
+export const HEALTH = {
+  hitSpeed: 150,
+  perSpeed: .13,
+  materials: { wall: 1, ground: .9, steel: 1.25, balcony: .8, tank: .7, dish: .5 },
+  hawkHit: 4,
+  smokeAt: 60,
+  fireAt: 30,
+  burnRate: 1.5,
+  repairRate: 12,
+  smokeRate: 12,
+  fireRate: 30,
+  respawnDelay: 2.2,
+  blastShake: 14,
+  blastLife: .7,
+  blastRadius: 70,
+  debris: 18,
+  surfaceReach: 60,
+  hitMemory: .2,
+  markSpeed: 230,
+  markCrash: 9,
+  markBlast: 26,
+  markBurn: 4,
+  markMax: 40,
+};
+
 export const ROPE = 62;
 export const BOX = {
   startAbovePad: 28,
@@ -127,15 +154,26 @@ export const HEADING = { minDist: 150, minSpeed: 60, fade: 6, chevrons: 3, gap: 
 
 export const DEV = { password: '930933', chargeTo: 100 };
 
+// Courier is the prototype's flight, every factor 1. thrust is climb and load strength,
+// speed scales horizontal thrust, battery is capacity, tough divides crash damage.
+// hz is the motor pitch at idle and full throttle. Real classes set the direction, game balance the size.
 export const AIRCRAFT = [
-  { key: 'courier', name: 'Courier' },
-  { key: 'miniFold', name: 'Mini Fold' },
-  { key: 'hexa', name: 'Hexa' },
-  { key: 'x8', name: 'X8 Cargo' },
-  { key: 'fpv', name: 'FPV Racer' },
-  { key: 'heavy', name: 'Heavy Lifter' },
-  { key: 'vtol', name: 'VTOL Wing' },
+  { key: 'courier', name: 'Courier', gear: 'arched', thrust: 1, speed: 1, battery: 1, tough: 1, hz: [92, 148], note: 'The all-rounder' },
+  { key: 'miniFold', name: 'Mini Fold', gear: 'stubs', thrust: 1.2, speed: .8, battery: 1.15, tough: .6, hz: [200, 310], note: 'Light and long-lived, but fragile' },
+  { key: 'hexa', name: 'Hexa H6', gear: 'tlegs', thrust: 1, speed: .9, battery: 1.25, tough: 1.3, hz: [105, 150], note: 'Steady, with six motors to spare' },
+  { key: 'x8', name: 'X8 Cargo', gear: 'skids', thrust: .85, speed: 1, battery: 1, tough: 1.6, hz: [64, 90], note: 'Takes a beating, climbs slowly' },
+  { key: 'fpv', name: 'FPV Racer', gear: 'belly', thrust: 1.6, speed: 1.5, battery: .45, tough: .8, hz: [240, 640], note: 'Wild speed, tiny battery' },
+  { key: 'heavy', name: 'Heavy Lifter', gear: 'tall', thrust: 1.1, speed: .6, battery: .6, tough: 1.9, hz: [50, 70], note: 'Slow and short-ranged, nearly unbreakable' },
+  { key: 'vtol', name: 'VTOL Wing', gear: 'retract', thrust: .8, speed: 1.7, battery: 1.4, tough: .7, hz: [130, 200], note: 'Fastest cruiser, weak climber' },
+  { key: 'whoop', name: 'Cinewhoop', gear: 'belly', thrust: 1.3, speed: 1.1, battery: .7, tough: 1.3, hz: [300, 600], note: 'Ducted props shrug off bumps' },
+  { key: 'cage', name: 'Cage Scout', gear: 'none', thrust: .95, speed: .7, battery: .8, tough: 1.5, hz: [180, 280], note: 'A roll cage for tight streets' },
+  { key: 'agri', name: 'Agri Tanker', gear: 'tall', thrust: 1, speed: .7, battery: .75, tough: 1.7, hz: [58, 80], note: 'Farm-built, deep rumble' },
+  { key: 'tandem', name: 'Twin Tandem', gear: 'skids', thrust: 1.15, speed: .85, battery: .9, tough: 1.2, hz: [70, 105], note: 'Two big rotors, strong lifter' },
+  { key: 'tilt', name: 'Tiltrotor', gear: 'retract', thrust: .9, speed: 1.45, battery: 1.2, tough: .8, hz: [150, 240], note: 'Rotors swing forward at speed' },
 ];
+
+// When a shop suggests another aircraft while it makes the order.
+export const HANGAR = { heavyFrom: 1.8, fragileFrom: 1.6, windyFrom: 1.6, rotate: 3 };
 
 export const BOOST = { force: 900, drain: 60, refill: 18, refillDelay: .6, batteryDrain: 2.5 };
 

@@ -1,8 +1,8 @@
 import { sfx } from './audio.js';
-import { AUDIO, BOOST, DRONE, G, HOLD, LOAD, SHADOW } from './config.js';
+import { AIRCRAFT, AUDIO, BOOST, DRONE, G, HEALTH, HOLD, LOAD, SHADOW } from './config.js';
 import { settings } from './storage.js';
-import { ctx, glow, kickDust, view, X, Y } from './ui.js';
-import { nearby } from './world.js';
+import { addMark, ctx, glow, kickDust, view, X, Y } from './ui.js';
+import { nearby, roofAt } from './world.js';
 
 function circleRect(o, r, R) {
   const cx = Math.max(R.x, Math.min(o.x, R.x + R.w)), cy = Math.max(R.y, Math.min(o.y, R.y + R.h));
@@ -15,6 +15,8 @@ function circleRect(o, r, R) {
   }
   return { nx: dx / d, ny: dy / d, p: r - d };
 }
+
+export const currentModel = () => AIRCRAFT.find(a => a.key === settings.plane) || AIRCRAFT[0];
 
 // How hard the motors are working, for the rotor sound.
 export function rotorLoad(st, keys) {
@@ -31,7 +33,7 @@ export function stepBoost(st, keys, dt) {
     st.boostDir = Math.sign(steer) || Math.sign(st.d.vx) || st.boostDir;
     st.boost = Math.max(0, st.boost - c.drain * dt);
     st.boostWait = c.refillDelay;
-    st.d.bat = Math.max(0, st.d.bat - c.batteryDrain * dt);
+    st.d.bat = Math.max(0, st.d.bat - c.batteryDrain / currentModel().battery * dt);
     if (!was) sfx('whoosh');
   } else if (st.boostWait > 0) st.boostWait -= dt;
   else st.boost = Math.min(100, st.boost + c.refill * dt);
@@ -53,12 +55,20 @@ function flyHeld(st, dt, over) {
   d.vy += ((a.y - d.y) * HOLD.spring - d.vy * HOLD.damp) * dt;
   d.x += d.vx * dt;
   d.y += d.vy * dt;
-  d.bat = Math.max(0, d.bat - dt * (c.batDrain + HOLD.drain * c.batDrainLift) * (1 + over * LOAD.drainGain));
+  d.bat = Math.max(0, d.bat - dt * (c.batDrain + HOLD.drain * c.batDrainLift) * (1 + over * LOAD.drainGain) / currentModel().battery);
+}
+
+// A hard impact costs health by speed and by what was hit, and scars the spot.
+function strike(st, R, speed, x, y) {
+  const c = HEALTH;
+  st.hp = Math.max(0, st.hp - (speed - c.hitSpeed) * c.perSpeed * (c.materials[R.mat] ?? 1) / currentModel().tough);
+  st.lastHit = { x, y, t: st.t, R };
+  if (speed > c.markSpeed) addMark(st, x, y, c.markCrash, 0, R);
 }
 
 // Returns whether the drone is resting on something this step.
 export function stepDrone(st, keys, dt) {
-  const d = st.d, c = DRONE;
+  const d = st.d, c = DRONE, m = currentModel();
   // an empty drone flies like one carrying pizza, the weight every factor is measured from
   const over = st.has ? st.item.weight - 1 : 0;
   if (st.anchor) flyHeld(st, dt, over);
@@ -66,8 +76,8 @@ export function stepDrone(st, keys, dt) {
     const powered = d.bat > 0;
     const tgt = (keys.r - keys.l + keys.axis) * c.tiltMax;
     d.a += (tgt - d.a) * Math.min(1, dt * c.tiltRate);
-    const thr = powered ? (keys.u ? c.thrustLift : c.thrustIdle) * G * (1 - over * LOAD.thrustLoss) : 0;
-    d.vx += (Math.sin(d.a) * thr + st.wind * c.windForce) * dt;
+    const thr = powered ? (keys.u ? c.thrustLift * m.thrust : c.thrustIdle) * G * (1 - over * LOAD.thrustLoss / m.thrust) : 0;
+    d.vx += (Math.sin(d.a) * thr * m.speed + st.wind * c.windForce) * dt;
     d.vy += (G - Math.cos(d.a) * thr) * dt;
     if (st.boosting) d.vx += st.boostDir * BOOST.force * dt;
     const drag = Math.pow(c.dragX, dt);
@@ -75,7 +85,7 @@ export function stepDrone(st, keys, dt) {
     d.vy *= Math.pow(c.dragY, dt);
     d.x += d.vx * dt;
     d.y += d.vy * dt;
-    if (powered) d.bat = Math.max(0, d.bat - dt * (c.batDrain + keys.u * c.batDrainLift) * (1 + over * LOAD.drainGain));
+    if (powered) d.bat = Math.max(0, d.bat - dt * (c.batDrain + keys.u * c.batDrainLift) * (1 + over * LOAD.drainGain) / m.battery);
   }
   if (d.y < c.ceiling) { d.y = c.ceiling; d.vy = Math.max(0, d.vy); }
 
@@ -89,6 +99,7 @@ export function stepDrone(st, keys, dt) {
     const vn = d.vx * hit.nx + d.vy * hit.ny;
     if (vn < 0) {
       const sp = Math.abs(vn);
+      if (sp > HEALTH.hitSpeed) strike(st, R, sp, dr.x - hit.nx * c.radius, dr.y - hit.ny * c.radius);
       if (sp > c.hitSpeed) {
         st.shake = Math.min(c.hitShakeMax, sp / c.hitShakeDiv);
         if (st.has) st.integ -= sp * c.hitDamage * st.item.fragile;
@@ -348,19 +359,198 @@ const AIRFRAMES = {
     led(g, RED, -38, -2, 8);
     led(g, GREEN, 38, -2, 8);
   },
+
+  // ducts wrap the props, so there are no bare tips to strike
+  whoop(g, spin) {
+    g.fillStyle = '#2f3540';
+    g.beginPath();
+    g.roundRect(-11, -8, 22, 13, 4);
+    g.fill();
+    g.fillStyle = '#ffc23d';
+    g.fillRect(-11, -1, 22, 2);
+    g.fillStyle = DARK;
+    g.beginPath();
+    g.arc(10, -2, 3, 0, 7);
+    g.fill();
+    for (const x of [-25, 25]) {
+      disc(g, x, -9, 12, spin + x, .5);
+      g.fillStyle = '#3a4250';
+      g.beginPath();
+      g.roundRect(x - 15, -11, 30, 8, 4);
+      g.fill();
+      g.fillStyle = 'rgba(255,255,255,.14)';
+      g.fillRect(x - 12, -9, 24, 1.5);
+    }
+    led(g, RED, -25, -7, 9);
+    led(g, GREEN, 25, -7, 9);
+  },
+
+  // a whole-body roll cage around a small quad
+  cage(g, spin) {
+    disc(g, -7, -5, 8, spin, .55);
+    disc(g, 7, -5, 8, spin + 1, .55);
+    g.fillStyle = '#e8492c';
+    g.fillRect(-7, -3, 14, 8);
+    g.fillStyle = DARK;
+    g.fillRect(-2, 5, 4, 3);
+    g.strokeStyle = '#8b95a3';
+    g.lineWidth = 1.6;
+    g.beginPath();
+    g.arc(0, 0, 16, 0, 7);
+    g.moveTo(0, -16);
+    g.ellipse(0, 0, 7, 16, 0, -Math.PI / 2, Math.PI * 1.5);
+    g.moveTo(16, 0);
+    g.ellipse(0, 0, 16, 6, 0, 0, Math.PI * 2);
+    g.stroke();
+    led(g, RED, -11, -11, 7);
+    led(g, GREEN, 11, -11, 7);
+  },
+
+  // a tall spray tank on drooping arms with stacked rotors
+  agri(g, spin) {
+    g.strokeStyle = METAL;
+    g.lineWidth = 3;
+    g.beginPath();
+    for (const s of [-1, 1]) { g.moveTo(s * 8, -10); g.lineTo(s * 31, -5); }
+    g.stroke();
+    for (const x of [-31, 31]) {
+      g.fillStyle = DARK;
+      g.fillRect(x - 2.5, -16, 5, 12);
+      disc(g, x, -17, 12, spin + x);
+      disc(g, x, -10, 12, spin + x + 1.4, .4);
+    }
+    g.fillStyle = '#e9eef2';
+    g.beginPath();
+    g.roundRect(-10, -14, 20, 20, 5);
+    g.fill();
+    g.fillStyle = '#7cc28f';
+    g.fillRect(-10, -7, 20, 7);
+    g.fillStyle = DARK;
+    g.fillRect(-12, 6, 3, 3);
+    g.fillRect(9, 6, 3, 3);
+    led(g, RED, -31, -12, 9);
+    led(g, GREEN, 31, -12, 9);
+  },
+
+  // one long hull under two big rotors, like a small Chinook
+  tandem(g, spin) {
+    g.fillStyle = METAL;
+    g.fillRect(-23.5, -14, 3.5, 10);
+    g.fillRect(20, -11, 3.5, 7);
+    disc(g, -22, -15, 19, spin, .5);
+    disc(g, 22, -12, 19, spin + 1, .5);
+    g.fillStyle = '#5a7fa6';
+    g.beginPath();
+    g.roundRect(-30, -6, 60, 12, 6);
+    g.fill();
+    g.fillStyle = '#bfe0f2';
+    g.fillRect(14, -3, 10, 5);
+    g.fillStyle = 'rgba(255,255,255,.2)';
+    g.fillRect(-26, -4, 34, 2);
+    led(g, RED, -30, 0, 8);
+    led(g, GREEN, 30, 0, 8);
+  },
+
+  // a slim fuselage whose nacelles swing forward with speed
+  tilt(g, spin, pose) {
+    g.fillStyle = '#d8dde6';
+    g.beginPath();
+    g.moveTo(-30, 0);
+    g.quadraticCurveTo(-8, -8, 22, -4);
+    g.quadraticCurveTo(30, 0, 22, 4);
+    g.quadraticCurveTo(-8, 7, -30, 0);
+    g.fill();
+    g.fillStyle = '#e8492c';
+    g.beginPath();
+    g.moveTo(-28, 0); g.lineTo(-34, -11); g.lineTo(-25, -11); g.lineTo(-19, -1);
+    g.fill();
+    g.fillStyle = '#4fa3c2';
+    g.fillRect(12, -3, 8, 3);
+    const swing = pose.lean * 1.25;
+    for (const x of [-16, 14]) {
+      g.save();
+      g.translate(x, -3);
+      g.rotate(swing);
+      g.fillStyle = METAL;
+      g.fillRect(-2.5, -9, 5, 10);
+      disc(g, 0, -10, 13, spin + x);
+      g.restore();
+    }
+    led(g, RED, -32, -10, 7);
+    led(g, GREEN, 26, -1, 7);
+  },
 };
 
-export function drawAirframe(g, key, t) {
-  (AIRFRAMES[key] || AIRFRAMES.courier)(g, t * 55);
+const legs = (g, draw) => {
+  g.strokeStyle = METAL;
+  g.lineWidth = 2.4;
+  g.lineCap = 'round';
+  g.beginPath();
+  for (const s of [-1, 1]) draw(s);
+  g.stroke();
+  g.lineCap = 'butt';
+};
+
+// The base under each airframe; feet end at y 15, the drone's contact radius.
+const GEAR = {
+  arched: g => legs(g, s => {
+    g.moveTo(s * 12, 4);
+    g.quadraticCurveTo(s * 27, 7, s * 20, 14);
+    g.moveTo(s * 16, 14.5); g.lineTo(s * 24, 14.5);
+  }),
+  stubs: g => legs(g, s => { g.moveTo(s * 22, -6); g.lineTo(s * 22, 14); }),
+  tlegs: g => legs(g, s => {
+    g.moveTo(s * 20, 2); g.lineTo(s * 20, 14);
+    g.moveTo(s * 12, 14.5); g.lineTo(s * 28, 14.5);
+  }),
+  skids: g => legs(g, s => {
+    g.moveTo(s * 13, 5); g.lineTo(s * 17, 14.5);
+    g.moveTo(0, 14.5); g.lineTo(s * 30, 14.5);
+  }),
+  tall: g => legs(g, s => {
+    g.moveTo(s * 11, 4); g.lineTo(s * 25, 14);
+    g.moveTo(s * 21, 14.5); g.lineTo(s * 30, 14.5);
+  }),
+  belly(g) {
+    g.fillStyle = '#17171d';
+    g.fillRect(-8, 1, 16, 14);
+    g.fillStyle = 'rgba(255,255,255,.12)';
+    g.fillRect(-8, 6, 16, 2);
+  },
+  retract(g, fold) {
+    for (const s of [-1, 1]) {
+      g.save();
+      g.translate(s * 10, 2);
+      g.rotate(-s * fold * 1.25);
+      legs(g, () => {});
+      g.beginPath();
+      g.moveTo(0, 0); g.lineTo(s * 12, 6); g.lineTo(s * 12, 12.5);
+      g.moveTo(s * 7, 12.5); g.lineTo(s * 17, 12.5);
+      g.stroke();
+      g.restore();
+    }
+  },
+  none() {},
+};
+
+const FLAT = { fold: 0, lean: 0 };
+
+export function drawAirframe(g, key, t, pose = FLAT) {
+  const m = AIRCRAFT.find(a => a.key === key) || AIRCRAFT[0];
+  GEAR[m.gear](g, pose.fold);
+  AIRFRAMES[m.key](g, t * 55, pose);
 }
 
 export function drawDrone(st) {
+  if (st.wreck) return;
   const d = st.d;
   ctx.save();
   ctx.translate(X(d.x), Y(d.y));
   ctx.rotate(d.a);
   ctx.scale(view.S, view.S);
-  drawAirframe(ctx, settings.plane, st.t);
+  // retracting legs tuck up away from the ground; tilting rotors lean into the speed
+  const fold = Math.max(0, Math.min(1, (roofAt(d.x, 20) - d.y - 40) / 60));
+  drawAirframe(ctx, settings.plane, st.t, { fold, lean: Math.max(-1, Math.min(1, d.vx / 300)) });
   const blink = (st.t * 2 % 1) < .15;
   ctx.fillStyle = blink ? '#ff3b3b' : '#6b1d1d';
   ctx.fillRect(-33, -3, 3, 3);

@@ -1,6 +1,6 @@
 import { sfx } from './audio.js';
-import { HAWKS, RIVAL } from './config.js';
-import { drawAirframe } from './drone.js';
+import { HAWKS, HEALTH, RIVAL } from './config.js';
+import { currentModel, drawAirframe } from './drone.js';
 import { ctx, pop, view, X, Y } from './ui.js';
 import { roofAt } from './world.js';
 
@@ -55,6 +55,7 @@ function stepHawks(st, dt) {
         h.state = 'flee';
         h.t = 0;
         pop(st, h.x, h.y - 24, 'Shoo!', '#4fc27c');
+        st.hp = Math.max(0, st.hp - HEALTH.hawkHit / currentModel().tough);
       } else if (dist < c.hitDist) {
         h.state = 'flee';
         h.t = 0;

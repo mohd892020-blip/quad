@@ -95,16 +95,18 @@ function aim(param, value) {
 
 // Called every frame, but the graph is only touched every updateEvery seconds and each
 // update clears what was queued, so automation events cannot pile up and stall the audio.
-export function updateRotor(active, throttle) {
+export function updateRotor(active, throttle, model) {
   const now = performance.now() / 1000, c = AUDIO;
   if (!ac || now < nextUpdate) return;
   nextUpdate = now + c.updateEvery;
   if (ac.state !== 'running' && !document.hidden) wake();
   const mix = (a, b) => a + (b - a) * throttle;
+  // filters follow the motor pitch, so a small fast prop sounds thin and a big one deep
+  const tone = Math.sqrt(model.hz[0] / c.idleHz);
   aim(master.gain, active ? mix(c.idleGain, c.liftGain) : 0);
-  aim(filter.frequency, mix(c.idleCut, c.liftCut));
-  aim(air.frequency, mix(c.noiseHz, c.noiseLiftHz));
-  for (const o of oscs) aim(o.frequency, mix(c.idleHz, c.liftHz));
+  aim(filter.frequency, mix(c.idleCut, c.liftCut) * tone);
+  aim(air.frequency, mix(c.noiseHz, c.noiseLiftHz) * tone);
+  for (const o of oscs) aim(o.frequency, mix(model.hz[0], model.hz[1]));
 }
 
 function finish(source, nodes) {
@@ -157,6 +159,7 @@ const SOUNDS = {
   deliver: t => { tone(660, 660, t, .12, .5); tone(990, 990, t + .1, .22, .5); },
   pickup: t => tone(520, 780, t, .14, .4),
   whoosh: t => burst(t, .3, .4, 1400, 'bandpass'),
+  boom: t => { burst(t, .7, 1, 240); tone(90, 32, t, .6, .8, 'sine'); },
   hawk: t => tone(1900, 900, t, .32, .35, 'sawtooth'),
 };
 

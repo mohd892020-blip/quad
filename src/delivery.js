@@ -1,11 +1,11 @@
 import { clearAction, planMission } from './action.js';
 import { sfx } from './audio.js';
 import {
-  BOX, CAMERA, CITY_SEED, DELIVERY, DEV, DRONE, HEADING, ITEMS, MISSION, ORDERS, RESTAURANT, RIVAL, ROPE, ROPE_CTL, WIND,
+  AIRCRAFT, BOX, CAMERA, CITY_SEED, DELIVERY, DEV, DRONE, HANGAR, HEADING, HEALTH, ITEMS, MISSION, ORDERS, RESTAURANT, RIVAL, ROPE, ROPE_CTL, WIND,
 } from './config.js';
-import { loadProgress, saveProgress } from './storage.js';
-import { ctx, glow, hud, pop, showToast, view, X, Y } from './ui.js';
-import { genWorld, nearestShop, shopPad, world } from './world.js';
+import { loadProgress, saveProgress, settings } from './storage.js';
+import { addMark, blast, ctx, glow, hud, pop, puff, showToast, view, X, Y } from './ui.js';
+import { genWorld, nearby, nearestShop, shopPad, world } from './world.js';
 
 let current = null;
 export const currentShift = () => current;
@@ -21,6 +21,7 @@ export function newGame() {
     wind: 0, windT: 0, windNext: WIND.firstAt, pops: [], parts: [], shake: 0, acc: 0,
     dust: [], dustN: 0, onGround: true, ropeLen: ROPE, anchor: null, wrong: 0,
     boost: 100, boosting: false, boostDir: 1, boostWait: 0, hawks: [], rival: null, prep: null,
+    hp: 100, wreck: 0, lastHit: null, smokeDue: 0, marks: [], smoke: [], blasts: [],
   };
   current = st;
   return st;
@@ -126,6 +127,22 @@ export function stepMission(st, dt) {
   }
 }
 
+// While the shop works, it may suggest an aircraft that suits the order better.
+export function hangarHint(st) {
+  const p = st.prep;
+  if (!p) return null;
+  const c = HANGAR, item = p.item, named = key => AIRCRAFT.find(a => a.key === key);
+  const pick = item.weight >= c.heavyFrom ? ['heavy', `Heavy load: try ${named('heavy').name}`]
+    : item.fragile >= c.fragileFrom ? ['cage', `Fragile order: try ${named('cage').name}`]
+    : item.urgent ? ['fpv', `Urgent: try ${named('fpv').name}`]
+    : item.wind >= c.windyFrom ? ['hexa', `Catches the wind: try ${named('hexa').name}`]
+    : null;
+  if (pick) return pick[0] === settings.plane ? null : pick[1];
+  if (st.del % c.rotate !== 0) return null;
+  const next = AIRCRAFT[(st.del / c.rotate + 1) % AIRCRAFT.length];
+  return next.key === settings.plane ? null : `Try the ${next.name}`;
+}
+
 const NO_ZONE = { rope: false, hold: false };
 
 // Where rope and hold controls apply: rope right above the customer, hold over a wider area.
@@ -156,7 +173,9 @@ export function autoDeliver(st) {
 }
 
 export function chargeDrone(st) {
-  if (st) st.d.bat = DEV.chargeTo;
+  if (!st) return;
+  st.d.bat = DEV.chargeTo;
+  st.hp = 100;
 }
 
 // Everything the carried order does each step after the rope has moved it.
@@ -183,22 +202,66 @@ export function stepCargo(st, dt) {
   } else st.hold = Math.max(0, st.hold - dt * c.holdDecay);
 }
 
-// Any shop roof charges. A dead drone on the ground with no job is carried to the closest shop.
+function carryToShop(st, shop) {
+  const d = st.d, p = shopPad(shop);
+  d.x = p.x;
+  d.y = p.y - DRONE.radius;
+  d.vx = d.vy = d.a = 0;
+  d.bat = 100;
+  st.hp = 100;
+  st.anchor = null;
+  st.prev = null;
+  st.cam.x = d.x - view.viewW * CAMERA.leadX;
+  showToast('Back at the shop', `${shop.shop.name} patched you up`, true);
+}
+
+function explode(st) {
+  const c = HEALTH, d = st.d, hit = st.lastHit;
+  blast(st, d.x, d.y);
+  // the scar lands where it struck, or on the surface just below a blast in the open
+  if (hit && st.t - hit.t < c.hitMemory) addMark(st, hit.x, hit.y, c.markBlast, c.markBurn, hit.R);
+  else {
+    const R = nearby(d.x).filter(k => d.x >= k.x && d.x <= k.x + k.w && k.y >= d.y).sort((a, b) => a.y - b.y)[0];
+    if (R && R.y - d.y < c.surfaceReach) addMark(st, d.x, R.y, c.markBlast, c.markBurn, R);
+  }
+  st.wreck = c.respawnDelay;
+  st.shake = c.blastShake;
+  d.vx = d.vy = 0;
+  sfx('boom');
+  if (st.has) failMission(st, 'Aircraft destroyed');
+  else showToast('MISSION FAILED', 'Aircraft destroyed', false);
+}
+
+// Smoke, then fire that burns on until the drone is repaired or explodes.
+export function stepHealth(st, dt) {
+  const c = HEALTH, d = st.d;
+  if (st.wreck) {
+    st.wreck = Math.max(0, st.wreck - dt);
+    if (!st.wreck) carryToShop(st, nearestShop(d.x));
+    return;
+  }
+  const burning = st.hp < c.fireAt;
+  if (burning) st.hp = Math.max(0, st.hp - c.burnRate * dt);
+  if (st.hp < c.smokeAt) {
+    st.smokeDue += dt * (burning ? c.fireRate : c.smokeRate);
+    while (st.smokeDue >= 1) {
+      st.smokeDue--;
+      puff(st, d.x, d.y - 8, burning && st.dustN % 2 === 0);
+    }
+  }
+  if (st.hp <= 0) explode(st);
+}
+
+// Any shop roof charges and repairs. A dead drone on the ground with no job is carried to the closest shop.
 export function stepShop(st, grounded, dt) {
   const d = st.d, c = RESTAURANT, shop = nearestShop(d.x);
   if (grounded && Math.abs(d.x - (shop.x + shop.w / 2)) < shop.w / 2 && d.y < shop.top && d.y > shop.top - c.padHeight) {
     d.bat = Math.min(100, d.bat + dt * c.chargeRate);
+    st.hp = Math.min(100, st.hp + dt * HEALTH.repairRate);
     return;
   }
   if (d.bat <= 0 && grounded && !st.has) {
-    const p = shopPad(shop);
-    d.x = p.x;
-    d.y = p.y - DRONE.radius;
-    d.vx = d.vy = d.a = 0;
-    d.bat = 100;
-    st.prev = null;
-    st.cam.x = d.x - view.viewW * CAMERA.leadX;
-    showToast('Back at the shop', `${shop.shop.name} recharged you`, true);
+    carryToShop(st, shop);
   }
 }
 

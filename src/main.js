@@ -2,16 +2,16 @@ import { drawBoost, drawHawks, drawRival, stepAction } from './action.js';
 import { initAudio, updateRotor } from './audio.js';
 import { CAMERA, CITY_SEED, DRONE, DUST, FIXED_DT, GROUND, HUD_INTERVAL, MAX_FRAME_DT, QUALITY } from './config.js';
 import {
-  autoDeliver, chargeDrone, drawHalos, drawHeading, drawPointer, drawPrep, drawTarget, failMission, newGame, stepCargo, stepHeading, stepMission,
+  autoDeliver, chargeDrone, drawHalos, drawHeading, drawPointer, drawPrep, drawTarget, failMission, hangarHint, newGame, stepHealth, stepCargo, stepHeading, stepMission,
   stepShop, zones,
 } from './delivery.js';
-import { drawAirframe, drawDrone, drawShadow, rotorLoad, stepBoost, stepDrone, stepHold } from './drone.js';
+import { currentModel, drawAirframe, drawDrone, drawShadow, rotorLoad, stepBoost, stepDrone, stepHold } from './drone.js';
 import { initInput, keys } from './input.js';
 import { drawRope, stepRope, stepRopeLength } from './rope.js';
 import { settings } from './storage.js';
 import {
-  ctx, drawFx, hideOverlay, hud, initSheet, kickDust, onDevActions, onStart, previewCanvas, setLowQ, shakeOffset, sheetOpen,
-  showActions, stepFx, view,
+  ctx, drawFx, drawMarks, hideOverlay, hud, initSheet, kickDust, onDevActions, onStart, previewCanvas, setLowQ, shakeOffset, sheetOpen,
+  showActions, showHangarTip, stepFx, view,
 } from './ui.js';
 import { drawCity, drawMap, drawSky, dropSprites, genWorld, stepCamera, stepClock, stepWind } from './world.js';
 
@@ -22,6 +22,12 @@ function step(dt) {
   st.t += dt;
   stepClock(dt);
   stepWind(st, dt);
+  stepHealth(st, dt);
+  if (st.wreck) {
+    stepCamera(st, dt);
+    stepFx(st, dt);
+    return;
+  }
   const zone = zones(st);
   stepHold(st, keys, zone.hold);
   stepRopeLength(st, keys, zone, dt);
@@ -72,8 +78,9 @@ function render() {
   ctx.save();
   if (s.shake) ctx.translate(...shakeOffset(s));
   drawCity(s);
+  drawMarks(s);
   drawHalos(s);
-  drawShadow(s);
+  if (!s.wreck) drawShadow(s);
   drawTarget(s);
   drawRival(s);
   drawRope(s);
@@ -88,7 +95,7 @@ function render() {
 }
 
 function drawPreview(time) {
-  const c = previewCanvas(), g = c.getContext('2d'), k = c.height / 62;
+  const c = previewCanvas(), g = c.getContext('2d'), k = c.height / 68;
   g.setTransform(k, 0, 0, k, c.width / 2, c.height / 2);
   g.clearRect(-c.width, -c.height, c.width * 2, c.height * 2);
   drawAirframe(g, settings.plane, time);
@@ -126,7 +133,8 @@ function loop(now) {
   }
   render();
   showActions(zones(st), !!st.anchor, st.boosting);
-  updateRotor(!paused && st.d.bat > 0, rotorLoad(st, keys));
+  showHangarTip(paused ? null : hangarHint(st));
+  updateRotor(!paused && !st.wreck && st.d.bat > 0, rotorLoad(st, keys), currentModel());
   requestAnimationFrame(loop);
 }
 

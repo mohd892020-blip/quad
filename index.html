@@ -21,6 +21,7 @@
     <div class="pill" id="meters">
       <span>TIME</span><span id="clock">--:--</span>
       <span>BATTERY</span><div class="bar" id="bBat"><i></i></div>
+      <span>HEALTH</span><div class="bar" id="bHp"><i></i></div>
       <span>HEAT</span><div class="bar" id="bHeat"><i></i></div>
       <span>ORDER</span><div class="bar" id="bBox"><i></i></div>
       <span>BOOST</span><div class="bar" id="bBoost"><i></i></div>
@@ -29,6 +30,7 @@
     <canvas id="map" aria-label="City map"></canvas>
     <div id="wind" aria-label="Wind"><span>WIND</span><div id="windTrack"><i id="windNeedle"></i></div></div>
   </div>
+  <button id="hangarTip" hidden></button>
   <div id="toast" hidden role="status"><b id="toastTitle"></b><span id="toastWhy"></span></div>
   <div id="controls" hidden>
     <div class="grp" id="arrows" hidden><button class="btn" id="lt" aria-label="Left">◀</button><button class="btn" id="rt" aria-label="Right">▶</button></div>
@@ -62,6 +64,8 @@
         <h3>Aircraft</h3>
         <canvas id="preview" width="480" height="200"></canvas>
         <div class="chips" id="planes"></div>
+        <p id="planeNote"></p>
+        <div id="planeStats"></div>
       </section>
       <section>
         <h3>Developer</h3>
