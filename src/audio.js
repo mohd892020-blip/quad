@@ -66,13 +66,15 @@ function build() {
   noise.start();
 }
 
-// Browsers only allow sound after a user gesture.
+// Browsers only allow sound after a user gesture, and a touch only counts once the finger
+// lifts, so this keeps listening until the context is really running.
 export function initAudio() {
-  const gestures = ['pointerdown', 'keydown'];
+  const gestures = ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'];
+  const stop = () => gestures.forEach(n => removeEventListener(n, unlock));
   const unlock = () => {
-    gestures.forEach(n => removeEventListener(n, unlock));
-    try { build(); } catch (_) { ac = null; }
-    if (ac) ac.resume();
+    if (!ac) try { build(); } catch (_) { ac = null; }
+    if (!ac) return stop();
+    wake()?.then?.(() => { if (ac.state === 'running') stop(); });
   };
   gestures.forEach(n => addEventListener(n, unlock));
   document.addEventListener('visibilitychange', () => {
@@ -83,7 +85,7 @@ export function initAudio() {
 }
 
 function wake() {
-  ac.resume()?.catch?.(() => {});
+  return ac.resume()?.catch?.(() => {});
 }
 
 export function toggleMute() {
