@@ -5,7 +5,7 @@ import {
   autoDeliver, chargeDrone, drawBeacons, drawHeading, drawPointer, drawTarget, failMission, newGame, stepCargo, stepHeading, stepMission,
   stepShop, zones,
 } from './delivery.js';
-import { drawAirframe, drawDrone, drawShadow, stepBoost, stepDrone, stepHold } from './drone.js';
+import { drawAirframe, drawDrone, drawShadow, rotorLoad, stepBoost, stepDrone, stepHold } from './drone.js';
 import { initInput, keys } from './input.js';
 import { drawRope, stepRope, stepRopeLength } from './rope.js';
 import { settings } from './storage.js';
@@ -126,7 +126,7 @@ function loop(now) {
   }
   render();
   showActions(zones(st), !!st.anchor);
-  updateRotor(!paused && st.d.bat > 0, !!keys.u);
+  updateRotor(!paused && st.d.bat > 0, rotorLoad(st, keys));
   requestAnimationFrame(loop);
 }
 

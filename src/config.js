@@ -308,6 +308,10 @@ export const SHADOW = {
 
 export const AUDIO = {
   smooth: .07,
+  updateEvery: .08,
+  tiltLoad: .5,
+  boostLoad: .3,
+  holdLoad: .45,
   idleHz: 92,
   liftHz: 148,
   detune: 9,

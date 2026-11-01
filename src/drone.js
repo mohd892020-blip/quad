@@ -1,5 +1,5 @@
 import { sfx } from './audio.js';
-import { BOOST, DRONE, G, HOLD, LOAD, SHADOW } from './config.js';
+import { AUDIO, BOOST, DRONE, G, HOLD, LOAD, SHADOW } from './config.js';
 import { settings } from './storage.js';
 import { ctx, glow, kickDust, view, X, Y } from './ui.js';
 import { nearby } from './world.js';
@@ -14,6 +14,12 @@ function circleRect(o, r, R) {
     return { nx: opts[1], ny: opts[2], p: opts[0] + r };
   }
   return { nx: dx / d, ny: dy / d, p: r - d };
+}
+
+// How hard the motors are working, for the rotor sound.
+export function rotorLoad(st, keys) {
+  const base = st.anchor ? AUDIO.holdLoad : keys.u ? 1 : 0;
+  return base + Math.abs(st.d.a) * AUDIO.tiltLoad + (st.boosting ? AUDIO.boostLoad : 0);
 }
 
 // Boost energy empties fast and comes back on its own after a short rest.

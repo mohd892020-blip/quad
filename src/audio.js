@@ -1,6 +1,7 @@
 import { AUDIO } from './config.js';
+import { saveSettings, settings } from './storage.js';
 
-let ac = null, master, bus, filter, air, oscs, noiseBuf, state = '', voices = 0;
+let ac = null, output, master, bus, filter, air, oscs, noiseBuf, voices = 0, nextUpdate = 0;
 const lastPlayed = {};
 
 function makeNoise() {
@@ -22,7 +23,9 @@ function build() {
   bus.ratio.value = c.limiter.ratio;
   bus.attack.value = c.limiter.attack;
   bus.release.value = c.limiter.release;
-  bus.connect(ac.destination);
+  output = ac.createGain();
+  output.gain.value = settings.muted ? 0 : 1;
+  bus.connect(output).connect(ac.destination);
   master = ac.createGain();
   master.gain.value = 0;
   master.connect(bus);
@@ -70,19 +73,38 @@ export function initAudio() {
   document.addEventListener('visibilitychange', () => {
     if (!ac) return;
     if (document.hidden) ac.suspend();
-    else ac.resume();
+    else wake();
   });
 }
 
-export function updateRotor(active, lift) {
-  const next = active ? (lift ? 'lift' : 'idle') : 'off';
-  if (!ac || next === state) return;
-  state = next;
-  const c = AUDIO, t = ac.currentTime, up = next === 'lift';
-  master.gain.setTargetAtTime(next === 'off' ? 0 : up ? c.liftGain : c.idleGain, t, c.smooth);
-  filter.frequency.setTargetAtTime(up ? c.liftCut : c.idleCut, t, c.smooth);
-  air.frequency.setTargetAtTime(up ? c.noiseLiftHz : c.noiseHz, t, c.smooth);
-  for (const o of oscs) o.frequency.setTargetAtTime(up ? c.liftHz : c.idleHz, t, c.smooth);
+function wake() {
+  ac.resume()?.catch?.(() => {});
+}
+
+export function toggleMute() {
+  settings.muted = !settings.muted;
+  saveSettings();
+  if (output) output.gain.value = settings.muted ? 0 : 1;
+}
+
+function aim(param, value) {
+  const t = ac.currentTime;
+  param.cancelScheduledValues(t);
+  param.setTargetAtTime(value, t, AUDIO.smooth);
+}
+
+// Called every frame, but the graph is only touched every updateEvery seconds and each
+// update clears what was queued, so automation events cannot pile up and stall the audio.
+export function updateRotor(active, throttle) {
+  const now = performance.now() / 1000, c = AUDIO;
+  if (!ac || now < nextUpdate) return;
+  nextUpdate = now + c.updateEvery;
+  if (ac.state !== 'running' && !document.hidden) wake();
+  const mix = (a, b) => a + (b - a) * throttle;
+  aim(master.gain, active ? mix(c.idleGain, c.liftGain) : 0);
+  aim(filter.frequency, mix(c.idleCut, c.liftCut));
+  aim(air.frequency, mix(c.noiseHz, c.noiseLiftHz));
+  for (const o of oscs) aim(o.frequency, mix(c.idleHz, c.liftHz));
 }
 
 function finish(source, nodes) {
