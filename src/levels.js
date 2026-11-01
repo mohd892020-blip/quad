@@ -1,4 +1,4 @@
-import { hawkCount, rivalSpeed } from './action.js';
+import { carSpeed, hawkCount, rivalSpeed } from './action.js';
 import { ITEMS, LEVELS, RIVAL, WIND } from './config.js';
 import { targetsFor, timeLimit } from './delivery.js';
 import { rng, world } from './world.js';
@@ -15,12 +15,16 @@ export function buildLevels() {
     const fits = targetsFor(shop, tier, LEVELS.maxDist).filter(c => c.kind !== 'bal' || item.size <= LEVELS.balconyMaxSize);
     const t = fits[(r() * fits.length) | 0];
     const dist = Math.abs(t.x - (shop.x + shop.w / 2));
+    // a street customer brings traffic, and traffic is threat enough without a race
+    const traffic = t.kind === 'street', race = tier >= RIVAL.from && r() < RIVAL.chance;
     levels.push({
       n, tier, shop, item, t, dist,
       limit: timeLimit(item, dist),
       hawks: hawkCount(tier),
-      rival: tier >= RIVAL.from && r() < RIVAL.chance,
+      rival: race && !traffic,
       rivalSpeed: rivalSpeed(tier),
+      traffic,
+      carSpeed: carSpeed(tier),
       wind: WIND.base + Math.min(tier, WIND.maxDeliveries) * WIND.perDelivery,
     });
   }

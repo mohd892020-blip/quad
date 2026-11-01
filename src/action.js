@@ -1,13 +1,51 @@
 import { sfx } from './audio.js';
-import { HAWKS, HEALTH, RIVAL } from './config.js';
+import { BOX, CARS, DRONE, EDGE, GROUND, HAWKS, HEALTH, RIVAL } from './config.js';
 import { currentModel, drawAirframe } from './drone.js';
-import { ctx, pop, view, X, Y } from './ui.js';
-import { roofAt } from './world.js';
+import { ctx, glow, kickDust, pop, shade, view, X, Y } from './ui.js';
+import { roofAt, world } from './world.js';
 
 const lerp = (st, q, k) => q['p' + k] + (q[k] - q['p' + k]) * (st.blend ?? 1);
 
 export const hawkCount = tier => (tier < HAWKS.from ? 0 : tier < HAWKS.twoFrom ? 1 : tier < HAWKS.threeFrom ? 2 : 3);
 export const rivalSpeed = tier => Math.min(RIVAL.speedMax, RIVAL.speed + (tier - RIVAL.from) * RIVAL.speedPerDelivery);
+export const carSpeed = tier => Math.min(CARS.speedMax, CARS.speedMin + tier * CARS.speedPerLevel);
+
+// The cars are on the road from the moment a street level opens.
+export function planTraffic(st) {
+  const c = CARS, level = st.level;
+  st.cars = [];
+  st.carDir = level.n % 2 ? 1 : -1;
+  st.jam = false;
+  if (!level.traffic) return;
+  for (let x = EDGE.left, i = 0; x < EDGE.right; x += c.spacing + Math.random() * c.spacingRange, i++) {
+    st.cars.push({ x, px: x, v: carSpeed(level.tier), paint: c.paint[i % c.paint.length], van: i % c.vanEvery === 1, taxi: i % c.taxiEvery === 2 });
+  }
+}
+
+// Returns true on the step a car meets the drone or the order. That car stops dead
+// and the rest of the road brakes behind it.
+export function stepTraffic(st, dt) {
+  const c = CARS, { d, box } = st, top = GROUND + c.lane - c.height, span = EDGE.right - EDGE.left;
+  const touches = (car, x, y, r) => Math.abs(x - car.x) < c.length / 2 + r && y + r > top;
+  let met = false;
+  for (const car of st.cars) {
+    car.px = car.x;
+    if (st.jam) car.v = Math.max(0, car.v - c.brake * dt);
+    car.x += st.carDir * car.v * dt;
+    if (car.x > EDGE.right || car.x < EDGE.left) car.x = car.px = car.x - st.carDir * span;
+    if (st.jam || st.wreck) continue;
+    if (touches(car, d.x, d.y, DRONE.radius) || (st.has && touches(car, box.x, box.y, BOX.padX * st.item.size))) {
+      car.v = 0;
+      st.jam = met = true;
+    }
+  }
+  if (met) {
+    st.shake = Math.max(st.shake, c.shake);
+    kickDust(st, d.x, GROUND, c.dust);
+    sfx('crash');
+  }
+  return met;
+}
 
 // Lays out the hawks and rival for a job that has just started.
 export function planMission(st, shop) {
@@ -101,6 +139,58 @@ export function stepAction(st, dt) {
 }
 
 /* ---------- render ---------- */
+// A side-on car drawn facing right; the scale flips it for the other direction.
+function paintCar(car, light) {
+  const c = CARS, L = c.length, H = c.height, body = car.taxi ? '#f2c230' : car.paint;
+  ctx.fillStyle = shade(body, light);
+  ctx.beginPath();
+  if (car.van) {
+    ctx.moveTo(-L / 2, -5); ctx.lineTo(-L / 2, -H); ctx.lineTo(L * .3, -H); ctx.lineTo(L / 2, -H * .5); ctx.lineTo(L / 2, -5);
+  } else {
+    ctx.moveTo(-L / 2, -5); ctx.lineTo(-L / 2, -H * .58); ctx.lineTo(-L * .28, -H * .62); ctx.lineTo(-L * .16, -H);
+    ctx.lineTo(L * .16, -H); ctx.lineTo(L * .3, -H * .6); ctx.lineTo(L / 2, -H * .5); ctx.lineTo(L / 2, -5);
+  }
+  ctx.fill();
+  ctx.fillStyle = shade('#26303f', Math.max(.7, light));
+  if (car.van) ctx.fillRect(L * .1, -H + 4, L * .2, H * .36);
+  else ctx.fillRect(-L * .12, -H + 3, L * .32, H * .3);
+  if (car.taxi) {
+    ctx.fillStyle = '#2b1b14';
+    ctx.fillRect(-L * .09, -H - 4, L * .18, 4);
+  }
+  ctx.fillStyle = '#ffe9a8';
+  ctx.fillRect(L / 2 - 3, -H * .46, 3, 4);
+  ctx.fillStyle = '#e8492c';
+  ctx.fillRect(-L / 2, -H * .5, 3, 4);
+  ctx.fillStyle = '#16121c';
+  ctx.beginPath();
+  for (const x of [-L * .3, L * .3]) {
+    ctx.moveTo(x + 6, -5);
+    ctx.arc(x, -5, 6, 0, 7);
+  }
+  ctx.fill();
+}
+
+export function drawCars(st) {
+  if (!st.cars) return;
+  const S = view.S, c = CARS, pal = world.pal, flash = Math.sin(st.t * c.flashRate) > 0, y = Y(GROUND + c.lane);
+  for (const car of st.cars) {
+    const sx = X(lerp(st, car, 'x')), reach = c.length * S;
+    if (sx < -reach || sx > view.W + reach) continue;
+    ctx.save();
+    ctx.translate(sx, y);
+    ctx.scale(S * st.carDir, S);
+    paintCar(car, pal.light);
+    if (st.jam && !car.v) {
+      ctx.fillStyle = flash ? '#ffc23d' : '#7a5a1e';
+      ctx.fillRect(-c.length / 2, -c.height * .32, 4, 4);
+      ctx.fillRect(c.length / 2 - 4, -c.height * .32, 4, 4);
+    }
+    ctx.restore();
+    if (pal.windowGlow > .5 && !view.lowQ) glow(ctx, 'rgba(255,233,168,.55)', sx + st.carDir * (c.length / 2 + 12) * S, y - c.height * .4 * S, 26 * S);
+  }
+}
+
 export function drawHawks(st) {
   const S = view.S;
   for (const h of st.hawks) {

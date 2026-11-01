@@ -1,4 +1,4 @@
-import { drawBoost, drawHawks, drawRival, stepAction } from './action.js';
+import { drawBoost, drawCars, drawHawks, drawRival, stepAction, stepTraffic } from './action.js';
 import { initAudio, updateRotor } from './audio.js';
 import { CAMERA, CITY_SEED, DRONE, DUST, FIXED_DT, GROUND, HANGAR, HUD_INTERVAL, MAX_FRAME_DT, QUALITY } from './config.js';
 import { buildLevels } from './levels.js';
@@ -24,6 +24,7 @@ function step(dt) {
   st.t += dt;
   stepClock(dt);
   stepWind(st, dt);
+  if (stepTraffic(st, dt)) failMission(st, 'Traffic stopped', st.has);
   stepHealth(st, dt);
   if (st.wreck) {
     stepCamera(st, dt);
@@ -81,6 +82,7 @@ function render() {
   ctx.save();
   if (s.shake) ctx.translate(...shakeOffset(s));
   drawCity(s);
+  drawCars(s);
   drawMarks(s);
   drawHalos(s);
   if (!s.wreck) drawShadow(s);

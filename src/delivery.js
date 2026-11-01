@@ -1,4 +1,4 @@
-import { clearAction, planMission } from './action.js';
+import { clearAction, planMission, planTraffic } from './action.js';
 import { sfx } from './audio.js';
 import {
   AIRCRAFT, CAMERA, DELIVERY, DEV, DRONE, HANGAR, HEADING, HEALTH, LEVELS, MISSION, ORDERS, POINTER, RESTAURANT, RIVAL, ROPE, ROPE_CTL, WIND,
@@ -23,6 +23,7 @@ export function newGame(level) {
     boost: 100, boosting: false, boostDir: 1, boostWait: 0, hawks: [], rival: null, prep: null,
     hp: 100, wreck: 0, lastHit: null, smokeDue: 0, marks: [], smoke: [], blasts: [],
   };
+  planTraffic(st);
   current = st;
   return st;
 }

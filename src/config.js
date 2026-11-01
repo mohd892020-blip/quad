@@ -198,6 +198,14 @@ export const RIVAL = {
   padLift: 30, clearance: 70, lookAhead: 90, climb: 3, approach: 140, hover: 60, arrive: 12, arriveY: 26, bonus: 15, scale: 1.05,
 };
 
+// A level with a customer in the street has traffic, in one lane along the whole city.
+// lane is how far in front of the buildings the wheels roll; the body rises up to the street level.
+export const CARS = {
+  spacing: 1100, spacingRange: 300, speedMin: 150, speedPerLevel: 2, speedMax: 230,
+  length: 62, height: 28, lane: 8, brake: 500, shake: 8, dust: 220, flashRate: 7,
+  paint: ['#d9483b', '#3f6fb0', '#f2efe6', '#3a8f6b', '#e0a52c'], vanEvery: 4, taxiEvery: 5,
+};
+
 export const WIND = {
   firstAt: 22,
   calmChance: .25,
