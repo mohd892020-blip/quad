@@ -9,7 +9,7 @@ export const world = {
   far1: [], far2: [], people: [], flocks: [], span: 1, clock: 0, pal: null, palKey: -1, live: new Set(),
 };
 
-function rng(a) {
+export function rng(a) {
   return () => {
     a |= 0; a = a + 0x6D2B79F5 | 0;
     let t = Math.imul(a ^ a >>> 15, 1 | a);
@@ -245,7 +245,7 @@ export function stepClock(dt) {
 export function stepWind(st, dt) {
   if (st.t > st.windNext) {
     st.windT = Math.random() < WIND.calmChance ? 0
-      : (Math.random() - .5) * 2 * (WIND.base + Math.min(st.del, WIND.maxDeliveries) * WIND.perDelivery);
+      : (Math.random() - .5) * 2 * (WIND.base + Math.min(st.tier, WIND.maxDeliveries) * WIND.perDelivery);
     st.windNext = st.t + WIND.gapMin + Math.random() * WIND.gapRange;
   }
   st.wind += (st.windT - st.wind) * Math.min(1, dt * WIND.follow);
@@ -255,8 +255,11 @@ export function stepCamera(st, dt) {
   const { viewW, viewH } = view, d = st.d;
   const cx = d.x - viewW * CAMERA.leadX + d.vx * CAMERA.lookAhead;
   st.cam.x += (cx - st.cam.x) * Math.min(1, dt * CAMERA.follow);
-  const baseY = GROUND + CAMERA.floorBelow - viewH;
-  const cy = Math.min(baseY, d.y - viewH * CAMERA.leadY);
+  // on touch screens the street stops above the thumb controls instead of sliding under them
+  const baseY = GROUND + Math.max(CAMERA.floorBelow, view.floorGap) - viewH;
+  // keep the drone clear of the HUD, which fills much of a short screen
+  const lead = Math.max(CAMERA.leadY, (view.top + CAMERA.hudGap) / view.H);
+  const cy = Math.min(baseY, d.y - viewH * lead);
   st.cam.y += (cy - st.cam.y) * Math.min(1, dt * CAMERA.follow);
   st.shake = Math.max(0, st.shake - dt * CAMERA.shakeDecay);
 }

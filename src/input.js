@@ -63,7 +63,7 @@ function bindJoystick() {
 function lockPage() {
   ['gesturestart', 'gesturechange', 'dblclick'].forEach(n => document.addEventListener(n, e => e.preventDefault()));
   document.addEventListener('touchmove', e => {
-    if (!e.target.closest?.('#sheet')) e.preventDefault();
+    if (!e.target.closest?.('#sheet,#levelsScroll,.modal')) e.preventDefault();
   }, { passive: false });
   addEventListener('wheel', e => { if (e.ctrlKey) e.preventDefault(); }, { passive: false });
 }

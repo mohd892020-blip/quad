@@ -6,10 +6,13 @@ import { roofAt } from './world.js';
 
 const lerp = (st, q, k) => q['p' + k] + (q[k] - q['p' + k]) * (st.blend ?? 1);
 
+export const hawkCount = tier => (tier < HAWKS.from ? 0 : tier < HAWKS.twoFrom ? 1 : tier < HAWKS.threeFrom ? 2 : 3);
+export const rivalSpeed = tier => Math.min(RIVAL.speedMax, RIVAL.speed + (tier - RIVAL.from) * RIVAL.speedPerDelivery);
+
 // Lays out the hawks and rival for a job that has just started.
 export function planMission(st, shop) {
-  const t = st.order.t, del = st.del, from = st.d.x, span = t.x - from;
-  const hawks = del < HAWKS.from ? 0 : del < HAWKS.twoFrom ? 1 : del < HAWKS.threeFrom ? 2 : 3;
+  const t = st.order.t, tier = st.tier, from = st.d.x, span = t.x - from;
+  const hawks = hawkCount(tier);
   st.hawks = [];
   for (let i = 0; i < hawks; i++) {
     const x = from + span * (HAWKS.pathMin + Math.random() * HAWKS.pathRange), y = roofAt(x, HAWKS.orbit) - HAWKS.lift;
@@ -17,12 +20,12 @@ export function planMission(st, shop) {
   }
 
   st.rival = null;
-  if (del >= RIVAL.from && Math.random() < RIVAL.chance) {
+  if (st.level ? st.level.rival : tier >= RIVAL.from && Math.random() < RIVAL.chance) {
     const x = shop.x + shop.w / 2, y = shop.top - RIVAL.padLift;
     st.rival = {
       x, y, px: x, py: y,
       wait: RIVAL.delayMin + Math.random() * RIVAL.delayRange,
-      speed: Math.min(RIVAL.speedMax, RIVAL.speed + (del - RIVAL.from) * RIVAL.speedPerDelivery),
+      speed: rivalSpeed(tier),
     };
   }
 }

@@ -1,7 +1,7 @@
 import { toggleMute } from './audio.js';
-import { AIRCRAFT, DEV, DUST, FX, G, HEALTH, MISSION, QUALITY, ROPE, ROPE_CTL, SHAKE, VIEW, WIND } from './config.js';
+import { AIRCRAFT, DEV, DUST, FX, G, HEALTH, LEVELS, MISSION, POINTER, QUALITY, ROPE, ROPE_CTL, SHAKE, VIEW, WIND } from './config.js';
 import { applyControls } from './input.js';
-import { saveSettings, settings } from './storage.js';
+import { loadProgress, saveSettings, settings } from './storage.js';
 
 const $ = id => document.getElementById(id);
 
@@ -9,7 +9,7 @@ const cv = $('c');
 export const ctx = cv.getContext('2d');
 
 /* ---------- view ---------- */
-export const view = { W: 0, H: 0, DPR: 1, S: 1, viewW: 0, viewH: 0, cam: null, lowQ: false, top: 140 };
+export const view = { W: 0, H: 0, DPR: 1, S: 1, viewW: 0, viewH: 0, cam: null, lowQ: false, top: 140, bottom: 600, floorGap: 0 };
 
 function resize() {
   // a hidden frame reports zero size; keep the last real one or the camera turns to NaN
@@ -248,7 +248,10 @@ export function drawFx(st) {
 }
 
 /* ---------- HUD ---------- */
+const placeName = t => (t.kind === 'bal' ? `Balcony, floor ${t.fl}` : t.kind === 'street' ? 'Street' : 'Rooftop');
+
 export function hud(st) {
+  const tag = st.level ? `Level ${st.level.n} · ` : '';
   $('money').firstChild.nodeValue = `$${st.money}`;
   $('del').textContent = `${st.del} ${st.del === 1 ? 'delivery' : 'deliveries'}`;
   const clock = $('clock'), o = st.has ? st.order : null;
@@ -264,17 +267,22 @@ export function hud(st) {
   const reach = WIND.base + WIND.maxDeliveries * WIND.perDelivery;
   $('windNeedle').style.left = 50 + Math.max(-1, Math.min(1, st.wind / reach)) * 50 + '%';
   view.top = $('hud').getBoundingClientRect().bottom || view.top;
+  const tops = [$('boost'), $('up')].map(e => e.getBoundingClientRect().top).filter(Boolean);
+  view.bottom = tops.length ? Math.min(...tops) - 8 : view.H - POINTER.bottomGap;
+  view.floorGap = matchMedia('(pointer:coarse)').matches ? (view.H - view.bottom) / view.S : 0;
   $('toast').style.top = view.top + 12 + 'px';
   if (o) {
     const t = o.t, item = st.item, dist = Math.round(Math.abs(t.x - st.d.x) / 10);
-    const place = t.kind === 'bal' ? `Balcony, floor ${t.fl}` : t.kind === 'street' ? 'Street' : 'Rooftop';
-    $('oTitle').textContent = item.urgent ? `${item.label} · URGENT` : item.label;
-    $('oSub').textContent = `${o.shop.shop.name} → ${place} · ${dist} m`;
+    $('oTitle').textContent = `${tag}${item.urgent ? `${item.label} · URGENT` : item.label}`;
+    $('oSub').textContent = `${o.shop.shop.name} → ${placeName(t)} · ${dist} m`;
   } else if (st.prep) {
-    $('oTitle').textContent = `Preparing ${st.prep.item.label}`;
+    $('oTitle').textContent = `${tag}Preparing ${st.prep.item.label}`;
     $('oSub').textContent = `${st.prep.shop.shop.name} · Stay on the pad`;
+  } else if (st.level) {
+    $('oTitle').textContent = `Level ${st.level.n}`;
+    $('oSub').textContent = `Land on the green pad at ${st.level.shop.shop.name}`;
   } else {
-    $('oTitle').textContent = 'Find a job';
+    $('oTitle').textContent = 'Free Roam';
     $('oSub').textContent = 'Land on the green pad of any shop';
   }
 }
@@ -315,6 +323,88 @@ export function showActions(zone, anchored, boosting) {
 
 /* ---------- settings ---------- */
 export const sheetOpen = () => !$('sheet').hidden;
+const MODALS = ['levels', 'levelCard', 'resultCard'];
+export const modalOpen = () => sheetOpen() || MODALS.some(id => !$(id).hidden);
+
+/* ---------- levels ---------- */
+let levelList = [], acts = {}, picked = null, resultLevel = null;
+const starText = n => '★'.repeat(n) + '☆'.repeat(3 - n);
+const clockText = s => `${Math.floor(Math.ceil(s) / 60)}:${String(Math.ceil(s) % 60).padStart(2, '0')}`;
+// The first level without a star is the furthest one open.
+function reachedLevel(stars) {
+  let n = 1;
+  while (stars[n]) n++;
+  return n;
+}
+
+export function hideModals() {
+  for (const id of MODALS) $(id).hidden = true;
+}
+
+export function showLevels() {
+  hideModals();
+  const { stars, money } = loadProgress(), open = reachedLevel(stars), gap = LEVELS.rowGap;
+  const height = (levelList.length + 1) * gap;
+  const spot = l => ({ x: 50 + Math.sin(l.n * .85) * 30, y: height - l.n * gap });
+  const road = levelList.map(l => { const p = spot(l); return `${p.x},${p.y}`; }).join(' ');
+  const nodes = levelList.map(l => {
+    const p = spot(l), best = stars[l.n] || 0;
+    const state = l.n > open ? 'locked' : l.n === open ? 'next' : 'done';
+    return `<button class="node ${state}" data-n="${l.n}" style="left:${p.x}%;top:${p.y}px;--zone:${l.shop.zone.map}" aria-label="Level ${l.n}"><b>${l.n}</b><small>${best ? starText(best) : ''}</small></button>`;
+  }).join('');
+  const path = $('levelsPath');
+  path.style.height = height + 'px';
+  path.innerHTML = `<svg viewBox="0 0 100 ${height}" preserveAspectRatio="none" aria-hidden="true"><polyline points="${road}"/></svg>${nodes}`;
+  $('levelsMoney').textContent = `$${money}`;
+  $('levels').hidden = false;
+  const scroll = $('levelsScroll');
+  scroll.scrollTop = height - open * gap - (scroll.clientHeight || 0) / 2;
+}
+
+function openLevelCard(n) {
+  const l = levelList[n - 1], { stars } = loadProgress(), open = reachedLevel(stars), i = l.item;
+  picked = l;
+  $('levelTitle').textContent = `Level ${n}`;
+  $('levelBest').textContent = stars[n] ? starText(stars[n]) : '☆☆☆';
+  const rows = [
+    ['Order', i.urgent ? `${i.label} · urgent` : i.label], ['Shop', `${l.shop.shop.name}, ${l.shop.zone.name}`], ['Preparing', `${i.prep} s`],
+    ['Customer', `${placeName(l.t)}, ${Math.round(l.dist / 10)} m`], ['Time', clockText(l.limit)], ['If ruined', `-$${i.price}`],
+    ['Wind', `up to ${l.wind}`], ['Hawks', l.hawks || 'None'], ['Rival', l.rival ? `Yes, speed ${l.rivalSpeed}` : 'None'],
+  ];
+  $('levelRows').innerHTML = rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');
+  const locked = n > open;
+  $('levelPlay').disabled = locked;
+  $('levelPlay').textContent = locked ? `Finish level ${open} first` : 'Start';
+  $('levelCard').hidden = false;
+}
+
+export function showResult(o, level, hasNext) {
+  resultLevel = level;
+  const card = $('resultCard');
+  card.classList.toggle('bad', !o.passed);
+  $('resultTitle').textContent = o.passed ? 'MISSION PASSED' : 'MISSION FAILED';
+  $('resultStars').textContent = o.passed ? starText(o.stars) : '';
+  $('resultWhy').textContent = o.passed ? `+$${o.tip}${o.beat ? ' · Rival beaten' : ''}` : o.cost ? `${o.why} · -$${o.cost}` : o.why;
+  $('resultNext').hidden = !o.passed || !hasNext;
+  card.hidden = false;
+}
+
+export function initLevels(levels, handlers) {
+  levelList = levels;
+  acts = handlers;
+  $('levelsPath').addEventListener('click', e => {
+    const n = e.target.closest?.('[data-n]')?.dataset.n;
+    if (n) openLevelCard(+n);
+  });
+  $('levelClose').addEventListener('click', () => { $('levelCard').hidden = true; });
+  $('levelPlay').addEventListener('click', () => acts.play(picked));
+  $('freeRoam').addEventListener('click', () => acts.play(null));
+  $('levelsGear').addEventListener('click', () => { $('sheet').hidden = false; });
+  $('toMap').addEventListener('click', showLevels);
+  $('resultNext').addEventListener('click', () => acts.play(levelList[resultLevel.n]));
+  $('resultRetry').addEventListener('click', () => acts.play(resultLevel));
+  $('resultMap').addEventListener('click', showLevels);
+}
 export const previewCanvas = () => $('preview');
 
 function markControls() {

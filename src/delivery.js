@@ -1,20 +1,20 @@
 import { clearAction, planMission } from './action.js';
 import { sfx } from './audio.js';
 import {
-  AIRCRAFT, BOX, CAMERA, CITY_SEED, DELIVERY, DEV, DRONE, HANGAR, HEADING, HEALTH, ITEMS, MISSION, ORDERS, RESTAURANT, RIVAL, ROPE, ROPE_CTL, WIND,
+  AIRCRAFT, CAMERA, DELIVERY, DEV, DRONE, HANGAR, HEADING, HEALTH, ITEMS, LEVELS, MISSION, ORDERS, POINTER, RESTAURANT, RIVAL, ROPE, ROPE_CTL, WIND,
 } from './config.js';
 import { loadProgress, saveProgress, settings } from './storage.js';
 import { addMark, blast, ctx, glow, hud, pop, puff, showToast, view, X, Y } from './ui.js';
-import { genWorld, nearby, nearestShop, shopPad, world } from './world.js';
+import { nearby, nearestShop, shopPad, world } from './world.js';
 
 let current = null;
 export const currentShift = () => current;
 
-export function newGame() {
-  genWorld(CITY_SEED);
-  const shop = world.shops[0], p = shopPad(shop), saved = loadProgress();
+// A level starts on its shop's pad; free roam starts at the first shop.
+export function newGame(level = null) {
+  const shop = level ? level.shop : world.shops[0], p = shopPad(shop), saved = loadProgress();
   const st = {
-    t: 0, money: saved.money, del: saved.del, cam: { x: p.x - view.viewW * CAMERA.leadX, y: 0 },
+    t: 0, money: saved.money, del: saved.del, level, tier: level ? level.tier : saved.del, outcome: null, done: false, cam: { x: p.x - view.viewW * CAMERA.leadX, y: 0 },
     d: { x: p.x, y: p.y - DRONE.radius, vx: 0, vy: 0, a: 0, bat: 100 },
     box: { x: p.x, y: p.y, px: p.x, py: p.y },
     has: false, heat: 100, integ: 100, order: null, item: null, hold: 0, readyAt: 0,
@@ -29,18 +29,21 @@ export function newGame() {
 
 const canServe = (t, del) => t.kind === 'roof' || (t.kind === 'bal' ? del >= MISSION.balconyFrom : del >= MISSION.streetFrom);
 
-function pickTarget(st, shop) {
-  const d = st.del;
-  const near = ORDERS.minDist + Math.min(d, ORDERS.maxSteps) * ORDERS.stepDist;
-  const far = near + ORDERS.span + d * ORDERS.spanPerDelivery;
+export function targetsFor(shop, tier, maxDist = Infinity) {
+  const near = ORDERS.minDist + Math.min(tier, ORDERS.maxSteps) * ORDERS.stepDist;
+  const far = Math.min(maxDist, near + ORDERS.span + tier * ORDERS.spanPerDelivery);
   const shopX = shop.x + shop.w / 2;
-  const open = world.targets.filter(t => t.b !== shop && canServe(t, d));
-  let pool = open.filter(t => {
+  const open = world.targets.filter(t => t.b !== shop && canServe(t, tier));
+  const pool = open.filter(t => {
     const gap = Math.abs(t.x - shopX);
     return gap > near && gap < far;
   });
-  if (!pool.length) pool = open;
-  return pool[(Math.random() * pool.length) | 0];
+  return pool.length ? pool : open;
+}
+
+export function timeLimit(item, dist) {
+  const m = MISSION, limit = m.baseTime + dist / m.speed + Math.max(0, item.weight - 1) * m.heavyTime;
+  return item.urgent ? limit * m.urgentTime : limit;
 }
 
 const pickItem = shop => {
@@ -49,10 +52,9 @@ const pickItem = shop => {
 };
 
 export function startMission(st, shop, item = pickItem(shop)) {
-  const m = MISSION, t = pickTarget(st, shop), p = shopPad(shop);
-  const dist = Math.abs(t.x - st.d.x);
-  let limit = m.baseTime + dist / m.speed + Math.max(0, item.weight - 1) * m.heavyTime;
-  if (item.urgent) limit *= m.urgentTime;
+  const pool = st.level ? null : targetsFor(shop, st.tier);
+  const t = st.level ? st.level.t : pool[(Math.random() * pool.length) | 0];
+  const p = shopPad(shop), limit = timeLimit(item, Math.abs(t.x - st.d.x));
   st.item = item;
   st.order = { t, shop, start: st.t, deadline: st.t + limit, limit };
   st.heat = 100;
@@ -76,24 +78,38 @@ function endMission(st) {
   clearAction(st);
 }
 
-export function failMission(st, why) {
+// A level ends on a result card, shown a moment later so the crash or delivery plays out.
+function finish(st, outcome) {
+  st.outcome = { ...outcome, at: st.t + LEVELS.resultDelay };
+}
+
+// charged: the player wrecked the goods, so they pay the shop for them.
+export function failMission(st, why, charged = false) {
+  const cost = charged && st.item ? Math.min(st.money, st.item.price) : 0;
+  st.money -= cost;
   endMission(st);
-  showToast('MISSION FAILED', why, false);
+  if (cost) saveProgress(st.del, st.money);
+  if (st.level) finish(st, { passed: false, why, cost });
+  else showToast('MISSION FAILED', cost ? `${why} · -$${cost}` : why, false);
   hud(st);
 }
 
 function passMission(st) {
-  const c = DELIVERY, o = st.order, secs = st.t - o.start;
+  const c = DELIVERY, o = st.order, item = st.item, secs = st.t - o.start;
   const base = c.tipBase + st.heat * c.tipHeat + st.integ * c.tipBox + (secs < c.tipFastSecs ? c.tipFastBonus : secs < c.tipOkSecs ? c.tipOkBonus : 0);
   const beat = st.rival ? RIVAL.bonus : 0;
-  const tip = Math.round(st.item.urgent ? base * c.urgentTip : base) + beat;
+  const tip = Math.round(item.urgent ? base * c.urgentTip : base) + beat;
+  const fresh = item.heat ? st.heat > c.starHeat : secs / o.limit < c.starTimeShare;
+  const stars = 1 + (st.integ > c.starBox ? 1 : 0) + (fresh ? 1 : 0);
   st.money += tip;
   st.del++;
+  if (!st.level) st.tier = st.del;
   endMission(st);
-  showToast('MISSION PASSED', beat ? `+$${tip} · Rival beaten` : `+$${tip}`, true);
   pop(st, o.t.x, o.t.y - 50, `+$${tip}`, '#ffc23d');
   sfx('deliver');
-  saveProgress(st.del, st.money);
+  saveProgress(st.del, st.money, st.level?.n, stars);
+  if (st.level) finish(st, { passed: true, stars, tip, beat });
+  else showToast('MISSION PASSED', beat ? `+$${tip} · Rival beaten` : `+$${tip}`, true);
   hud(st);
 }
 
@@ -108,14 +124,18 @@ export function stepMission(st, dt) {
     else if (d.bat <= 0) failMission(st, 'Battery dead');
     return;
   }
-  const shop = nearestShop(d.x), p = shopPad(shop);
+  if (st.level && (st.outcome || st.done)) {
+    st.prep = null;
+    return;
+  }
+  const shop = st.level ? st.level.shop : nearestShop(d.x), p = shopPad(shop);
   const parked = Math.abs(d.x - p.x) < c.padReach && d.y < p.y && d.y > p.y - DRONE.radius - c.padGap && Math.hypot(d.vx, d.vy) < c.padSpeed;
   if (!parked || st.t < st.readyAt) {
     st.prep = null;
     return;
   }
   if (!st.prep) {
-    const item = pickItem(shop);
+    const item = st.level ? st.level.item : pickItem(shop);
     st.prep = { shop, item, left: item.prep };
     hud(st);
   }
@@ -158,7 +178,7 @@ export function zones(st) {
 // Where the player should be heading: the customer, or the closest job.
 function goal(st) {
   if (st.has && st.order) return { x: st.order.t.x, y: st.order.t.y, label: 'Customer' };
-  const shop = nearestShop(st.d.x), p = shopPad(shop);
+  const shop = st.level ? st.level.shop : nearestShop(st.d.x), p = shopPad(shop);
   return { x: p.x, y: p.y - 20, label: shop.shop.name };
 }
 
@@ -192,7 +212,7 @@ export function stepCargo(st, dt) {
     for (let i = 0; i < c.crashCrumbs; i++) {
       st.parts.push({ x: bx.x, y: bx.y, vx: (Math.random() - .5) * 200, vy: -Math.random() * 220, t: 0, crumb: 1 });
     }
-    failMission(st, 'Order ruined');
+    failMission(st, 'Order ruined', true);
     return;
   }
   const T = st.order.t, reach = st.anchor ? c.holdReach : c.reach;
@@ -228,7 +248,8 @@ function explode(st) {
   st.shake = c.blastShake;
   d.vx = d.vy = 0;
   sfx('boom');
-  if (st.has) failMission(st, 'Aircraft destroyed');
+  if (st.has) failMission(st, 'Aircraft destroyed', true);
+  else if (st.level) failMission(st, 'Aircraft destroyed');
   else showToast('MISSION FAILED', 'Aircraft destroyed', false);
 }
 
@@ -270,7 +291,8 @@ export function stepShop(st, grounded, dt) {
 export function drawHalos(st) {
   if (st.has) return;
   const { W, S } = view, c = MISSION, pulse = .5 + .5 * Math.sin(st.t * 4);
-  for (const shop of world.shops) {
+  if (st.level && (st.outcome || st.done)) return;
+  for (const shop of st.level ? [st.level.shop] : world.shops) {
     const p = shopPad(shop), sx = X(p.x);
     if (sx < -80 || sx > W + 80) continue;
     const top = Y(p.y - c.haloHeight), bottom = Y(p.y);
@@ -359,31 +381,42 @@ export function drawHeading(st) {
   ctx.lineCap = 'butt';
 }
 
+// A bold arrow circling the drone. It stays close to where the player is already
+// looking, so it can never slide under the controls or the HUD.
 export function drawPointer(st) {
-  const { W, H } = view;
-  const { x: tx, y: ty, label } = goal(st);
-  const sx = X(tx), sy = Y(ty), m = 56;
-  if (sx > m && sx < W - m && sy > view.top && sy < H - m) return;
-  const cx = W / 2, cy = H / 2, ang = Math.atan2(sy - cy, sx - cx);
-  const px = Math.max(m, Math.min(W - m, sx)), py = Math.max(view.top + 24, Math.min(H - 120, sy));
+  if (st.wreck || st.outcome || st.done) return;
+  const { W, S } = view, c = POINTER, g = goal(st), sx = X(g.x), sy = Y(g.y), m = c.safeMargin;
+  if (sx > m && sx < W - m && sy > view.top + m && sy < view.bottom - m) return;
+  const dx = X(st.d.x), dy = Y(st.d.y), ang = Math.atan2(sy - dy, sx - dx);
+  const r = Math.max(c.orbit * S, c.orbit * .8) + Math.sin(st.t * 5) * c.bob;
+  const clampY = y => Math.max(view.top + m, Math.min(view.bottom - m, y));
+  const px = Math.max(m, Math.min(W - m, dx + Math.cos(ang) * r)), py = clampY(dy + Math.sin(ang) * r);
+  const z = c.size;
   ctx.save();
   ctx.translate(px, py);
   ctx.rotate(ang);
-  ctx.fillStyle = st.has ? '#ffc23d' : '#4fc27c';
   ctx.beginPath();
-  ctx.moveTo(18, 0);
-  ctx.lineTo(-8, -11);
-  ctx.lineTo(-8, 11);
+  ctx.moveTo(z, 0);
+  ctx.lineTo(-z * .7, -z * .75);
+  ctx.lineTo(-z * .3, 0);
+  ctx.lineTo(-z * .7, z * .75);
+  ctx.closePath();
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = 7;
+  ctx.strokeStyle = 'rgba(20,15,40,.9)';
+  ctx.stroke();
+  ctx.fillStyle = st.has ? '#ffc23d' : '#4fc27c';
   ctx.fill();
   ctx.restore();
-  const dist = Math.round(Math.hypot(tx - st.d.x, ty - st.d.y) / 10);
-  const text = `${label} · ${dist} m`, tx2 = Math.max(70, Math.min(W - 70, px)), ty2 = py + (py > H / 2 ? -22 : 30);
-  ctx.font = '700 13px Tajawal,sans-serif';
+  const dist = Math.round(Math.hypot(g.x - st.d.x, g.y - st.d.y) / 10);
+  const text = `${g.label} · ${dist} m`;
+  ctx.font = '800 15px Tajawal,sans-serif';
   ctx.textAlign = 'center';
-  ctx.lineWidth = 3;
-  ctx.strokeStyle = 'rgba(20,15,40,.8)';
-  ctx.strokeText(text, tx2, ty2);
+  const tw = ctx.measureText(text).width / 2 + 8 || 60;
+  const lx = Math.max(tw, Math.min(W - tw, px)), ly = clampY(py + (py > dy ? 34 : -28));
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = 'rgba(20,15,40,.9)';
+  ctx.strokeText(text, lx, ly);
   ctx.fillStyle = '#fff3df';
-  ctx.fillText(text, tx2, ty2);
+  ctx.fillText(text, lx, ly);
 }
-

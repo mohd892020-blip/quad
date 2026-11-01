@@ -14,11 +14,14 @@ export function saveSettings() {
 export function loadProgress() {
   try {
     const saved = JSON.parse(localStorage.getItem(PROGRESS_KEY));
-    if (saved && Number.isFinite(saved.del) && Number.isFinite(saved.money)) return { del: saved.del, money: saved.money };
+    if (saved && Number.isFinite(saved.del) && Number.isFinite(saved.money)) return { stars: {}, ...saved };
   } catch (_) {}
-  return { del: 0, money: 0 };
+  return { del: 0, money: 0, stars: {} };
 }
 
-export function saveProgress(del, money) {
-  try { localStorage.setItem(PROGRESS_KEY, JSON.stringify({ del, money })); } catch (_) {}
+// Keeps each level's best star count alongside deliveries and money.
+export function saveProgress(del, money, level, stars) {
+  const best = loadProgress().stars;
+  if (level) best[level] = Math.max(best[level] || 0, stars);
+  try { localStorage.setItem(PROGRESS_KEY, JSON.stringify({ del, money, stars: best })); } catch (_) {}
 }

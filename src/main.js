@@ -1,6 +1,7 @@
 import { drawBoost, drawHawks, drawRival, stepAction } from './action.js';
 import { initAudio, updateRotor } from './audio.js';
 import { CAMERA, CITY_SEED, DRONE, DUST, FIXED_DT, GROUND, HUD_INTERVAL, MAX_FRAME_DT, QUALITY } from './config.js';
+import { buildLevels } from './levels.js';
 import {
   autoDeliver, chargeDrone, drawHalos, drawHeading, drawPointer, drawPrep, drawTarget, failMission, hangarHint, newGame, stepHealth, stepCargo, stepHeading, stepMission,
   stepShop, zones,
@@ -10,12 +11,12 @@ import { initInput, keys } from './input.js';
 import { drawRope, stepRope, stepRopeLength } from './rope.js';
 import { settings } from './storage.js';
 import {
-  ctx, drawFx, drawMarks, hideOverlay, hud, initSheet, kickDust, onDevActions, onStart, previewCanvas, setLowQ, shakeOffset, sheetOpen,
-  showActions, showHangarTip, stepFx, view,
+  ctx, drawFx, drawMarks, hideModals, hideOverlay, hud, initLevels, initSheet, kickDust, modalOpen, onDevActions, onStart, previewCanvas, setLowQ,
+  shakeOffset, sheetOpen, showActions, showHangarTip, showLevels, showResult, stepFx, view,
 } from './ui.js';
 import { drawCity, drawMap, drawSky, dropSprites, genWorld, stepCamera, stepClock, stepWind } from './world.js';
 
-let st = null, hudT = 0, last = performance.now();
+let st = null, hudT = 0, last = performance.now(), levels = [];
 const pace = { t: 0, n: 0 };
 
 function step(dt) {
@@ -118,10 +119,10 @@ function loop(now) {
   const frame = (now - last) / 1000;
   const dt = Math.min(MAX_FRAME_DT, frame);
   last = now;
-  const paused = sheetOpen();
+  const paused = modalOpen();
   if (!paused) watchPace(frame);
-  if (paused) drawPreview(now / 1000);
-  else {
+  if (sheetOpen()) drawPreview(now / 1000);
+  if (!paused) {
     st.acc += dt;
     while (st.acc >= FIXED_DT) {
       rememberPose();
@@ -130,6 +131,12 @@ function loop(now) {
     }
     hudT += dt;
     if (hudT > HUD_INTERVAL) { hud(st); drawMap(st); hudT = 0; }
+    if (st.outcome && st.t >= st.outcome.at) {
+      const outcome = st.outcome;
+      st.outcome = null;
+      st.done = true;
+      showResult(outcome, st.level, st.level.n < levels.length);
+    }
   }
   render();
   showActions(zones(st), !!st.anchor, st.boosting);
@@ -138,9 +145,9 @@ function loop(now) {
   requestAnimationFrame(loop);
 }
 
-function start() {
-  st = newGame();
-  hideOverlay();
+function start(level) {
+  st = newGame(level);
+  hideModals();
   last = performance.now();
   hud(st);
   drawMap(st);
@@ -166,9 +173,14 @@ function idle() {
 initInput();
 initAudio();
 initSheet();
-onStart(start);
+onStart(() => {
+  hideOverlay();
+  showLevels();
+});
 onDevActions(() => autoDeliver(st), () => chargeDrone(st));
 genWorld(CITY_SEED);
+levels = buildLevels();
+initLevels(levels, { play: start });
 // building sprites hold shop signs, so repaint them once the web fonts arrive
 document.fonts?.ready.then(dropSprites);
 idle();

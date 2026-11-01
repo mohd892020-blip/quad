@@ -175,6 +175,11 @@ export const AIRCRAFT = [
 // When a shop suggests another aircraft while it makes the order.
 export const HANGAR = { heavyFrom: 1.8, fragileFrom: 1.6, windyFrom: 1.6, rotate: 3 };
 
+export const LEVELS = { count: 40, seed: 2026, maxDist: 5000, resultDelay: .9, rowGap: 92 };
+
+// The arrow circles the drone, so it can never slip under the controls or the HUD.
+export const POINTER = { orbit: 78, size: 19, bob: 6, safeMargin: 44, bottomGap: 60 };
+
 export const BOOST = { force: 900, drain: 60, refill: 18, refillDelay: .6, batteryDrain: 2.5 };
 
 export const HAWKS = {
@@ -200,17 +205,17 @@ export const WIND = {
 };
 
 // Pizza is the prototype's baseline: every factor is 1, so its flight matches prototype.html.
-// prep is how many seconds the shop needs to make the order.
+// prep is how many seconds the shop needs to make the order; price is what ruining it costs.
 export const ITEMS = {
-  pizza: { key: 'pizza', prep: 7, label: 'Pizza', weight: 1, size: 1, fragile: 1, heat: 1, wind: 1 },
-  falafel: { key: 'falafel', prep: 3.5, label: 'Falafel', weight: .8, size: .8, fragile: .6, heat: .9, wind: .9 },
-  kunafa: { key: 'kunafa', prep: 5.5, label: 'Kunafa', weight: 1.1, size: 1.1, fragile: 1.2, heat: 1.1, wind: 1 },
-  coffee: { key: 'coffee', prep: 2.5, label: 'Coffee', weight: .6, size: .6, fragile: 1.6, heat: 1.4, wind: .8 },
-  cake: { key: 'cake', prep: 4.5, label: 'Cake', weight: 1, size: 1, fragile: 2, heat: 0, wind: 1.1 },
-  medicine: { key: 'medicine', prep: 1.5, label: 'Medicine', weight: .3, size: .5, fragile: .5, heat: 0, wind: .7, urgent: true },
-  flowers: { key: 'flowers', prep: 3, label: 'Flowers', weight: .4, size: .9, fragile: 1.3, heat: 0, wind: 1.8 },
-  watermelon: { key: 'watermelon', prep: 2, label: 'Watermelon', weight: 1.8, size: 1, fragile: .7, heat: 0, wind: .5 },
-  tv: { key: 'tv', prep: 4, label: 'TV', weight: 2, size: 1.6, fragile: 1.8, heat: 0, wind: 1.6 },
+  pizza: { key: 'pizza', price: 10, prep: 7, label: 'Pizza', weight: 1, size: 1, fragile: 1, heat: 1, wind: 1 },
+  falafel: { key: 'falafel', price: 6, prep: 3.5, label: 'Falafel', weight: .8, size: .8, fragile: .6, heat: .9, wind: .9 },
+  kunafa: { key: 'kunafa', price: 12, prep: 5.5, label: 'Kunafa', weight: 1.1, size: 1.1, fragile: 1.2, heat: 1.1, wind: 1 },
+  coffee: { key: 'coffee', price: 4, prep: 2.5, label: 'Coffee', weight: .6, size: .6, fragile: 1.6, heat: 1.4, wind: .8 },
+  cake: { key: 'cake', price: 14, prep: 4.5, label: 'Cake', weight: 1, size: 1, fragile: 2, heat: 0, wind: 1.1 },
+  medicine: { key: 'medicine', price: 8, prep: 1.5, label: 'Medicine', weight: .3, size: .5, fragile: .5, heat: 0, wind: .7, urgent: true },
+  flowers: { key: 'flowers', price: 9, prep: 3, label: 'Flowers', weight: .4, size: .9, fragile: 1.3, heat: 0, wind: 1.8 },
+  watermelon: { key: 'watermelon', price: 5, prep: 2, label: 'Watermelon', weight: 1.8, size: 1, fragile: .7, heat: 0, wind: .5 },
+  tv: { key: 'tv', price: 30, prep: 4, label: 'TV', weight: 2, size: 1.6, fragile: 1.8, heat: 0, wind: 1.6 },
 };
 
 // How much a load above or below pizza weight changes lift and battery use.
@@ -280,7 +285,7 @@ export const DELIVERY = {
   tipOkBonus: 3,
   starHeat: 60,
   starBox: 70,
-  starSecs: 35,
+  starTimeShare: .6,
   urgentTip: 1.5,
 };
 
@@ -298,6 +303,7 @@ export const CAMERA = {
   follow: 3,
   floorBelow: 40,
   leadY: .42,
+  hudGap: 64,
   shakeDecay: 30,
   idleSpeed: .4,
   idleLead: 200,

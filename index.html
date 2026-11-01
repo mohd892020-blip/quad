@@ -17,6 +17,7 @@
     <div class="pill" id="money">$0<small id="del">0 deliveries</small></div>
     <button class="pill icon" id="gear" aria-label="Settings">⚙</button>
     <button class="pill icon" id="mute" aria-label="Mute">♪</button>
+    <button class="pill icon" id="toMap" aria-label="Levels">▦</button>
     <div class="pill" id="order"><b id="oTitle">—</b><span id="oSub"></span></div>
     <div class="pill" id="meters">
       <span>TIME</span><span id="clock">--:--</span>
@@ -51,6 +52,30 @@
     <div class="card" id="cardStart">
       <h1>Flying Pizza</h1>
       <button class="go" id="start">Play</button>
+    </div>
+  </div>
+  <div id="levels" hidden>
+    <div id="levelsBar">
+      <b>Flying Pizza</b><span id="levelsMoney">$0</span>
+      <button id="freeRoam">Free Roam</button>
+      <button class="icon" id="levelsGear" aria-label="Settings">⚙</button>
+    </div>
+    <div id="levelsScroll"><div id="levelsPath"></div></div>
+  </div>
+  <div id="levelCard" class="modal" hidden>
+    <div class="card">
+      <h2 id="levelTitle">Level 1</h2>
+      <p id="levelBest">☆☆☆</p>
+      <dl id="levelRows"></dl>
+      <div class="row"><button class="ghost" id="levelClose">Close</button><button class="go" id="levelPlay">Start</button></div>
+    </div>
+  </div>
+  <div id="resultCard" class="modal" hidden>
+    <div class="card">
+      <h2 id="resultTitle">MISSION PASSED</h2>
+      <p id="resultStars"></p>
+      <p id="resultWhy"></p>
+      <div class="row"><button class="ghost" id="resultMap">Levels</button><button class="ghost" id="resultRetry">Retry</button><button class="go" id="resultNext">Next</button></div>
     </div>
   </div>
   <div id="sheet" hidden>
