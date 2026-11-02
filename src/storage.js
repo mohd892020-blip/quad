@@ -25,7 +25,8 @@ export function saveGarage() {
   try { localStorage.setItem(GARAGE_KEY, JSON.stringify({ owned: garage.owned, parts: garage.parts })); } catch (_) {}
 }
 
-export const owns = key => key === AIRCRAFT[0].key || settings.dev || garage.owned.includes(key);
+export const bought = key => key === AIRCRAFT[0].key || garage.owned.includes(key);
+export const owns = key => settings.dev || bought(key);
 if (!owns(settings.plane)) settings.plane = AIRCRAFT[0].key;
 
 export function saveSettings() {

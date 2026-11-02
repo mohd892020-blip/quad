@@ -1,7 +1,7 @@
 import { toggleMute } from './audio.js';
 import { AIRCRAFT, BADGE, BOOST, DEV, DUST, FROST, FX, G, HANGAR, HEALTH, JOY, KEY_HINT, LEVELS, MISSION, POINTER, QUALITY, SHAKE, SHOP, VIEW, WIND } from './config.js';
 import { applyControls } from './input.js';
-import { loadProgress, owns, saveSettings, settings } from './storage.js';
+import { bought, loadProgress, owns, saveSettings, settings } from './storage.js';
 
 const $ = id => document.getElementById(id);
 
@@ -443,7 +443,7 @@ export function showLevels() {
   const nodes = levelList.map(l => {
     const p = spot(l), best = stars[l.n] || 0;
     const state = !unlocked(l.n) ? 'locked' : l.n === open ? 'next' : 'done';
-    return `<button class="node ${state}${l.stops[0].parcels ? ' double' : ''}${l.challenge ? ' challenge' : ''}" data-n="${l.n}" style="left:${p.x}%;top:${p.y}px;--zone:${l.shop.zone.map}" aria-label="Mission ${l.n}"><b>${l.n}</b><small>${best ? starText(best) : ''}</small></button>`;
+    return `<button class="node ${state}${l.stops[0].parcels ? ' double' : ''}${l.challenge ? ' challenge' : ''}${l.n > open && unlocked(l.n) ? ' devMark' : ''}" data-n="${l.n}" style="left:${p.x}%;top:${p.y}px;--zone:${l.shop.zone.map}" aria-label="Mission ${l.n}"><b>${l.n}</b><small>${best ? starText(best) : ''}</small></button>`;
   }).join('');
   const path = $('levelsPath');
   path.style.height = height + 'px';
@@ -476,6 +476,7 @@ function openLevelCard(n) {
   $('levelRows').innerHTML = rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');
   const locked = n > open && !settings.dev;
   $('levelPlay').disabled = locked;
+  $('levelPlay').classList.toggle('devMark', n > open && !locked);
   $('levelPlay').textContent = locked ? `Finish mission ${open} first` : 'Start';
   $('levelCard').hidden = false;
 }
@@ -587,6 +588,7 @@ export function markPlanes() {
   for (const b of $('planes').children) {
     b.setAttribute('aria-pressed', b.dataset.key === settings.plane);
     b.classList.toggle('locked', !owns(b.dataset.key));
+    b.classList.toggle('devMark', settings.dev && !bought(b.dataset.key));
   }
   const m = AIRCRAFT.find(a => a.key === settings.plane) || AIRCRAFT[0];
   $('planeNote').textContent = m.note;

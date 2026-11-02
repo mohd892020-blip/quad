@@ -53,18 +53,18 @@
     <button class="act" id="ropeUp" hidden>Rope ▲</button>
     <button class="act" id="ropeDown" hidden>Rope ▼</button>
     <button class="act" id="hold" hidden>Hold</button>
-    <button class="act" id="land" hidden><svg class="ico" aria-hidden="true"><use href="#i-land"/></svg><span>Land</span></button>
+    <button class="act devMark" id="land" hidden><svg class="ico" aria-hidden="true"><use href="#i-land"/></svg><span>Land</span></button>
   </div>
   <div id="dev" hidden>
-    <button class="act" id="devAuto">Auto deliver</button>
-    <button class="act" id="devCharge">Charge</button>
+    <button class="act devMark" id="devAuto">Auto deliver</button>
+    <button class="act devMark" id="devCharge">Charge</button>
   </div>
   <div id="keys" hidden>
     <span><kbd>←</kbd><kbd>→</kbd>Steer</span>
     <span><kbd>↑</kbd>Lift</span>
     <span><kbd>↓</kbd>Descend</span>
     <span><kbd>H</kbd>Hold</span>
-    <span class="devOnly"><kbd>L</kbd>Land</span>
+    <span class="devOnly devMark"><kbd>L</kbd>Land</span>
   </div>
   <div id="shiftHint" hidden><kbd>Shift</kbd></div>
   <div id="overlay">
@@ -115,7 +115,7 @@
         <button class="ghost tool" id="gear"><svg class="ico"><use href="#i-gear"/></svg>Settings</button>
         <button class="ghost tool" id="mute"><svg class="ico"><use href="#i-sound"/></svg>Sound</button>
       </div>
-      <p id="pauseKeys">← → tilt · ↑ or Space lift · ↓ descend · Shift boost · Over a customer ↓ lowers the rope, Q raises it · H hold<span class="devOnly"> · L land</span> · M mute</p>
+      <p id="pauseKeys">← → tilt · ↑ or Space lift · ↓ descend · Shift boost · Over a customer ↓ lowers the rope, Q raises it · H hold<span class="devOnly"> · L land <b class="devChip">DEV</b></span> · M mute</p>
     </div>
   </div>
   <div id="shop" class="modal" hidden>

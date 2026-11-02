@@ -1,7 +1,7 @@
 import { sfx } from './audio.js';
 import { AIRCRAFT, HANGAR, SHOP } from './config.js';
 import { drawAirframe } from './drone.js';
-import { garage, loadProgress, owns, saveGarage, saveProgress, saveSettings, settings } from './storage.js';
+import { bought, garage, loadProgress, owns, saveGarage, saveProgress, saveSettings, settings } from './storage.js';
 import { badgeFor, markPlanes } from './ui.js';
 
 const $ = id => document.getElementById(id);
@@ -28,7 +28,7 @@ function planeRow(a, money) {
   const action = settings.plane === a.key ? '<em>Flying</em>'
     : owns(a.key) ? `<button class="ghost" data-use="${a.key}">Use</button>`
     : buyButton(SHOP.aircraft[a.key], money, `data-buy="${a.key}"`);
-  return `<div class="shopRow"><canvas data-plane="${a.key}" width="144" height="72" aria-hidden="true"></canvas><p><b>${a.name}</b><small class="${badge.stat}">${badge.text}</small></p>${action}</div>`;
+  return `<div class="shopRow${bought(a.key) ? '' : owns(a.key) ? ' devMark' : ''}"><canvas data-plane="${a.key}" width="144" height="72" aria-hidden="true"></canvas><p><b>${a.name}</b><small class="${badge.stat}">${badge.text}</small></p>${action}</div>`;
 }
 
 function drawTiles() {

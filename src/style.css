@@ -118,6 +118,11 @@ kbd{display:inline-grid;place-items:center;min-width:24px;height:24px;box-sizing
 }
 .desk #joy,.desk #arrows,.desk #up,.desk #down{display:none!important}
 body:not(.dev) .devOnly{display:none!important}
+/* The stamp on anything only a developer has: a player never sees one. */
+.devMark{position:relative}
+.devMark::before,.devChip{content:"DEV";padding:2px 5px 1px;border-radius:7px;background:#b517ff;color:#fff;font:800 10px/1 var(--body);letter-spacing:.06em;text-shadow:none;box-shadow:0 0 0 1.5px #fff}
+.devMark::before{position:absolute;top:-7px;left:-5px;z-index:2;pointer-events:none}
+.devChip{display:inline-block;margin-inline-start:3px}
 .desk #controls{justify-content:flex-end;padding-bottom:calc(52px + env(safe-area-inset-bottom,0px))}
 .desk #boost{width:78px;height:78px;font-size:17px;cursor:pointer;line-height:1.1}
 .desk #actions{bottom:calc(142px + env(safe-area-inset-bottom,0px))}
