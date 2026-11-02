@@ -2,12 +2,13 @@
 // The tools and the signing key live outside the repository: every build must carry the same key,
 // or a phone refuses to install it over the last one.
 import { execFileSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const HOME = process.env.FLYING_PIZZA_HOME || join(homedir(), '.flying-pizza');
 const MIN_SDK = '24', TARGET_SDK = '34', KEY_ALIAS = 'flying-pizza', KEY_PASS = 'android';
+const FONTS = [['Lalezar', 400], ['Tajawal', 400], ['Tajawal', 700], ['Tajawal', 800]];
 
 // each tool unpacks into one folder of its own, whatever its version calls it
 const only = name => {
@@ -23,11 +24,25 @@ const version = JSON.parse(readFileSync('package.json', 'utf8')).version;
 const code = execFileSync('git', ['rev-list', '--count', 'HEAD'], { encoding: 'utf8' }).trim();
 const out = 'flying-pizza.apk';
 
+// The app carries everything it uses and has no internet permission: the page's links to the web fonts
+// come out, the fonts themselves go in, and the build stops if the page still reaches outside.
+function selfContained(page) {
+  const faces = FONTS.map(([family, weight]) => {
+    const data = readFileSync(join('android', 'fonts', `${family}-${weight}.woff2`)).toString('base64');
+    return `@font-face{font-family:${family};font-weight:${weight};font-display:swap;src:url(data:font/woff2;base64,${data}) format("woff2")}`;
+  }).join('');
+  const inside = page.replace(/<link[^>]*fonts\.g[^>]*>\s*/g, '').replace('</head>', () => `<style>${faces}</style></head>`);
+  const outside = inside.match(/<(?:link|script|img|audio|video|source)\b[^>]*\b(?:href|src)="(?:https?:)?\/\/[^"]*"/);
+  if (outside) throw new Error(`the page still loads from outside: ${outside[0]}`);
+  return inside;
+}
+
 const tmp = mkdtempSync(join(tmpdir(), 'flying-pizza-apk-'));
 const assets = join(tmp, 'assets'), classes = join(tmp, 'classes'), resources = join(tmp, 'res.zip'), base = join(tmp, 'base.apk'), aligned = join(tmp, 'aligned.apk');
 mkdirSync(assets);
 mkdirSync(classes);
-copyFileSync(join('dist', 'pages', 'index.html'), join(assets, 'index.html'));
+writeFileSync(join(assets, 'index.html'), selfContained(readFileSync(join('dist', 'pages', 'index.html'), 'utf8')));
+for (const license of ['OFL-lalezar.txt', 'OFL-tajawal.txt']) copyFileSync(join('android', 'fonts', license), join(assets, license));
 
 run(join(build, 'aapt2.exe'), ['compile', '--dir', join('android', 'res'), '-o', resources]);
 run(join(build, 'aapt2.exe'), [
