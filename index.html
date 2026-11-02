@@ -16,6 +16,7 @@
     <linearGradient id="goldStar" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff3bf"/><stop offset=".5" stop-color="#ffc83d"/><stop offset="1" stop-color="#f4951a"/></linearGradient>
     <symbol id="i-star" viewBox="0 0 48 48"><path fill="url(#goldStar)" stroke="url(#goldStar)" stroke-width="5" stroke-linejoin="round" d="M24 6l5.6 11.8 13 1.7-9.5 9 2.5 12.9L24 35.2l-11.6 6.2 2.5-12.9-9.5-9 13-1.7z"/><path fill="#fff" opacity=".4" d="M24 9l4.4 9.6 10.6 1.4c-5 .2-10-1.2-15 6-3-5-8-6-14-6l10.6-1.4z"/></symbol>
     <symbol id="i-star-off" viewBox="0 0 48 48"><path fill="rgba(255,255,255,.12)" stroke="rgba(255,255,255,.5)" stroke-width="3" stroke-linejoin="round" d="M24 6l5.6 11.8 13 1.7-9.5 9 2.5 12.9L24 35.2l-11.6 6.2 2.5-12.9-9.5-9 13-1.7z"/></symbol>
+    <symbol id="i-boost" viewBox="0 0 24 24"><path d="M4.5 5l7 7-7 7"/><path d="M12.5 5l7 7-7 7"/></symbol>
     <symbol id="i-grid" viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="2"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="2"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="2"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="2"/></symbol>
     <symbol id="i-retry" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 3v5h-5"/></symbol>
     <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/></symbol>
@@ -44,7 +45,7 @@
   <div id="controls" hidden>
     <div class="grp" id="arrows" hidden><button class="btn" id="lt" aria-label="Left">◀</button><button class="btn" id="rt" aria-label="Right">▶</button></div>
     <div id="joy" hidden aria-label="Steer left or right"><i id="knob"></i></div>
-    <div class="grp"><button class="btn" id="boost" aria-label="Boost, Shift or B"><i id="boostFill"></i>BOOST<small>Shift</small></button><button class="btn" id="up" aria-label="Lift">LIFT</button></div>
+    <div class="grp"><button class="btn" id="boost" aria-label="Boost, Shift or B"><i id="boostFill"></i><svg class="ico" aria-hidden="true"><use href="#i-boost"/></svg></button><button class="btn" id="up" aria-label="Lift">LIFT</button></div>
   </div>
   <div id="actions">
     <button class="act" id="ropeUp" hidden>Rope ▲</button>
@@ -56,7 +57,14 @@
     <button class="act" id="devAuto">Auto deliver</button>
     <button class="act" id="devCharge">Charge</button>
   </div>
-  <div id="keys" hidden>← → tilt · ↑ or Space lift · Shift boost · ↓ lower rope · Q raise · H hold · L land · M mute</div>
+  <div id="keys" hidden>
+    <span><kbd>←</kbd><kbd>→</kbd>Steer</span>
+    <span><kbd>↑</kbd>Lift</span>
+    <span><kbd>↓</kbd>Lower rope</span>
+    <span><kbd>H</kbd>Hold</span>
+    <span><kbd>L</kbd>Land</span>
+  </div>
+  <div id="shiftHint" hidden><kbd>Shift</kbd></div>
   <div id="overlay">
     <div class="card" id="cardStart">
       <h1>Flying Pizza</h1>

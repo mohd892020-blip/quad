@@ -17,7 +17,7 @@ import { touchesSea } from './seaside.js';
 import { loadProgress, settings } from './storage.js';
 import {
   ctx, drawFx, drawMarks, hideModals, hideOverlay, hud, initLevels, initSheet, kickDust, levelsOpen, lowerQuality, lowestTier, measureHud, modalOpen, onDevActions, onStart,
-  previewCanvas, shakeOffset, sheetOpen, showActions, showHangarTip, showLesson, showLevels, showResult, stepFx, view,
+  previewCanvas, shakeOffset, sheetOpen, showActions, showHangarTip, showKeyHints, showLesson, showLevels, showResult, stepFx, view,
 } from './ui.js';
 import { drawCity, drawMap, drawSky, dropSprites, genWorld, stepCamera, stepClock, stepWind } from './world.js';
 
@@ -175,6 +175,7 @@ function start(level) {
   pace.t = pace.n = 0;
   showLesson();
   if (level.training) beginTraining(st);
+  else showKeyHints();
   hud(st);
   measureHud();
   drawMap(st);

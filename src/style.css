@@ -30,7 +30,14 @@ body{background:var(--night);color:var(--ink);font-family:var(--body);overflow:h
   font-family:var(--display);font-size:26px;display:grid;place-items:center;touch-action:none}
 .btn.on{background:rgba(255,194,61,.35);border-color:var(--cheese)}
 #up{width:96px;height:96px;font-size:22px}
-#keys{position:absolute;bottom:calc(12px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);font-size:13px;color:var(--muted);background:var(--panel);padding:6px 14px;border-radius:10px;white-space:nowrap}
+#keys{position:absolute;bottom:calc(14px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);display:flex;gap:16px;align-items:center;font-size:13px;font-weight:700;color:#fff;background:rgba(20,15,40,.55);padding:7px 14px;border-radius:14px;white-space:nowrap;pointer-events:none}
+#keys span{display:inline-flex;align-items:center;gap:5px}
+kbd{display:inline-grid;place-items:center;min-width:24px;height:24px;box-sizing:border-box;padding:0 6px;border-radius:7px;background:rgba(255,255,255,.94);color:#1c1840;font:800 13px var(--body);box-shadow:0 2px 0 rgba(20,15,40,.6)}
+/* points at the boost button from its left */
+#shiftHint{position:absolute;right:calc(106px + env(safe-area-inset-right,0px));bottom:calc(76px + env(safe-area-inset-bottom,0px));padding:6px;border-radius:12px;background:rgba(20,15,40,.55);pointer-events:none}
+#shiftHint::after{content:"";position:absolute;right:-7px;top:50%;margin-top:-7px;border-left:8px solid rgba(20,15,40,.55);border-top:7px solid transparent;border-bottom:7px solid transparent}
+.brief{animation:hintFade var(--hint) linear both}
+@keyframes hintFade{85%{opacity:1}100%{opacity:0}}
 #overlay{position:absolute;inset:0;z-index:4;display:grid;place-items:center;background:var(--dim);padding:16px max(16px,env(safe-area-inset-right,0px)) 16px max(16px,env(safe-area-inset-left,0px))}
 /* Liquid glass over a dimmed scene: the card is brighter than what is behind it. Layers from the top: grain, a highlight
    on the shoulder, a soft bounce in the far corner, the body of the glass, then the tint each screen sets. */
@@ -110,11 +117,9 @@ body{background:var(--night);color:var(--ink);font-family:var(--body);overflow:h
   #dev{gap:4px}
   #dev .act{min-height:34px;padding:0 8px;font-size:12px}
 }
-#boost small{display:none}
 .desk #joy,.desk #arrows,.desk #up{display:none!important}
 .desk #controls{justify-content:flex-end;padding-bottom:calc(52px + env(safe-area-inset-bottom,0px))}
 .desk #boost{width:78px;height:78px;font-size:17px;cursor:pointer;line-height:1.1}
-.desk #boost small{display:block;font-family:var(--body);font-weight:700;font-size:11px;color:var(--muted)}
 .desk #actions{bottom:calc(142px + env(safe-area-inset-bottom,0px))}
 #bHp i{background:#ff7a5c}
 @keyframes nudge{50%{transform:scale(1.5);opacity:.55}}
@@ -225,6 +230,8 @@ body{background:var(--night);color:var(--ink);font-family:var(--body);overflow:h
 }
 #boost{position:relative;overflow:hidden}
 #boostFill{position:absolute;inset:0;background:rgba(122,208,255,.32);transform-origin:50% 100%;pointer-events:none}
+#boost .ico{position:relative;width:58%;height:58%;stroke-width:2.8}
+#boost.back .ico{transform:scaleX(-1)}
 :root{--stick:1}
 .btn{width:calc(64px*var(--stick));height:calc(64px*var(--stick));font-size:22px}
 #up{width:calc(84px*var(--stick));height:calc(84px*var(--stick));font-size:20px}

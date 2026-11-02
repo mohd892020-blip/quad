@@ -314,7 +314,11 @@ export const ORDER_TIME = {
   barW: 36, barH: 3, barY: 7, track: .22, stages: [[0, '#ff7a5c'], [.25, '#ffc23d'], [.5, '#4fc27c']],
 };
 
-export const BOOST = { force: 900, drain: 60, refill: 18, refillDelay: .6, batteryDrain: 2.5 };
+// flipSpeed: above this the boost icon points the way the aircraft is flying.
+export const BOOST = { force: 900, drain: 60, refill: 18, refillDelay: .6, batteryDrain: 2.5, flipSpeed: 60 };
+
+// How long the keys stay on screen when a level opens on a computer.
+export const KEY_HINT = { secs: 3 };
 
 export const HAWKS = {
   from: 1, twoFrom: 4, threeFrom: 20, pathMin: .3, pathRange: .5, lift: 90, orbit: 60, circleRate: 1.4,

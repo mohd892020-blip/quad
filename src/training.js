@@ -28,7 +28,7 @@ const STEPS = [
     },
   },
   {
-    title: 'Boost', touch: 'Hold BOOST for a burst of speed.', keys: 'Hold Shift for a burst of speed.', teach: ['boost'],
+    title: 'Boost', touch: 'Hold the boost button for a burst of speed.', keys: 'Hold Shift for a burst of speed.', teach: ['boost'],
     done: st => st.lesson.boosted > c.boostFor,
   },
   {

@@ -1,5 +1,5 @@
 import { toggleMute } from './audio.js';
-import { AIRCRAFT, BADGE, DEV, DUST, FX, G, HANGAR, HEALTH, JOY, LEVELS, MISSION, POINTER, QUALITY, SHAKE, SHOP, VIEW, WIND } from './config.js';
+import { AIRCRAFT, BADGE, BOOST, DEV, DUST, FX, G, HANGAR, HEALTH, JOY, KEY_HINT, LEVELS, MISSION, POINTER, QUALITY, SHAKE, SHOP, VIEW, WIND } from './config.js';
 import { applyControls } from './input.js';
 import { loadProgress, owns, saveSettings, settings } from './storage.js';
 
@@ -307,6 +307,7 @@ export function hud(st) {
   bar('bHeat', o && st.item.heat ? st.heat : 0);
   bar('bBox', o ? st.integ : 0);
   put('boost', Math.round(st.boost), v => { $('boostFill').style.transform = `scaleY(${v / 100})`; });
+  if (Math.abs(st.d.vx) > BOOST.flipSpeed) put('boostBack', st.d.vx < 0, v => { $('boost').classList.toggle('back', v); });
   const reach = WIND.base + WIND.maxDeliveries * WIND.perDelivery;
   put('wind', Math.round(50 + Math.max(-1, Math.min(1, st.wind / reach)) * 50), v => { $('windNeedle').style.transform = `translateX(${v}%)`; });
   const item = o && st.item;
@@ -315,9 +316,29 @@ export function hud(st) {
     : st.level.training ? 'Training' : `${tag}Land on the green pad at ${st.stop.shop.shop.name}`);
 }
 
+// On a keyboard a level opens with the keys on show, and they fade out of the way.
+const KEY_PANELS = ['keys', 'shiftHint'];
+let hintTimer = 0;
+export function showKeyHints() {
+  if (coarse()) return;
+  clearTimeout(hintTimer);
+  for (const id of KEY_PANELS) {
+    const el = $(id);
+    el.style.setProperty('--hint', `${KEY_HINT.secs}s`);
+    el.classList.remove('brief');
+    el.hidden = false;
+    void el.offsetWidth;
+    el.classList.add('brief');
+  }
+  hintTimer = setTimeout(() => { for (const id of KEY_PANELS) $(id).hidden = true; }, KEY_HINT.secs * 1000);
+}
+
 // The training panel, and a ring around the control it is talking about.
 let taught = [];
 export function showLesson(step, title, body, teach = []) {
+  clearTimeout(hintTimer);
+  for (const id of KEY_PANELS) $(id).classList.remove('brief');
+  $('shiftHint').hidden = !teach.includes('boost') || coarse();
   for (const id of taught) $(id).classList.remove('teach');
   taught = teach;
   for (const id of teach) $(id).classList.add('teach');
