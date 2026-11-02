@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build && node scripts/single-file.js",
     "preview": "vite preview",
-    "deploy": "npm run build && node scripts/deploy-pages.js"
+    "deploy": "npm run build && node scripts/deploy-pages.js",
+    "apk": "npm run build && node scripts/build-apk.js"
   },
   "devDependencies": {
     "vite": "^8.3.5"
