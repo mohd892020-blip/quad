@@ -225,7 +225,14 @@ export const LEVELS = { count: 40, seed: 2026, maxDist: 5000, resultDelay: .9, r
 export const TRAINING = { prep: 2, climb: 90, ringX: 420, ringY: 150, ringReach: 46, boostFor: .4, padLift: 20, rope: 40 };
 
 // The arrow circles the drone, so it can never slip under the controls or the HUD.
-export const POINTER = { orbit: 78, size: 19, bob: 6, safeMargin: 44, bottomGap: 60 };
+export const POINTER = { orbit: 62, size: 11, bob: 3, alpha: .7, line: 3, textSize: 12, safeMargin: 44, bottomGap: 60 };
+
+// The ring over the drone while the shop works: its colour says how far along the order is,
+// and a last soft ring spreads out when it is ready.
+export const PREP = {
+  radius: 30, width: 4, alpha: .5, track: .12, flash: .45, flashGrow: 18,
+  stages: [[0, '#e8492c'], [.5, '#ffc23d'], [.85, '#4fc27c']],
+};
 
 // Warnings count seconds of full lift left, so a small battery warns earlier than a big one.
 export const BATTERY = { lowSecs: 20, criticalSecs: 10, chargingBelow: 99, shopReach: 60 };

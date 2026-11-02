@@ -1,7 +1,7 @@
 import { clearAction, planMission, planTraffic } from './action.js';
 import { sfx } from './audio.js';
 import {
-  AIRCRAFT, BATTERY, CAMERA, DELIVERY, DEV, DRONE, HANGAR, HEADING, HEALTH, LEVELS, MISSION, ORDERS, POINTER, RESTAURANT, RIVAL, ROPE, ROPE_CTL, WIND,
+  AIRCRAFT, BATTERY, CAMERA, DELIVERY, DEV, DRONE, HANGAR, HEADING, HEALTH, LEVELS, MISSION, ORDERS, POINTER, PREP, RESTAURANT, RIVAL, ROPE, ROPE_CTL, WIND,
 } from './config.js';
 import { currentModel } from './drone.js';
 import { loadProgress, owns, saveProgress, settings } from './storage.js';
@@ -22,7 +22,7 @@ export function newGame(level) {
     wind: 0, windT: 0, windNext: WIND.firstAt, pops: [], parts: [], shake: 0, acc: 0,
     dust: [], dustN: 0, onGround: true, ropeLen: ROPE, anchor: null, wrong: 0,
     boost: 100, boosting: false, boostDir: 1, boostWait: 0, hawks: [], rival: null, prep: null,
-    hp: 100, wreck: 0, lastHit: null, smokeDue: 0, marks: [], smoke: [], blasts: [], batWarn: 0, charging: false,
+    hp: 100, wreck: 0, lastHit: null, smokeDue: 0, marks: [], smoke: [], blasts: [], batWarn: 0, charging: false, ready: 0,
   };
   planTraffic(st);
   current = st;
@@ -129,6 +129,7 @@ function passMission(st) {
 // and taking off first cancels the order. A running job ends on time or power.
 export function stepMission(st, dt) {
   const d = st.d, c = MISSION;
+  st.ready = Math.max(0, st.ready - dt);
   if (st.has) {
     if (st.t >= st.order.deadline) failMission(st, "Time's up");
     else if (d.bat <= 0) failMission(st, 'Battery dead');
@@ -153,6 +154,7 @@ export function stepMission(st, dt) {
   if (st.prep.left <= 0) {
     const { item } = st.prep;
     st.prep = null;
+    st.ready = PREP.flash;
     startMission(st, shop, item);
   }
 }
@@ -325,26 +327,32 @@ export function drawHalos(st) {
 
 // The same ring as the delivery bar, filling while the shop makes the order.
 export function drawPrep(st) {
-  const p = st.prep;
-  if (!p) return;
-  const S = view.S, x = X(st.d.x), y = Y(st.d.y), done = 1 - p.left / p.item.prep;
-  ctx.lineWidth = 4 * S;
-  ctx.strokeStyle = 'rgba(255,255,255,.25)';
+  const p = st.prep, c = PREP;
+  if (!p && !st.ready) return;
+  const S = view.S, x = X(st.d.x), y = Y(st.d.y);
+  ctx.lineWidth = c.width * S;
+  if (!p) {
+    const left = st.ready / c.flash;
+    ctx.globalAlpha = c.alpha * left;
+    ctx.strokeStyle = c.stages[c.stages.length - 1][1];
+    ctx.beginPath();
+    ctx.arc(x, y, (c.radius + (1 - left) * c.flashGrow) * S, 0, 7);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    return;
+  }
+  const done = 1 - p.left / p.item.prep;
+  ctx.globalAlpha = c.track;
+  ctx.strokeStyle = '#fff';
   ctx.beginPath();
-  ctx.arc(x, y, 30 * S, 0, 7);
+  ctx.arc(x, y, c.radius * S, 0, 7);
   ctx.stroke();
-  ctx.strokeStyle = '#4fc27c';
+  ctx.globalAlpha = c.alpha;
+  ctx.strokeStyle = c.stages.filter(([from]) => done >= from).pop()[1];
   ctx.beginPath();
-  ctx.arc(x, y, 30 * S, -Math.PI / 2, -Math.PI / 2 + done * Math.PI * 2);
+  ctx.arc(x, y, c.radius * S, -Math.PI / 2, -Math.PI / 2 + done * Math.PI * 2);
   ctx.stroke();
-  const text = `Preparing ${p.item.label}`;
-  ctx.font = `${Math.round(16 * S)}px Lalezar,Tajawal,sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.lineWidth = 3;
-  ctx.strokeStyle = 'rgba(20,15,40,.8)';
-  ctx.strokeText(text, x, y - 40 * S);
-  ctx.fillStyle = '#fff3df';
-  ctx.fillText(text, x, y - 40 * S);
+  ctx.globalAlpha = 1;
 }
 
 export function drawTarget(st) {
@@ -443,6 +451,7 @@ export function drawPointer(st) {
   const px = Math.max(m, Math.min(W - m, dx + Math.cos(ang) * r)), py = clampY(dy + Math.sin(ang) * r);
   const z = c.size;
   ctx.save();
+  ctx.globalAlpha = c.alpha;
   ctx.translate(px, py);
   ctx.rotate(ang);
   ctx.beginPath();
@@ -452,21 +461,22 @@ export function drawPointer(st) {
   ctx.lineTo(-z * .7, z * .75);
   ctx.closePath();
   ctx.lineJoin = 'round';
-  ctx.lineWidth = 7;
-  ctx.strokeStyle = 'rgba(20,15,40,.9)';
+  ctx.lineWidth = c.line;
+  ctx.strokeStyle = 'rgba(20,15,40,.6)';
   ctx.stroke();
   ctx.fillStyle = st.has ? '#ffc23d' : '#4fc27c';
   ctx.fill();
   ctx.restore();
-  const dist = Math.round(Math.hypot(g.x - st.d.x, g.y - st.d.y) / 10);
-  const text = `${g.label} · ${dist} m`;
-  ctx.font = '800 15px Tajawal,sans-serif';
+  const text = `${Math.round(Math.hypot(g.x - st.d.x, g.y - st.d.y) / 10)} m`;
+  ctx.font = `800 ${c.textSize}px Tajawal,sans-serif`;
   ctx.textAlign = 'center';
-  const tw = ctx.measureText(text).width / 2 + 8 || 60;
-  const lx = Math.max(tw, Math.min(W - tw, px)), ly = clampY(py + (py > dy ? 34 : -28));
-  ctx.lineWidth = 4;
-  ctx.strokeStyle = 'rgba(20,15,40,.9)';
+  const tw = ctx.measureText(text).width / 2 + 8 || 30;
+  const lx = Math.max(tw, Math.min(W - tw, px)), ly = clampY(py + (py > dy ? 1 : -1) * (z + c.textSize));
+  ctx.globalAlpha = c.alpha;
+  ctx.lineWidth = c.line;
+  ctx.strokeStyle = 'rgba(20,15,40,.7)';
   ctx.strokeText(text, lx, ly);
   ctx.fillStyle = '#fff3df';
   ctx.fillText(text, lx, ly);
+  ctx.globalAlpha = 1;
 }
