@@ -4,7 +4,7 @@ import { BEACH, CAMERA, CITY_SEED, DRONE, DUST, FIXED_DT, GROUND, HANGAR, HUD_IN
 import { initLeague } from './league.js';
 import { buildLevels } from './levels.js';
 import {
-  autoDeliver, chargeDrone, drawBatteryCue, drawHalos, drawHeading, drawOrderTime, drawPointer, drawPrep, drawTarget, failMission, hangarHint, newGame, stepHealth, stepCargo, stepHeading, stepMission,
+  autoDeliver, chargeDrone, drawBatteryCue, drawHalos, drawOrderTime, drawPointer, drawPrep, drawTarget, failMission, hangarHint, newGame, stepHealth, stepCargo, stepMission,
   stepShop, zones,
 } from './delivery.js';
 import { currentModel, drawAirframe, drawDrone, drawShadow, rotorLoad, stepBoost, stepDrone, stepHold, stepLand } from './drone.js';
@@ -58,7 +58,6 @@ function step(dt) {
     failMission(st, lost, st.has);
   }
   if (st.lesson) stepTraining(st, zone, dt);
-  stepHeading(st, dt);
   stepCamera(st, dt);
   stepFx(st, dt);
 }
@@ -105,7 +104,6 @@ function render() {
   drawDrone(s);
   drawPrep(s);
   drawHawks(s);
-  drawHeading(s);
   drawFx(s);
   drawSandstorm(s);
   ctx.restore();

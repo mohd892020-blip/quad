@@ -1,7 +1,7 @@
 import { clearAction, planMission, planTraffic } from './action.js';
 import { sfx } from './audio.js';
 import {
-  AIRCRAFT, BATTERY, CAMERA, DELIVERY, DEV, DOUBLE, DRONE, FIXED_DT, FX, HANGAR, HEADING, HEALTH, LAND, LEVELS, MISSION, ORDER_TIME, ORDERS, POINTER, PREP, RESTAURANT, RIVAL, ROPE, ROPE_CTL, WIND,
+  AIRCRAFT, BATTERY, CAMERA, DELIVERY, DEV, DOUBLE, DRONE, FIXED_DT, FX, HANGAR, HEALTH, LAND, LEVELS, MISSION, ORDER_TIME, ORDERS, POINTER, PREP, RESTAURANT, RIVAL, ROPE, ROPE_CTL, WIND,
 } from './config.js';
 import { currentModel } from './drone.js';
 import { loadProgress, owns, saveProgress, settings } from './storage.js';
@@ -20,7 +20,7 @@ export function newGame(level) {
     box: { x: p.x, y: p.y, px: p.x, py: p.y },
     has: false, heat: 100, integ: 100, order: null, item: null, hold: 0, readyAt: 0,
     wind: 0, windT: 0, windNext: WIND.firstAt, pops: [], parts: [], shake: 0, acc: 0,
-    dust: [], dustN: 0, onGround: true, ropeLen: ROPE, anchor: null, wrong: 0,
+    dust: [], dustN: 0, onGround: true, ropeLen: ROPE, anchor: null,
     boost: 100, boosting: false, boostDir: 1, boostWait: 0, hawks: [], rival: null, prep: null,
     hp: 100, wreck: 0, lastHit: null, smokeDue: 0, marks: [], smoke: [], blasts: [], batWarn: 0, charging: false, ready: 0,
     leg: { t: 0, x: p.x }, charge: 0,
@@ -239,12 +239,6 @@ function goal(st) {
   return { x: p.x, y: p.y - 20, label: shop.shop.name };
 }
 
-export function stepHeading(st, dt) {
-  const c = HEADING, g = goal(st), gap = g.x - st.d.x;
-  const astray = Math.abs(gap) > c.minDist && st.d.vx * Math.sign(gap) < -c.minSpeed;
-  st.wrong += ((astray ? 1 : 0) - st.wrong) * Math.min(1, dt * c.fade);
-}
-
 export function autoDeliver(st) {
   if (st && st.has && st.order) passMission(st);
 }
@@ -454,23 +448,6 @@ export function drawTarget(st) {
 }
 
 // Soft chevrons by the drone when it is flying away from where it should go.
-export function drawHeading(st) {
-  if (st.wrong < .03) return;
-  const c = HEADING, S = view.S, g = goal(st), dir = Math.sign(g.x - st.d.x), y = Y(st.d.y);
-  ctx.lineWidth = 3 * S;
-  ctx.lineCap = 'round';
-  for (let i = 0; i < c.chevrons; i++) {
-    const x = X(st.d.x + dir * (c.offset + i * c.gap));
-    ctx.strokeStyle = `rgba(255,243,223,${st.wrong * (.3 + .35 * (.5 + .5 * Math.sin(st.t * 6 - i)))})`;
-    ctx.beginPath();
-    ctx.moveTo(x - dir * 5 * S, y - 7 * S);
-    ctx.lineTo(x + dir * 3 * S, y);
-    ctx.lineTo(x - dir * 5 * S, y + 7 * S);
-    ctx.stroke();
-  }
-  ctx.lineCap = 'butt';
-}
-
 // A small battery over the aircraft while it runs low, with the way to the closest shop.
 // Green while it charges. Sizes are in pixels, so it stays readable on a phone.
 export function drawBatteryCue(st) {

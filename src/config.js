@@ -223,8 +223,6 @@ export const JOY = {
   ],
 };
 
-export const HEADING = { minDist: 150, minSpeed: 60, fade: 6, chevrons: 3, gap: 14, offset: 44 };
-
 export const DEV = { password: '930933', chargeTo: 100 };
 
 // Courier is the prototype's flight, every factor 1. thrust is climb and load strength,
@@ -324,7 +322,7 @@ export const ORDER_TIME = {
 };
 
 // flipSpeed: above this the boost icon points the way the aircraft is flying.
-export const BOOST = { force: 900, drain: 60, refill: 18, refillDelay: .6, batteryDrain: 2.5, flipSpeed: 60 };
+export const BOOST = { force: 900, drain: 60, refill: 18, refillDelay: .6, batteryDrain: 6, flipSpeed: 60 };
 
 // How long the keys stay on screen when a level opens on a computer.
 export const KEY_HINT = { secs: 3 };
