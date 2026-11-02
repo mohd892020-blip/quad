@@ -1,5 +1,5 @@
-import { toggleMute } from './audio.js';
-import { AIRCRAFT, BADGE, BOOST, DEV, DUST, FROST, FX, G, HANGAR, HEALTH, JOY, KEY_HINT, LEVELS, MISSION, POINTER, QUALITY, SHAKE, SHOP, VIEW, WIND } from './config.js';
+import { sfx, toggleMute } from './audio.js';
+import { AIRCRAFT, BADGE, BOOST, DEV, DUST, FROST, FX, G, HANGAR, HEALTH, JOY, KEY_HINT, LEVELS, MISSION, POINTER, QUALITY, RESULT, SHAKE, SHOP, VIEW, WIND } from './config.js';
 import { applyControls, touchUI } from './input.js';
 import { bought, loadProgress, owns, saveSettings, settings } from './storage.js';
 
@@ -520,20 +520,44 @@ function openLevelCard(n) {
   $('levelCard').hidden = false;
 }
 
+// The money runs up to its total once the stars have landed.
+let tally = 0;
+function countUp(el, to) {
+  const c = RESULT, from = performance.now() + c.tallyDelay;
+  cancelAnimationFrame(tally);
+  el.textContent = '+$0';
+  const tick = now => {
+    const k = Math.max(0, Math.min(1, (now - from) / c.tally));
+    el.textContent = `+$${Math.round(to * (1 - (1 - k) ** 3))}`;
+    if (k < 1) tally = requestAnimationFrame(tick);
+  };
+  tally = requestAnimationFrame(tick);
+}
+
 export function showResult(o, level, hasNext) {
   resultLevel = level;
-  const card = $('resultCard');
+  const card = $('resultCard'), won = o.passed && !o.training, legs = level.stops.length, next = o.passed && hasNext, lead = o.training ? 'resultMap' : next ? 'resultNext' : 'resultRetry';
   card.classList.toggle('bad', !o.passed);
-  $('resultTitle').textContent = o.training ? 'TRAINING COMPLETE' : o.passed ? 'MISSION PASSED' : 'MISSION FAILED';
-  const hero = $('resultStars'), next = o.passed && hasNext, lead = o.training ? 'resultMap' : next ? 'resultNext' : 'resultRetry';
-  hero.innerHTML = o.passed && !o.training
-    ? [...starText(o.stars)].map((s, i) => `<svg style="--n:${i}" viewBox="0 0 48 48"><use href="#i-star${s === '☆' ? '-off' : ''}"/></svg>`).join('')
-    : `<div class="seal${o.passed ? ' ok' : ''}"><svg class="ico"><use href="#i-${o.passed ? 'check' : 'close'}"/></svg></div>`;
-  hero.setAttribute('aria-label', o.passed && !o.training ? `${o.stars} of 3 stars` : '');
+  $('resultKicker').textContent = o.training ? 'Flight school' : `Mission ${level.n}`;
+  $('resultTitle').textContent = o.training ? 'TRAINING COMPLETE' : o.passed ? 'MISSION COMPLETE' : 'MISSION FAILED';
+  const hero = $('resultStars'), earned = o.training ? 0 : o.stars || 0;
+  hero.innerHTML = o.training ? `<div class="seal ok"><svg class="ico"><use href="#i-check"/></svg></div>`
+    : [0, 1, 2].map(i => `<svg style="--n:${i}" viewBox="0 0 48 48"><use href="#i-star${i < earned ? '' : '-off'}"/></svg>`).join('');
+  hero.setAttribute('aria-label', won ? `${o.stars} of 3 stars` : '');
+  const rows = won ? [['Delivery tips', `+$${o.tip - o.beat}`], ...(o.beat ? [['Rival beaten', `+$${o.beat}`]] : []), ['Order condition', `${Math.round(o.integ)}%`], ['Flight time', clockText(o.secs)]]
+    : o.passed ? []
+    : [...(legs > 1 ? [['Reached', `Stop ${o.reached + 1} of ${legs}`]] : []), ...(o.cost ? [['Order lost', `-$${o.cost}`]] : [])];
+  $('resultStats').innerHTML = rows.map(([k, v], i) => `<dt style="--n:${i}">${k}</dt><dd style="--n:${i}">${v}</dd>`).join('');
+  $('resultStats').hidden = !rows.length;
+  $('resultTotal').hidden = !won;
+  $('resultSheet').hidden = !rows.length;
+  $('resultWhy').textContent = o.training ? 'You are ready for Mission 1' : o.passed ? '' : o.why;
+  $('resultTip').textContent = o.passed ? '' : RESULT.tips[o.why] || '';
   for (const id of ['resultMap', 'resultRetry']) $(id).className = id === lead ? 'go wide' : 'ghost round';
-  $('resultWhy').textContent = o.training ? 'You are ready for Mission 1' : o.passed ? `+$${o.tip}${o.beat ? ' · Rival beaten' : ''}` : o.cost ? `${o.why} · -$${o.cost}` : o.why;
   $('resultNext').hidden = !next;
   card.hidden = false;
+  sfx(o.passed ? 'win' : 'lose');
+  if (won) countUp($('resultMoney'), o.tip);
 }
 
 // The map button pauses. Leaving with an order in the air costs what ruining it would.

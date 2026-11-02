@@ -110,14 +110,27 @@
     </div>
   </div>
   <div id="resultCard" class="modal" hidden>
-    <div class="card">
-      <div id="resultStars"></div>
-      <h2 id="resultTitle">MISSION PASSED</h2>
-      <p id="resultWhy"></p>
-      <div class="row">
-        <button class="ghost round" id="resultMap" aria-label="Missions"><svg class="ico"><use href="#i-grid"/></svg><span>Missions</span></button>
-        <button class="go wide" id="resultNext">Next</button>
-        <button class="ghost round" id="resultRetry" aria-label="Retry"><svg class="ico"><use href="#i-retry"/></svg><span>Retry</span></button>
+    <div id="resultRays" aria-hidden="true"></div>
+    <div id="resultBand">
+      <small id="resultKicker"></small>
+      <h2 id="resultTitle">MISSION COMPLETE</h2>
+    </div>
+    <div id="resultBody">
+      <div id="resultHero">
+        <div id="resultStars"></div>
+        <p id="resultWhy"></p>
+      </div>
+      <div id="resultPanel">
+        <div id="resultSheet">
+          <dl id="resultStats"></dl>
+          <div id="resultTotal"><span>Earned</span><b id="resultMoney"></b></div>
+        </div>
+        <p id="resultTip"></p>
+        <div class="row">
+          <button class="ghost round" id="resultMap" aria-label="Missions"><svg class="ico"><use href="#i-grid"/></svg><span>Missions</span></button>
+          <button class="go wide" id="resultNext">Next</button>
+          <button class="ghost round" id="resultRetry" aria-label="Retry"><svg class="ico"><use href="#i-retry"/></svg><span>Retry</span></button>
+        </div>
       </div>
     </div>
   </div>

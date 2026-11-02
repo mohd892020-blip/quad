@@ -328,6 +328,25 @@ export const STOPS = { twoFrom: 6, threeFrom: 21 };
 // signs is how many marks stand beside a mission on the map.
 export const LEVELS = { count: 40, seed: 2026, maxDist: 6500, resultDelay: 2, passDelay: 2.2, rowGap: 92, pathWave: .85, pathWidth: 30, balconyMaxSize: 1.3, wayMargin: 24, signs: 2 };
 
+// The result screen. tally is how long the money takes to run up, in milliseconds, after tallyDelay. tips answer each way
+// of failing, by the words on the screen.
+export const RESULT = {
+  tally: 700, tallyDelay: 1300,
+  tips: {
+    "TIME'S UP": 'Hold boost on the long straights to win back seconds',
+    'BATTERY DEAD': 'Climbing drains the most. Any shop roof recharges you',
+    'ORDER RUINED': 'Ease off before you turn, so the order stops swinging',
+    'AIRCRAFT DESTROYED': 'When it starts to smoke, land on a shop roof to repair',
+    'TRAFFIC STOPPED': 'Stay above the road and drop in behind a car',
+    'THE RIVAL GOT THERE FIRST': 'The rival leaves a few seconds after you. Fly straight',
+    'LOST AT SEA': 'Keep the order clear of the waves, not just the aircraft',
+    'LOST IN QUICKSAND': 'Keep the order away from the dark sand',
+    'SPOTTED BY RADAR': 'Stay under the red line, a moment above it is forgiven',
+    MELTED: 'Ice cream will not wait. Fly straight there',
+    'DOWNED BY AN EAGLE': 'When the red arc shows, break hard or boost out of its line',
+  },
+};
+
 // The last missions, each with one rule of its own. map is where it flies, shop which of that map's shops it opens at,
 // near and far how far off the customer is, and kinds which customers will do. stops names the rule of each order on
 // a route. A mission with no stops is one order under the rule named by its key.
@@ -379,7 +398,7 @@ export const POINTER = {
 // tries to leave before the opening order is loaded.
 export const PREP = {
   gap: 15, minRadius: 36, width: 4.5, minWidth: 4, edge: 1, ticks: 40, tick: .72, alpha: .86, sparkSize: 13, flash: .9, flashGrow: 16, nudge: .6,
-  note: { gap: 10, edge: 6, h: 26, tall: 42, padX: 14, radius: 12, title: 12.5, sub: 11, titleY: 14, subY: 29, fill: 'rgba(16,12,36,.42)', shake: 4, rate: 46 },
+  note: { gap: 10, edge: 58, h: 26, tall: 42, padX: 14, radius: 12, title: 12.5, sub: 11, titleY: 14, subY: 29, fill: 'rgba(16,12,36,.42)', shake: 4, rate: 46 },
   backing: 'rgba(16,12,36,.2)', dim: 'rgba(255,255,255,.3)', sweep: 'rgba(255,255,255,.08)', spark: 'rgba(255,243,223,.8)', ink: '#fff3df',
   stages: [[0, '#ff3f33'], [.5, '#ffc92e'], [1, '#2fe07a']],
 };

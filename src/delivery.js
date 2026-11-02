@@ -16,7 +16,7 @@ export const currentShift = () => current;
 export function newGame(level) {
   const shop = level.shop, p = shopPad(shop), saved = loadProgress();
   const st = {
-    t: 0, money: saved.money, del: saved.del, level, tier: level.tier, stop: level.stops[0], stopAt: 0, earned: { stars: 3, tip: 0, beat: 0 }, outcome: null, done: false, cam: { x: p.x - view.viewW * CAMERA.leadX, y: 0 },
+    t: 0, money: saved.money, del: saved.del, level, tier: level.tier, stop: level.stops[0], stopAt: 0, earned: { stars: 3, tip: 0, beat: 0, integ: 100, secs: 0 }, outcome: null, done: false, cam: { x: p.x - view.viewW * CAMERA.leadX, y: 0 },
     d: { x: p.x, y: p.y - DRONE.radius, vx: 0, vy: 0, a: 0, bat: level.startBat ?? 100 },
     box: { x: p.x, y: p.y, px: p.x, py: p.y },
     has: false, heat: 100, integ: 100, order: null, item: null, hold: 0, readyAt: 0,
@@ -112,7 +112,7 @@ export function failMission(st, why, charged = false) {
   endMission(st);
   if (cost) saveProgress(st.del, st.money);
   if (training) showToast('Try again', reason, false);
-  else finish(st, { passed: false, why: reason, cost });
+  else finish(st, { passed: false, why: reason, cost, reached: st.stopAt });
   hud(st);
 }
 
@@ -149,6 +149,8 @@ function passMission(st) {
   made.stars = Math.min(made.stars, stars);
   made.tip += tip;
   made.beat += beat;
+  made.integ = Math.min(made.integ, st.integ);
+  made.secs += secs;
   st.money += tip;
   st.del++;
   pop(st, o.t.x, o.t.y - c.popLift, `+$${tip}`, '#ffc23d');

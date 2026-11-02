@@ -184,8 +184,7 @@ body:not(.dev) .devOnly{display:none!important}
 .modal .card{display:grid;gap:8px;padding:18px 22px}
 .modal h2{font-family:var(--display);font-weight:400;font-size:34px;line-height:1;margin:0;color:#fff}
 .modal p{margin:0;font-weight:700}
-#levelBest,#resultStars{font-size:22px;color:var(--cheese);letter-spacing:2px;line-height:1}
-#resultStars:empty{display:none}
+#levelBest{font-size:22px;color:var(--cheese);letter-spacing:2px;line-height:1}
 #levelRows{display:grid;grid-template-columns:auto 1fr;gap:5px 12px;margin:4px 0 8px;padding:12px 16px;border-radius:20px;background:var(--well);box-shadow:inset 0 1px 2px rgba(6,5,26,.22),inset 0 -1px 0 rgba(255,255,255,.1);text-align:start;font-size:14px}
 #levelRows dt{font-weight:700;color:var(--soft)}
 #levelRows dd{margin:0;font-weight:800;text-align:end}
@@ -301,26 +300,73 @@ body:not(.dev) .devOnly{display:none!important}
 #stickOptions{display:grid;gap:6px;margin-top:8px}
 .stickRow{display:grid;grid-template-columns:44px 1fr;align-items:center;gap:8px;font-size:13px;font-weight:700}
 .stickRow .seg button{flex:1;min-height:34px;padding:0 4px;font-size:13px}
-/* Mission result: the stars or a seal stand on the top edge of the glass. */
-#resultCard .card{--tint:rgba(30,196,126,.42);--lift:0 18px 40px -14px rgba(30,190,130,.7);max-width:340px;gap:6px;padding:20px 22px 22px}
-#resultCard.bad .card{--tint:rgba(240,58,48,.5);--lift:0 18px 40px -14px rgba(236,64,60,.7)}
-#resultStars{position:relative;z-index:1;display:flex;justify-content:center;align-items:flex-end;height:92px;margin:-70px 0 4px;letter-spacing:0;font-size:0}
-#resultStars svg{width:70px;height:70px;margin-bottom:-4px;animation:starPop .6s cubic-bezier(.2,1.7,.4,1) calc(.25s + var(--n)*.16s) backwards}
-#resultStars svg:nth-child(1){transform:rotate(-14deg)}
-#resultStars svg:nth-child(2){width:96px;height:96px;margin:0 -10px 8px}
-#resultStars svg:nth-child(3){transform:rotate(14deg)}
+/* Mission result: a whole screen over the frozen scene. A band runs edge to edge with the verdict, light turns slowly behind
+   the stars on a win, and the stars and the numbers land one after another. Only opacity and transform ever move. */
+#resultCard{display:flex;flex-direction:column;align-items:center;gap:14px;overflow-x:hidden;padding-top:calc(14px + env(safe-area-inset-top,0px));padding-bottom:calc(14px + env(safe-area-inset-bottom,0px));background:radial-gradient(95% 70% at 50% 36%,rgba(44,30,104,.5),rgba(6,5,26,.93))}
+#resultCard.bad{background:radial-gradient(95% 70% at 50% 36%,rgba(92,12,20,.55),rgba(14,3,8,.95))}
+#resultRays{position:fixed;left:50%;top:36%;width:150vmax;height:150vmax;margin:-75vmax 0 0 -75vmax;pointer-events:none;background:repeating-conic-gradient(rgba(255,214,120,.1) 0 9deg,transparent 9deg 24deg);-webkit-mask:radial-gradient(closest-side,#000 10%,transparent 56%);mask:radial-gradient(closest-side,#000 10%,transparent 56%);animation:raySpin 48s linear infinite}
+#resultCard.bad #resultRays{display:none}
+@keyframes raySpin{to{transform:rotate(360deg)}}
+#resultBand{position:relative;flex:none;width:100vw;margin-top:auto;padding:9px 16px 10px;box-sizing:border-box;text-align:center;overflow:hidden;background:linear-gradient(90deg,transparent,rgba(16,11,44,.88) 16%,rgba(16,11,44,.88) 84%,transparent);animation:bandIn .5s cubic-bezier(.2,1.05,.3,1) both}
+#resultBand::before,#resultBand::after{content:"";position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,#ffc23d 18%,#fff3bf 50%,#ffc23d 82%,transparent)}
+#resultBand::before{top:0}
+#resultBand::after{bottom:0}
+#resultKicker{display:block;font-size:13px;font-weight:800;letter-spacing:.28em;text-transform:uppercase;color:#ffd879;padding-left:.28em}
+#resultCard h2{font-size:clamp(32px,10.4vw,52px);letter-spacing:.02em;white-space:nowrap;text-shadow:none;background:linear-gradient(#fff6cf,#ffd25e 55%,#f49a1c);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;animation:titleIn .45s ease-out .12s backwards}
+@keyframes bandIn{from{opacity:0;transform:scaleX(.3)}}
+@keyframes titleIn{from{opacity:0;transform:translateY(10px)}}
+#resultCard.bad #resultBand{background:linear-gradient(90deg,transparent,rgba(158,20,26,.94) 14%,rgba(158,20,26,.94) 86%,transparent);animation:slamIn .34s cubic-bezier(.3,1.5,.5,1) both}
+#resultCard.bad #resultBand::before,#resultCard.bad #resultBand::after{background:linear-gradient(90deg,transparent,#ff8a70 18%,#ffe0d6 50%,#ff8a70 82%,transparent)}
+#resultCard.bad #resultKicker{color:#ffd9cf}
+#resultCard.bad h2{background:none;color:#fff;-webkit-text-fill-color:#fff;text-shadow:0 2px 0 rgba(70,0,0,.65);animation:none}
+@keyframes slamIn{from{opacity:0;transform:scale(1.5)}}
+#resultBody{position:relative;flex:none;display:grid;gap:12px;width:100%;max-width:400px;margin-bottom:auto}
+#resultHero{display:grid;gap:8px;justify-items:center}
+#resultStars{display:flex;justify-content:center;align-items:flex-end;min-height:84px}
+#resultStars svg{width:72px;height:72px;margin-bottom:-2px;animation:starPop .6s cubic-bezier(.2,1.7,.4,1) calc(.4s + var(--n)*.22s) backwards}
+#resultStars svg:nth-child(1){transform:rotate(-12deg)}
+#resultStars svg:nth-child(2){width:96px;height:96px;margin:0 -8px 6px}
+#resultStars svg:nth-child(3){transform:rotate(12deg)}
+#resultCard.bad #resultStars{min-height:0}
+#resultCard.bad #resultStars svg{width:46px;height:46px;margin:0 2px;opacity:.55;animation-delay:.3s}
+#resultCard.bad #resultStars svg:nth-child(2){width:54px;height:54px}
 @keyframes starPop{from{opacity:0;transform:scale(.2) rotate(-30deg)}}
-.seal{width:86px;height:86px;border-radius:50%;display:grid;place-items:center;color:#fff;background:radial-gradient(circle at 32% 24%,rgba(255,255,255,.8),rgba(255,255,255,.14) 38%,transparent 60%),linear-gradient(160deg,#ff8a70,#d9342b);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.55),0 14px 26px -8px rgba(217,52,43,.75);animation:starPop .6s cubic-bezier(.2,1.7,.4,1) .15s backwards}
+.seal{width:86px;height:86px;border-radius:50%;display:grid;place-items:center;color:#fff;animation:starPop .6s cubic-bezier(.2,1.7,.4,1) .35s backwards}
 .seal.ok{background:radial-gradient(circle at 32% 24%,rgba(255,255,255,.8),rgba(255,255,255,.14) 38%,transparent 60%),linear-gradient(160deg,#6fe6ac,#1fa86c);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.55),0 14px 26px -8px rgba(31,168,108,.75)}
 .seal .ico{width:40px;height:40px;stroke-width:3.2}
-#resultCard h2{font-size:clamp(30px,9.4vw,38px);letter-spacing:.015em;text-wrap:balance}
-#resultWhy{font-size:16px;color:#fff}
-#resultCard.bad #resultWhy{letter-spacing:.05em}
-#resultWhy:empty{display:none}
-#resultCard:not(.bad) #resultWhy{font-family:var(--display);font-weight:400;font-size:30px;line-height:1.1;color:#ffdb7a}
-#resultCard .row{flex-wrap:nowrap;margin-top:12px}
+#resultWhy{font-size:clamp(17px,5.2vw,22px);font-weight:800;letter-spacing:.07em;text-align:center;color:#fff;animation:titleIn .4s ease-out .3s backwards}
+#resultWhy:empty,#resultTip:empty{display:none}
+#resultPanel{display:grid;gap:12px}
+#resultSheet{border-radius:16px;overflow:hidden;background:rgba(16,11,44,.58);box-shadow:inset 0 0 0 1px rgba(255,255,255,.14)}
+#resultStats{display:grid;grid-template-columns:1fr auto;margin:0}
+#resultStats dt,#resultStats dd{margin:0;padding:8px 14px;font-size:15px;box-shadow:inset 0 -1px 0 rgba(255,255,255,.09);animation:rowIn .34s ease-out calc(.95s + var(--n)*.1s) backwards}
+#resultStats dt{font-weight:700;color:var(--soft)}
+#resultStats dd{font-weight:800;text-align:right;font-variant-numeric:tabular-nums;color:#fff}
+@keyframes rowIn{from{opacity:0;transform:translateY(8px)}}
+#resultCard.bad #resultStats dt,#resultCard.bad #resultStats dd{animation-delay:calc(.5s + var(--n)*.1s)}
+#resultTotal{display:flex;justify-content:space-between;align-items:center;padding:6px 14px 8px;background:linear-gradient(90deg,rgba(255,194,61,.05),rgba(255,194,61,.2));animation:rowIn .34s ease-out 1.25s backwards}
+#resultTotal span{font-size:13px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#ffd879}
+#resultTotal b{font-family:var(--display);font-weight:400;font-size:34px;line-height:1.1;color:#ffdb7a;font-variant-numeric:tabular-nums}
+#resultTip{padding:9px 14px;border-radius:14px;font-size:14px;line-height:1.3;text-align:center;color:#ffe9e2;background:rgba(0,0,0,.28);animation:rowIn .34s ease-out .75s backwards}
+#resultCard .row{flex-wrap:nowrap;animation:rowIn .34s ease-out 1.1s backwards}
+#resultCard.bad .row{animation-delay:.6s}
 #resultCard .go{min-height:52px;padding:6px 18px}
 #resultCard .go svg{display:none}
+/* on a phone on its side the stars stand beside the numbers, under a slimmer band */
+@media (max-height:480px){
+  #resultCard{gap:8px;padding-top:calc(6px + env(safe-area-inset-top,0px));padding-bottom:calc(6px + env(safe-area-inset-bottom,0px))}
+  #resultBand{padding:4px 16px 5px}
+  #resultKicker{font-size:11px}
+  #resultCard h2{font-size:30px}
+  #resultBody{grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);align-items:center;gap:16px;max-width:640px}
+  #resultStars svg{width:56px;height:56px}
+  #resultStars svg:nth-child(2){width:74px;height:74px}
+  #resultPanel{gap:6px}
+  #resultStats dt,#resultStats dd{padding:3px 12px;font-size:13px}
+  #resultTotal{padding:1px 12px 3px}
+  #resultTotal b{font-size:24px}
+  #resultTip{padding:6px 10px;font-size:13px}
+}
 /* Pause: one way back into the game, and the rest as a row of tiles. */
 #pauseCard .card{gap:6px}
 #pauseBack{margin-top:10px}
@@ -331,4 +377,4 @@ body:not(.dev) .devOnly{display:none!important}
 #levelCard h2{padding-left:40px;padding-right:40px}
 .go:active,.ghost:active{transform:scale(.97)}
 @media (hover:hover){.go:hover:enabled,.ghost:hover{filter:brightness(1.08)}}
-@media (prefers-reduced-motion:reduce){.card,#resultStars i{animation:none}.card::after{display:none}}
+@media (prefers-reduced-motion:reduce){.card,#resultCard *{animation:none!important}.card::after{display:none}}
