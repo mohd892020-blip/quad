@@ -244,8 +244,9 @@ export function drawFx(st) {
   }
   for (const q of st.parts) {
     if (q.crumb) {
-      ctx.fillStyle = q.t < .6 ? '#ffc23d' : '#e8492c';
-      ctx.fillRect(X(q.x), Y(q.y), 3 * S, 3 * S);
+      const size = (q.col ? FX.confetti.size : 3) * S;
+      ctx.fillStyle = q.col || (q.t < .6 ? '#ffc23d' : '#e8492c');
+      ctx.fillRect(X(q.x), Y(q.y), size, size);
     } else {
       ctx.fillStyle = `rgba(255,255,255,${.35 * (1 - q.t)})`;
       ctx.beginPath();
@@ -298,6 +299,8 @@ export function hud(st) {
   text('clock', (o || st.prep) && whole < Infinity ? `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}` : '--:--');
   put('clockLow', !!o && left < MISSION.lowTime, v => { $('clock').classList.toggle('low', v); });
   bar('bBat', st.d.bat);
+  text('batPct', `${Math.ceil(st.d.bat)}%`);
+  put('batLow', st.batWarn > 0, v => { $('batPct').classList.toggle('low', v); });
   bar('bHp', st.hp);
   bar('bHeat', o && st.item.heat ? st.heat : 0);
   bar('bBox', o ? st.integ : 0);
@@ -305,7 +308,7 @@ export function hud(st) {
   const reach = WIND.base + WIND.maxDeliveries * WIND.perDelivery;
   put('wind', Math.round(50 + Math.max(-1, Math.min(1, st.wind / reach)) * 50), v => { $('windNeedle').style.transform = `translateX(${v}%)`; });
   const item = o && st.item;
-  text('oTitle', o ? `${tag}${item.label}${item.urgent ? ' · URGENT' : ''} → ${placeName(o.t)}`
+  text('oTitle', st.outcome ? st.outcome.why || 'Delivered' : o ? `${tag}${item.label}${item.urgent ? ' · URGENT' : ''} → ${placeName(o.t)}`
     : st.prep ? `${tag}Preparing ${st.prep.item.label}`
     : st.level.training ? 'Training' : `${tag}Land on the green pad at ${st.stop.shop.shop.name}`);
 }

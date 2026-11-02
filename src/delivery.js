@@ -1,7 +1,7 @@
 import { clearAction, planMission, planTraffic } from './action.js';
 import { sfx } from './audio.js';
 import {
-  AIRCRAFT, BATTERY, CAMERA, DELIVERY, DEV, DRONE, HANGAR, HEADING, HEALTH, LEVELS, MISSION, ORDERS, POINTER, PREP, RESTAURANT, RIVAL, ROPE, ROPE_CTL, WIND,
+  AIRCRAFT, BATTERY, CAMERA, DELIVERY, DEV, DRONE, FX, HANGAR, HEADING, HEALTH, LEVELS, MISSION, ORDERS, POINTER, PREP, RESTAURANT, RIVAL, ROPE, ROPE_CTL, WIND,
 } from './config.js';
 import { currentModel } from './drone.js';
 import { loadProgress, owns, saveProgress, settings } from './storage.js';
@@ -77,7 +77,15 @@ function endMission(st) {
 // The first ending stands: a drone that burns out just after delivering has still delivered.
 function finish(st, outcome) {
   if (st.outcome || st.done) return;
-  st.outcome = { ...outcome, at: st.t + LEVELS.resultDelay };
+  st.outcome = { ...outcome, at: st.t + (outcome.passed ? LEVELS.passDelay : LEVELS.resultDelay) };
+}
+
+// The moment before the result card is the reward: paper bursts up at the customer.
+function cheer(st, { x, y }) {
+  const c = FX.confetti;
+  for (let i = 0; i < c.count; i++) {
+    st.parts.push({ x, y, vx: (Math.random() - .5) * c.spread, vy: -c.minLift - Math.random() * c.lift, t: 0, crumb: 1, col: c.paint[i % c.paint.length] });
+  }
 }
 
 // charged: the player wrecked the goods, so they pay the shop for them.
@@ -93,6 +101,7 @@ export function failMission(st, why, charged = false) {
 
 function passMission(st) {
   if (st.level.training) {
+    cheer(st, st.order.t);
     endMission(st);
     sfx('deliver');
     finish(st, { passed: true, training: true });
@@ -120,6 +129,7 @@ function passMission(st) {
     saveProgress(st.del, st.money);
   } else {
     saveProgress(st.del, st.money, st.level.n, made.stars);
+    cheer(st, o.t);
     finish(st, { passed: true, ...made });
   }
   hud(st);

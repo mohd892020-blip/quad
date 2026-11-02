@@ -259,7 +259,7 @@ export const HANGAR = { heavyFrom: 1.8, fragileFrom: 1.6, windyFrom: 1.6, rotate
 // Levels from these numbers on are routes of two and three orders.
 export const STOPS = { twoFrom: 6, threeFrom: 21 };
 
-export const LEVELS = { count: 40, seed: 2026, maxDist: 6500, resultDelay: .9, rowGap: 92, pathWave: .85, pathWidth: 30, balconyMaxSize: 1.3, wayMargin: 24 };
+export const LEVELS = { count: 40, seed: 2026, maxDist: 6500, resultDelay: .9, passDelay: 1.3, rowGap: 92, pathWave: .85, pathWidth: 30, balconyMaxSize: 1.3, wayMargin: 24 };
 
 // The lesson flight: how far the drone must go in each step, measured from the green pad.
 export const TRAINING = { prep: 2, climb: 90, ringX: 420, ringY: 150, ringReach: 46, boostFor: .4, padLift: 20, rope: 40 };
@@ -427,6 +427,7 @@ export const FX = {
   steamLife: 1,
   crumbLife: 1.2,
   steamDrift: .3,
+  confetti: { count: 40, spread: 360, lift: 260, minLift: 200, size: 5, paint: ['#ffc23d', '#e8492c', '#4fc27c', '#4fa3c2', '#fff3df'] },
 };
 
 export const SHAKE = {

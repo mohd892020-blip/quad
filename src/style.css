@@ -194,6 +194,8 @@ body{background:var(--night);color:var(--ink);font-family:var(--body);overflow:h
 .stack{display:grid;gap:2px}
 #meters .bar{height:6px}
 #meters .bar.thin{height:3px}
+#batPct{flex:none;min-width:30px;text-align:right;color:var(--ink);font-size:12px;font-weight:800;font-variant-numeric:tabular-nums}
+#batPct.low{color:var(--tomato)}
 #oTitle{flex:1 1 120px;min-width:0;margin:0;color:var(--ink);font-size:13px;font-weight:700;text-shadow:0 1px 3px rgba(20,15,40,.9);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #wind{flex:none;display:flex;align-items:center}
 #windTrack{position:relative;width:48px;height:4px;border-radius:2px;background:rgba(255,255,255,.3)}
