@@ -175,11 +175,11 @@ export function stepFx(st, dt) {
   st.pops = st.pops.filter(q => q.t < FX.popLife);
   for (const q of st.parts) {
     q.t += dt;
-    if (q.crumb) { q.vy += G * dt; q.x += q.vx * dt; }
+    if (q.crumb) { q.vy += G * (q.col ? FX.confetti.gravity : 1) * dt; q.x += q.vx * dt; }
     else q.x += st.wind * FX.steamDrift * dt;
     q.y += q.vy * dt;
   }
-  st.parts = st.parts.filter(q => q.t < (q.crumb ? FX.crumbLife : FX.steamLife));
+  st.parts = st.parts.filter(q => q.t < (q.col ? FX.confetti.life : q.crumb ? FX.crumbLife : FX.steamLife));
 }
 
 export function drawMarks(st) {
@@ -245,8 +245,10 @@ export function drawFx(st) {
   for (const q of st.parts) {
     if (q.crumb) {
       const size = (q.col ? FX.confetti.size : 3) * S;
+      ctx.globalAlpha = q.col ? Math.min(1, (FX.confetti.life - q.t) * 3) : 1;
       ctx.fillStyle = q.col || (q.t < .6 ? '#ffc23d' : '#e8492c');
       ctx.fillRect(X(q.x), Y(q.y), size, size);
+      ctx.globalAlpha = 1;
     } else {
       ctx.fillStyle = `rgba(255,255,255,${.35 * (1 - q.t)})`;
       ctx.beginPath();
