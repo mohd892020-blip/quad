@@ -315,6 +315,37 @@ export const STOPS = { twoFrom: 6, threeFrom: 21 };
 // resultDelay stays under HEALTH.respawnDelay, so a wreck is still on screen when the card opens.
 export const LEVELS = { count: 40, seed: 2026, maxDist: 6500, resultDelay: 2, passDelay: 2.2, rowGap: 92, pathWave: .85, pathWidth: 30, balconyMaxSize: 1.3, wayMargin: 24 };
 
+// The last missions, each with one rule of its own. map is where it flies, shop which of that map's shops it opens at,
+// near and far how far off the customer is, and kinds which customers will do. stops names the rule of each order on
+// a route. A mission with no stops is one order under the rule named by its key.
+export const CHALLENGES = [
+  { key: 'blackout', name: 'Blackout', note: 'Power cut. You only see what your lights reach', map: 'city', shop: 3, item: 'medicine', kinds: ['roof', 'bal'], near: 1500, far: 2600, hawks: 1, wind: 120 },
+  { key: 'glass', name: 'Glass Cargo', note: 'One good knock and the vase is gone', map: 'city', shop: 4, item: 'vase', kinds: ['roof'], near: 900, far: 1700, hawks: 0, wind: 110, extra: 12 },
+  { key: 'storm', name: 'Storm Front', note: 'Gusts swap sides every few seconds', map: 'city', shop: 5, item: 'watermelon', kinds: ['roof', 'bal'], near: 1400, far: 2400, hawks: 1, wind: 300, extra: 8 },
+  { key: 'radar', name: 'Under the Radar', note: 'Stay below the red line or you are spotted', map: 'city', shop: 2, item: 'kunafa', kinds: ['roof'], near: 1600, far: 2600, hawks: 1, wind: 120, extra: 6 },
+  { key: 'battery', name: 'Last Drops', note: '40% battery, no boost and a long way to go', map: 'city', shop: 1, item: 'falafel', kinds: ['roof'], near: 1900, far: 2500, hawks: 1, wind: 130, startBat: 40, noBoost: true, extra: 10 },
+  { key: 'melt', name: 'Melting Point', note: 'Ice cream in the desert. Melted means failed', map: 'desert', shop: 0, item: 'icecream', kinds: ['rock'], near: 1200, far: 2500, hawks: 1, wind: 170 },
+  { key: 'ferry', name: 'Ferry Drop', note: 'The customer is on a moving ferry. Hold rides along', map: 'beach', shop: 0, item: 'coffee', hawks: 1, wind: 150, extra: 14 },
+  { key: 'hawks', name: 'Hawk Season', note: 'Six hawks on the way. Shield the order with your aircraft', map: 'city', shop: 6, item: 'kunafa', kinds: ['roof'], near: 2400, far: 3400, hawks: 6, wind: 140, extra: 10 },
+  { key: 'rope', name: 'Long Line', note: 'Double rope. Fly high, the load hangs far below you', map: 'city', shop: 8, item: 'pizza', kinds: ['roof'], near: 1500, far: 2600, hawks: 1, wind: 150, rope: 130, extra: 10 },
+  { key: 'finale', name: 'Grand Finale', note: 'A storm, then a blackout, then a race', map: 'city', shop: 7, stops: ['storm', 'blackout', 'race'], kinds: ['roof', 'bal'], near: 900, far: 1700, hawks: 2, wind: 220, rival: true, rivalSpeed: 160, extra: 12 },
+];
+
+// reach is how far the aircraft's lights carry, clear the share of it that stays fully lit.
+export const BLACKOUT = { reach: 250, minReach: 170, clear: .42, open: 'rgba(3,3,14,0)', shut: 'rgba(3,3,14,.975)' };
+
+// A gust holds for gapMin to gapMin + gapRange seconds at gustMin or more of the mission's wind.
+export const STORM = {
+  gapMin: 1.8, gapRange: 1.6, gustMin: .7, follow: 2.4, shade: .26, rain: 46, rainLong: 30, rainFall: 900, rainDrift: 1.4, rainLean: .05, rainColor: 'rgba(205,220,255,.45)',
+  boltGap: 5, boltRange: 5, boltFade: 2.6, boltAlpha: .5,
+};
+
+// The line sits clear above the tallest thing on the route. grace is how many seconds above it are forgiven.
+export const RADAR = { clear: 120, grace: 1.6, fade: 1.2, line: 3, dash: 16, dashRate: 40, text: 12, edge: 10, tint: .22 };
+
+// The ferry works the bay between from and to, with the customer on its open deck.
+export const FERRY = { from: 15520, to: 16880, speed: 62, w: 190, deckH: 30, bow: 18, draft: 10, stripe: 9, stripeH: 6, cabinAt: 14, cabinW: 56, cabinH: 34, targetLift: 11, start: 16200 };
+
 // The lesson flight: how far the drone must go in each step, measured from the green pad.
 export const TRAINING = { prep: 2, climb: 90, ringX: 420, ringY: 150, ringReach: 46, boostFor: .4, padLift: 20, rope: 40 };
 
@@ -392,6 +423,9 @@ export const ITEMS = {
   flowers: { key: 'flowers', price: 9, prep: 3, label: 'Flowers', weight: .4, size: .9, fragile: 1.3, heat: 0, wind: 1.8 },
   watermelon: { key: 'watermelon', price: 5, prep: 2, label: 'Watermelon', weight: 1.8, size: 1, fragile: .7, heat: 0, wind: .5 },
   tv: { key: 'tv', price: 30, prep: 4, label: 'TV', weight: 2, size: 1.6, fragile: 1.8, heat: 0, wind: 1.6 },
+  vase: { key: 'vase', price: 35, prep: 3, label: 'Glass Vase', weight: .6, size: .9, fragile: 6, heat: 0, wind: 1.2 },
+  // spoils: losing all its heat ruins this one, and the word says how
+  icecream: { key: 'icecream', price: 7, prep: 2, label: 'Ice Cream', weight: .5, size: .8, fragile: .8, heat: 3, wind: .9, spoils: 'Melted' },
 };
 
 // How much a load above or below pizza weight changes lift and battery use.

@@ -282,7 +282,7 @@ export function drawFx(st) {
 }
 
 /* ---------- HUD ---------- */
-const PLACES = { street: 'Street', roof: 'Rooftop', boat: 'Boat', pier: 'Pier', tower: 'Lifeguard tower', sand: 'Beach', rock: 'Rock top', camp: 'Camp', oasis: 'Oasis' };
+const PLACES = { street: 'Street', roof: 'Rooftop', ferry: 'Ferry', boat: 'Boat', pier: 'Pier', tower: 'Lifeguard tower', sand: 'Beach', rock: 'Rock top', camp: 'Camp', oasis: 'Oasis' };
 export const placeName = t => (t.kind === 'bal' ? `Balcony, floor ${t.fl}` : PLACES[t.kind]);
 
 // The HUD ticks ten times a second and most of it has not moved, so only changes reach the page.
@@ -362,6 +362,10 @@ export function showToast(title, detail, good) {
   toastTimer = setTimeout(() => { el.hidden = true; }, MISSION.toastMs);
 }
 
+export function showBoost(on) {
+  $('boost').hidden = !on;
+}
+
 export function hideOverlay() {
   $('overlay').hidden = true;
 }
@@ -439,7 +443,7 @@ export function showLevels() {
   const nodes = levelList.map(l => {
     const p = spot(l), best = stars[l.n] || 0;
     const state = !unlocked(l.n) ? 'locked' : l.n === open ? 'next' : 'done';
-    return `<button class="node ${state}${l.stops[0].parcels ? ' double' : ''}" data-n="${l.n}" style="left:${p.x}%;top:${p.y}px;--zone:${l.shop.zone.map}" aria-label="Mission ${l.n}"><b>${l.n}</b><small>${best ? starText(best) : ''}</small></button>`;
+    return `<button class="node ${state}${l.stops[0].parcels ? ' double' : ''}${l.challenge ? ' challenge' : ''}" data-n="${l.n}" style="left:${p.x}%;top:${p.y}px;--zone:${l.shop.zone.map}" aria-label="Mission ${l.n}"><b>${l.n}</b><small>${best ? starText(best) : ''}</small></button>`;
   }).join('');
   const path = $('levelsPath');
   path.style.height = height + 'px';
@@ -463,9 +467,10 @@ function openLevelCard(n) {
     ? legs.map((s, k) => [`Stop ${k + 1}`, `${order(s.item)} to ${to(s)}, ${clockText(s.limit)}`])
     : [['Order', order(item)], ['Shop', `${shop.shop.name}, ${shop.zone.name}`], ['Customer', to(legs[0])], ['Time', clockText(limit)]];
   const rows = [
+    ...(l.challenge ? [['Challenge', l.challenge.name], ['Rule', l.challenge.note]] : []),
     ...jobs, ['If ruined', route ? `up to -$${Math.max(...legs.map(s => s.item.price))}` : `-$${item.price}`],
     ['Wind', `up to ${l.wind}`], ['Hawks', l.hawks ? `${l.hawks}${route ? ' per stop' : ''}` : 'None'],
-    ['Rival', l.rival ? `Yes${route ? ', last stop' : ''}, speed ${l.rivalSpeed}` : 'None'], [l.beach ? 'Boats' : l.desert ? 'Buggies' : 'Cars', `${l.street ? (l.desert ? 'Crossing your drop' : 'On your street') : 'Yes'}, speed ${l.carSpeed}`],
+    ['Rival', l.rival ? `Yes${route ? ', last stop' : ''}, speed ${l.rivalSpeed}` : 'None'], ...(l.calm ? [] : [[l.beach ? 'Boats' : l.desert ? 'Buggies' : 'Cars', `${l.street ? (l.desert ? 'Crossing your drop' : 'On your street') : 'Yes'}, speed ${l.carSpeed}`]]),
     ...(l.beach ? [['Danger', 'Open sea']] : l.desert ? [['Danger', 'Quicksand, sandstorms']] : []),
   ];
   $('levelRows').innerHTML = rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');

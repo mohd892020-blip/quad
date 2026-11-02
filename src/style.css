@@ -92,6 +92,8 @@ kbd{display:inline-grid;place-items:center;min-width:24px;height:24px;box-sizing
 #toast.bad b{color:#ff7a5c}
 #toast span{font-size:14px;font-weight:700;color:var(--ink)}
 #cardStart{display:grid;gap:14px;justify-items:center}
+/* these open over the mission map, which is sharp and busy, so their glass is solid */
+#levelCard .card,#shop .card,#league .card,#sheet .card{--tint:#3d3580}
 #boost{width:64px;height:64px;font-size:15px;align-self:flex-end}
 @media (max-width:420px){#joy{width:140px}}
 @media (max-height:480px){#actions{right:calc(200px + max(16px,env(safe-area-inset-right,0px)))}}
@@ -148,6 +150,7 @@ body:not(.dev) .devOnly{display:none!important}
 .node b{font-weight:400;font-size:24px;line-height:1}
 .node small{font-family:var(--body);font-size:10px;line-height:1;color:var(--cheese);letter-spacing:-.5px}
 .node.double::after{content:"×2";position:absolute;top:-7px;right:-9px;padding:2px 6px;border-radius:10px;background:var(--gold);color:#3a2200;font:800 12px var(--body)}
+.node.challenge::after{content:"!";position:absolute;top:-7px;right:-7px;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:#e8492c;color:#fff;font:800 14px var(--body)}
 .node.locked{background:#4a4258;color:#a79cb4;border-color:rgba(255,243,223,.3)}
 .node.next{border-color:var(--cheese);animation:nudge 1.3s ease-in-out infinite}
 @media (prefers-reduced-motion:reduce){.node.next{animation:none}}

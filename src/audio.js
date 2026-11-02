@@ -173,6 +173,7 @@ const SOUNDS = {
   boom: t => { burst(t, .7, 1, 240); tone(90, 32, t, .6, .8, 'sine'); },
   hawk: t => tone(1900, 900, t, .32, .35),
   battery: t => { tone(880, 880, t, .1, .3); tone(660, 660, t + .13, .16, .3); },
+  thunder: t => { burst(t + .08, .9, .6, 170); tone(72, 38, t, .7, .4, 'sine'); },
 };
 
 // Short one-shots; repeats of one sound inside sfxGap are dropped so contact does not buzz.

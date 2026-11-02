@@ -24,6 +24,7 @@ export function planTraffic(st) {
   st.cars = [];
   st.carDir = level.n % 2 ? 1 : -1;
   st.jam = false;
+  if (level.calm) return;
   if (level.beach) for (const [a, b] of BEACH.sea) fill(a, b, speed * c.boatSpeed, () => 'boat');
   else if (level.desert) {
     fill(DESERT.from, DESERT.to, speed * c.buggySpeed, () => 'buggy', DESERT.trafficGap);
@@ -74,7 +75,7 @@ export function planMission(st, shop) {
     st.rival = {
       x, y, px: x, py: y,
       wait: RIVAL.delayMin + Math.random() * RIVAL.delayRange,
-      speed: rivalSpeed(tier),
+      speed: st.level.rivalSpeed,
     };
   }
 }

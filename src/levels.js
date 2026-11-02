@@ -1,5 +1,5 @@
 import { carSpeed, hawkCount, rivalSpeed } from './action.js';
-import { BEACH, BOX, DESERT, DOUBLE, DRONE, ITEMS, LEVELS, RIVAL, ROPE, ROPE_CTL, STOPS, WIND } from './config.js';
+import { BEACH, BOX, CHALLENGES, DESERT, DOUBLE, DRONE, FERRY, GROUND, ITEMS, LEVELS, RADAR, RIVAL, ROPE, ROPE_CTL, STOPS, WIND } from './config.js';
 import { targetsFor, timeLimit } from './delivery.js';
 import { nearby, rng, world } from './world.js';
 
@@ -56,6 +56,34 @@ function doubleRun(n) {
   return null;
 }
 
+// The red line stands clear above the tallest thing between two points.
+function radarLine(a, b) {
+  const lo = Math.min(a, b) - RADAR.clear, hi = Math.max(a, b) + RADAR.clear;
+  return world.solids.reduce((top, R) => (R.x < hi && R.x + R.w > lo ? Math.min(top, R.y) : top), GROUND) - RADAR.clear;
+}
+
+// A challenge has its own random stream too, so the generated levels stay exactly as they were.
+function challengeLevel(c, n) {
+  const pick = rng(LEVELS.seed + n), tier = n - 1, beach = c.map === 'beach', desert = c.map === 'desert', rules = c.stops ?? [c.key];
+  const shops = beach ? world.kiosks : desert ? world.camps : world.shops, spots = desert ? world.sandTargets : world.targets, stops = [];
+  for (let k = 0, shop = shops[c.shop]; k < rules.length; k++) {
+    const twist = rules[k], item = ITEMS[c.item ?? shop.shop.items[0]], x = shop.x + shop.w / 2;
+    const fits = beach ? [] : spots.filter(s => {
+      const gap = Math.abs(s.x - x);
+      return s.b !== shop && gap > c.near && gap < c.far && c.kinds.includes(s.kind) && (s.kind !== 'bal' || item.size <= LEVELS.balconyMaxSize) && (desert || wayDown(s, item));
+    });
+    const t = twist === 'ferry' ? { x: FERRY.start, home: FERRY.start, y: GROUND - FERRY.deckH - FERRY.targetLift, kind: 'ferry', ferry: true } : fits[(pick() * fits.length) | 0];
+    const dist = Math.abs(t.x - x);
+    stops.push({ shop, item, t, dist, limit: timeLimit(item, dist) + (c.extra ?? 0), rival: false, twist, ceiling: twist === 'radar' ? radarLine(x, t.x) : null });
+    shop = nextShop(t, shop, shops);
+  }
+  stops[stops.length - 1].rival = !!c.rival;
+  return {
+    n, tier, shop: stops[0].shop, stops, beach, desert, hawks: c.hawks, rival: !!c.rival, rivalSpeed: c.rivalSpeed ?? rivalSpeed(tier), street: false, carSpeed: carSpeed(tier), wind: c.wind,
+    challenge: c, startBat: c.startBat, noBoost: c.noBoost, rope: c.rope, calm: beach,
+  };
+}
+
 // Levels are fixed: the same shops, orders and customers every time, so what the
 // player reads on the level card is exactly what they will fly.
 export function buildLevels() {
@@ -92,5 +120,6 @@ export function buildLevels() {
       wind: Math.round((WIND.base + Math.min(tier, WIND.maxDeliveries) * WIND.perDelivery) * (open ? open.windBoost : 1)),
     });
   }
+  CHALLENGES.forEach((c, i) => levels.push(challengeLevel(c, LEVELS.count + i + 1)));
   return levels;
 }

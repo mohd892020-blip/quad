@@ -36,6 +36,7 @@ export function rotorLoad(st, keys) {
 
 // Boost energy empties fast and comes back on its own after a short rest.
 export function stepBoost(st, keys, dt) {
+  if (st.level.noBoost) return;
   const c = BOOST, steer = keys.r - keys.l + keys.axis;
   const was = st.boosting;
   st.boosting = !!keys.boost && st.boost > 0 && !st.anchor && !st.landing && st.d.bat > 0;

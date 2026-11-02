@@ -1,5 +1,6 @@
 import { drawBoost, drawCars, drawHawks, drawRival, stepAction, stepTraffic } from './action.js';
 import { initAudio, sfx, updateRotor } from './audio.js';
+import { beginChallenge, drawChallenge, drawWeather, stepChallenge } from './challenge.js';
 import { stepContrast } from './contrast.js';
 import { BEACH, CAMERA, CITY_SEED, DRONE, DUST, FIXED_DT, GROUND, HANGAR, HUD_INTERVAL, MAX_FRAME_DT, QUALITY } from './config.js';
 import { initLeague } from './league.js';
@@ -25,9 +26,10 @@ import { drawCity, drawMap, drawSky, dropSprites, genWorld, stepCamera, stepCloc
 let st = null, hudT = 0, last = performance.now(), levels = [];
 const pace = { t: 0, n: 0 };
 
-function step(dt) {
+export function step(dt) {
   st.t += dt;
   stepClock(dt);
+  stepChallenge(st, dt);
   stepWind(st, dt);
   if (stepTraffic(st, dt)) failMission(st, 'Traffic stopped', st.has);
   stepHealth(st, dt);
@@ -96,6 +98,7 @@ function render() {
   if (s.shake) ctx.translate(...shakeOffset(s));
   drawCity(s);
   drawCars(s);
+  drawChallenge(s);
   drawMarks(s);
   drawHalos(s);
   if (!s.wreck) drawShadow(s);
@@ -109,6 +112,7 @@ function render() {
   drawHawks(s);
   drawFx(s);
   drawSandstorm(s);
+  drawWeather(s);
   ctx.restore();
   drawPointer(s);
   drawBatteryCue(s);
@@ -179,6 +183,7 @@ function start(level) {
   last = performance.now();
   pace.t = pace.n = 0;
   showLesson();
+  beginChallenge(st);
   if (level.training) beginTraining(st);
   else {
     showKeyHints();

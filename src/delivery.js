@@ -17,11 +17,11 @@ export function newGame(level) {
   const shop = level.shop, p = shopPad(shop), saved = loadProgress();
   const st = {
     t: 0, money: saved.money, del: saved.del, level, tier: level.tier, stop: level.stops[0], stopAt: 0, earned: { stars: 3, tip: 0, beat: 0 }, outcome: null, done: false, cam: { x: p.x - view.viewW * CAMERA.leadX, y: 0 },
-    d: { x: p.x, y: p.y - DRONE.radius, vx: 0, vy: 0, a: 0, bat: 100 },
+    d: { x: p.x, y: p.y - DRONE.radius, vx: 0, vy: 0, a: 0, bat: level.startBat ?? 100 },
     box: { x: p.x, y: p.y, px: p.x, py: p.y },
     has: false, heat: 100, integ: 100, order: null, item: null, hold: 0, readyAt: 0,
     wind: 0, windT: 0, windNext: WIND.firstAt, pops: [], parts: [], shake: 0, acc: 0,
-    dust: [], dustN: 0, onGround: true, ropeLen: ROPE, anchor: null,
+    dust: [], dustN: 0, onGround: true, ropeLen: level.rope ?? ROPE, anchor: null,
     boost: 100, boosting: false, boostDir: 1, boostWait: 0, hawks: [], rival: null, prep: null,
     hp: 100, wreck: 0, lastHit: null, smokeDue: 0, marks: [], smoke: [], blasts: [], batWarn: 0, charging: false, ready: 0,
     leg: { t: 0, x: p.x }, charge: 0, standout: standout(),
@@ -51,14 +51,14 @@ export function timeLimit(item, dist) {
 }
 
 export function startMission(st, shop, item) {
-  const { t, parcels } = st.stop, p = shopPad(shop), limit = st.level.training ? Infinity : parcels ? st.stop.limit : timeLimit(item, Math.abs(t.x - st.d.x));
+  const { t, parcels } = st.stop, p = shopPad(shop), limit = st.level.training ? Infinity : parcels || st.level.challenge ? st.stop.limit : timeLimit(item, Math.abs(t.x - st.d.x));
   st.item = item;
   st.order = { t, shop, start: st.t, deadline: st.t + limit, limit, drop: parcels ? 1 : 0, next: parcels ? parcels[1] : null };
   st.heat = 100;
   st.integ = 100;
   st.has = true;
   st.leg = { t: st.t, x: st.d.x };
-  st.ropeLen = ROPE;
+  st.ropeLen = st.level.rope ?? ROPE;
   st.box.x = st.box.px = st.d.x + RESTAURANT.boxOffsetX;
   st.box.y = st.box.py = p.y - RESTAURANT.boxLift;
   planMission(st, shop);
@@ -137,7 +137,7 @@ function passMission(st) {
   const base = c.tipBase + st.heat * c.tipHeat + st.integ * c.tipBox + (secs < c.tipFastSecs ? c.tipFastBonus : secs < c.tipOkSecs ? c.tipOkBonus : 0);
   const beat = st.rival ? RIVAL.bonus : 0;
   const tip = Math.round(item.urgent ? base * c.urgentTip : base) + beat;
-  const fresh = item.heat ? st.heat > c.starHeat : secs / o.limit < c.starTimeShare;
+  const fresh = item.heat && !item.spoils ? st.heat > c.starHeat : secs / o.limit < c.starTimeShare;
   const stars = 1 + (st.integ > c.starBox ? 1 : 0) + (fresh ? 1 : 0);
   const made = st.earned, next = st.level.stops[st.stopAt + 1];
   made.stars = Math.min(made.stars, stars);
@@ -275,6 +275,10 @@ export function stepCargo(st, dt) {
     failMission(st, 'Order ruined', true);
     return;
   }
+  if (item.spoils && st.heat <= 0) {
+    failMission(st, item.spoils, true);
+    return;
+  }
   const T = st.order.t, reach = st.anchor ? c.holdReach : c.reach;
   if (Math.hypot(bx.x - T.x, bx.y - T.y) < reach && Math.hypot(d.vx, d.vy) < c.maxDroneSpeed) {
     st.hold += dt;
@@ -357,7 +361,9 @@ export function stepShop(st, grounded, dt) {
   stepBattery(st);
   const onPad = grounded && Math.abs(d.x - (shop.x + shop.w / 2)) < shop.w / 2 && d.y < shop.top && d.y > shop.top - c.padHeight;
   st.docked = onPad;
-  if (onPad && st.leg && d.bat < BATTERY.chargingBelow) earnCharge(st);
+  // a charge is earned by the trip, so an order waiting on the pad it was loaded on earns nothing yet
+  if (st.leg && !onPad) st.leg.away = true;
+  if (onPad && st.leg?.away && d.bat < BATTERY.chargingBelow) earnCharge(st);
   const gain = onPad ? Math.min(st.charge, dt * c.chargeRate, 100 - d.bat) : 0;
   st.charging = gain > 0;
   d.bat += gain;

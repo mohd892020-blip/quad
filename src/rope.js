@@ -6,7 +6,7 @@ import { nearby, world } from './world.js';
 // Pays the rope out over a customer; anywhere else it winds itself back in.
 export function stepRopeLength(st, keys, zone, dt) {
   const dir = zone.rope ? keys.rd - keys.ru : -1;
-  st.ropeLen = Math.max(ROPE, Math.min(ROPE_CTL.max, st.ropeLen + dir * ROPE_CTL.speed * dt));
+  st.ropeLen = Math.max(st.level.rope ?? ROPE, Math.min(ROPE_CTL.max, st.ropeLen + dir * ROPE_CTL.speed * dt));
 }
 
 // Past the limit the load is walked back toward it and loses the speed carrying it higher, measured against the drone.
@@ -169,6 +169,35 @@ const DRAW = {
     ctx.fillRect(-13 * S, -8 * S, 26 * S, 16 * S);
     ctx.fillStyle = shade('#4fa3c2', 1 - dmg * .5);
     ctx.fillRect(-11 * S, -6 * S, 22 * S, 12 * S);
+  },
+  vase(S, dmg) {
+    ctx.fillStyle = shade('#a8e0ea', 1 - dmg * .35);
+    ctx.beginPath();
+    ctx.moveTo(-4 * S, -10 * S);
+    ctx.lineTo(4 * S, -10 * S);
+    ctx.quadraticCurveTo(3 * S, -4 * S, 8 * S, 2 * S);
+    ctx.quadraticCurveTo(9 * S, 10 * S, 0, 10 * S);
+    ctx.quadraticCurveTo(-9 * S, 10 * S, -8 * S, 2 * S);
+    ctx.quadraticCurveTo(-3 * S, -4 * S, -4 * S, -10 * S);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.7)';
+    ctx.fillRect(-4.5 * S, -1 * S, 2 * S, 7 * S);
+  },
+  icecream(S, dmg) {
+    ctx.fillStyle = '#d9a86a';
+    ctx.beginPath();
+    ctx.moveTo(-7 * S, -1 * S);
+    ctx.lineTo(7 * S, -1 * S);
+    ctx.lineTo(0, 12 * S);
+    ctx.fill();
+    ctx.fillStyle = shade('#fbe7ef', 1 - dmg * .35);
+    ctx.beginPath();
+    ctx.arc(0, -5 * S, 7.5 * S, 0, 7);
+    ctx.fill();
+    ctx.fillStyle = '#e8492c';
+    ctx.beginPath();
+    ctx.arc(1 * S, -12 * S, 2.2 * S, 0, 7);
+    ctx.fill();
   },
 };
 
