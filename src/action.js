@@ -61,7 +61,7 @@ export function stepTraffic(st, dt) {
 
 // Lays out the hawks and rival for a job that has just started.
 export function planMission(st, shop) {
-  const t = st.order.t, tier = st.tier, from = st.d.x, span = t.x - from;
+  const t = st.order.next?.t ?? st.order.t, tier = st.tier, from = st.d.x, span = t.x - from;
   st.hawks = [];
   for (let i = 0; i < st.level.hawks; i++) {
     const x = from + span * (HAWKS.pathMin + Math.random() * HAWKS.pathRange), y = roofAt(x, HAWKS.orbit) - HAWKS.lift;

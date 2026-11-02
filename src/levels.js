@@ -1,5 +1,5 @@
 import { carSpeed, hawkCount, rivalSpeed } from './action.js';
-import { BEACH, BOX, DESERT, DRONE, ITEMS, LEVELS, RIVAL, ROPE, ROPE_CTL, STOPS, WIND } from './config.js';
+import { BEACH, BOX, DESERT, DOUBLE, DRONE, ITEMS, LEVELS, RIVAL, ROPE, ROPE_CTL, STOPS, WIND } from './config.js';
 import { targetsFor, timeLimit } from './delivery.js';
 import { nearby, rng, world } from './world.js';
 
@@ -25,6 +25,37 @@ function wayDown(t, item) {
   return right - edge >= need;
 }
 
+// Two orders tied on one rope fly as a single load: their weights add up, and the worst of the rest counts.
+function tiePair(a, b) {
+  return {
+    key: 'double', parts: [a, b], label: a === b ? `${a.label} x2` : `${a.label} + ${b.label}`, price: a.price + b.price, prep: Math.max(a.prep, b.prep) + DOUBLE.prepExtra,
+    weight: a.weight + b.weight, size: Math.max(a.size, b.size) * DOUBLE.stack, fragile: Math.max(a.fragile, b.fragile), heat: Math.max(a.heat, b.heat), wind: Math.max(a.wind, b.wind),
+    urgent: a.urgent || b.urgent,
+  };
+}
+
+// One shop, two customers along the same way out, the nearer one first. Each run comes from the next shop whose
+// pair is light enough to lift. It has its own random stream, so the levels around it stay exactly as they were.
+function doubleRun(n) {
+  const c = DOUBLE, pick = rng(LEVELS.seed + n), pairOf = s => [0, 1].map(k => ITEMS[s.shop.items[k % s.shop.items.length]]);
+  const shops = world.shops.filter(s => pairOf(s).reduce((sum, i) => sum + i.weight, 0) <= c.maxWeight);
+  const shop = shops[Math.floor((n - c.first) / c.every) % shops.length];
+  const [a, b] = pairOf(shop), item = tiePair(a, b), x = shop.x + shop.w / 2, within = (gap, lo, span) => gap > lo && gap < lo + span;
+  const fits = t => t.b !== shop && (t.kind === 'roof' || (t.kind === 'bal' && item.size <= LEVELS.balconyMaxSize)) && wayDown(t, item);
+  for (const dir of [1, -1]) {
+    const near = world.targets.filter(t => within((t.x - x) * dir, c.near, c.nearSpan) && fits(t));
+    const first = near[(pick() * near.length) | 0];
+    const far = first ? world.targets.filter(t => within((t.x - first.x) * dir, c.gap, c.gapSpan) && fits(t)) : [];
+    if (!far.length) continue;
+    const last = far[(pick() * far.length) | 0], dist = Math.abs(last.x - x);
+    return {
+      shop, item, t: first, dist: Math.abs(first.x - x), limit: timeLimit(item, dist) + c.extraTime, rival: false,
+      parcels: [{ item: a, t: first, dist: Math.abs(first.x - x) }, { item: b, t: last, dist }],
+    };
+  }
+  return null;
+}
+
 // Levels are fixed: the same shops, orders and customers every time, so what the
 // player reads on the level card is exactly what they will fly.
 export function buildLevels() {
@@ -48,14 +79,15 @@ export function buildLevels() {
     }
     // timing a street drop between the cars is threat enough without a race
     const street = stops.some(s => ON_THE_ROAD.includes(s.t.kind)), race = tier >= RIVAL.from && r() < RIVAL.chance;
-    const rival = race && !street;
+    const run = n >= DOUBLE.first && n % DOUBLE.every === DOUBLE.at ? doubleRun(n) : null;
+    const rival = race && !street && !run;
     stops[count - 1].rival = rival;
     levels.push({
-      n, tier, shop: start, stops, beach, desert,
+      n, tier, shop: run ? run.shop : start, stops: run ? [run] : stops, beach, desert,
       hawks: hawkCount(reach),
       rival,
       rivalSpeed: rivalSpeed(tier),
-      street,
+      street: street && !run,
       carSpeed: carSpeed(tier),
       wind: Math.round((WIND.base + Math.min(tier, WIND.maxDeliveries) * WIND.perDelivery) * (open ? open.windBoost : 1)),
     });

@@ -1,11 +1,11 @@
 import { clearAction, planMission, planTraffic } from './action.js';
 import { sfx } from './audio.js';
 import {
-  AIRCRAFT, BATTERY, CAMERA, DELIVERY, DEV, DRONE, FX, HANGAR, HEADING, HEALTH, LAND, LEVELS, MISSION, ORDER_TIME, ORDERS, POINTER, PREP, RESTAURANT, RIVAL, ROPE, ROPE_CTL, WIND,
+  AIRCRAFT, BATTERY, CAMERA, DELIVERY, DEV, DOUBLE, DRONE, FIXED_DT, FX, HANGAR, HEADING, HEALTH, LAND, LEVELS, MISSION, ORDER_TIME, ORDERS, POINTER, PREP, RESTAURANT, RIVAL, ROPE, ROPE_CTL, WIND,
 } from './config.js';
 import { currentModel } from './drone.js';
 import { loadProgress, owns, saveProgress, settings } from './storage.js';
-import { addMark, blast, clockText, ctx, glow, hud, pop, puff, showToast, view, X, Y } from './ui.js';
+import { addMark, blast, clockText, ctx, glow, hud, placeName, pop, puff, showToast, view, X, Y } from './ui.js';
 import { nearby, nearestShop, shopPad, world } from './world.js';
 
 let current = null;
@@ -50,9 +50,9 @@ export function timeLimit(item, dist) {
 }
 
 export function startMission(st, shop, item) {
-  const { t } = st.stop, p = shopPad(shop), limit = st.level.training ? Infinity : timeLimit(item, Math.abs(t.x - st.d.x));
+  const { t, parcels } = st.stop, p = shopPad(shop), limit = st.level.training ? Infinity : parcels ? st.stop.limit : timeLimit(item, Math.abs(t.x - st.d.x));
   st.item = item;
-  st.order = { t, shop, start: st.t, deadline: st.t + limit, limit };
+  st.order = { t, shop, start: st.t, deadline: st.t + limit, limit, drop: parcels ? 1 : 0, next: parcels ? parcels[1] : null };
   st.heat = 100;
   st.integ = 100;
   st.has = true;
@@ -62,6 +62,7 @@ export function startMission(st, shop, item) {
   st.box.y = st.box.py = p.y - RESTAURANT.boxLift;
   planMission(st, shop);
   sfx('pickup');
+  if (parcels) showToast('Double Run', `${parcels[0].item.label} first, then ${parcels[1].item.label}`, true);
   hud(st);
 }
 
@@ -101,6 +102,20 @@ export function failMission(st, why, charged = false) {
   hud(st);
 }
 
+// The lower order comes off at its customer: the load goes light, the aircraft jumps and the rope swings.
+// Hold stays on, so the jump settles before the player flies on.
+function dropLower(st) {
+  const c = DOUBLE, o = st.order, { item, t } = o.next;
+  st.item = item;
+  o.t = t;
+  o.next = null;
+  o.drop = 2;
+  st.hold = 0;
+  st.d.vy -= c.kick;
+  st.box.py = st.box.y + c.boxKick * FIXED_DT;
+  showToast('First drop done', `Next: ${item.label} to ${placeName(t)}`, true);
+}
+
 function passMission(st) {
   if (st.level.training) {
     cheer(st, st.order.t);
@@ -122,10 +137,16 @@ function passMission(st) {
   made.beat += beat;
   st.money += tip;
   st.del++;
-  if (st.leg) st.leg.via = o.t.x;
-  endMission(st);
   pop(st, o.t.x, o.t.y - c.popLift, `+$${tip}`, '#ffc23d');
   sfx('deliver');
+  if (o.next) {
+    dropLower(st);
+    saveProgress(st.del, st.money);
+    hud(st);
+    return;
+  }
+  if (st.leg) st.leg.via = o.t.x;
+  endMission(st);
   if (next) {
     showToast(`Stop ${++st.stopAt} done`, `Next: ${next.item.label} at ${next.shop.shop.name}`, true);
     st.stop = next;
@@ -403,6 +424,13 @@ export function drawTarget(st) {
   ctx.beginPath();
   ctx.arc(X(t.x), Y(t.y), (20 + pulse * 5) * S, 0, 7);
   ctx.stroke();
+  // the second customer of a Double Run waits as a faint ring
+  if (o.next) {
+    ctx.strokeStyle = 'rgba(255,194,61,.35)';
+    ctx.beginPath();
+    ctx.arc(X(o.next.t.x), Y(o.next.t.y), 20 * S, 0, 7);
+    ctx.stroke();
+  }
   // customer
   const cx = t.kind === 'bal' ? t.x + (t.side > 0 ? -12 : 12) : t.x + 22, cy = t.y + 11;
   ctx.fillStyle = '#2b1b14';

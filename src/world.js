@@ -740,6 +740,7 @@ export function drawMap(st) {
     g.fill();
     g.stroke();
   };
+  if (st.order?.next) dot(st.order.next.t.x, '#e8492c', h / 2 - 1);
   if (st.order) dot(st.order.t.x, '#e8492c', h / 2);
   else dot(st.stop.shop.x + st.stop.shop.w / 2, '#ffc23d', h / 2);
   if (st.rival) dot(st.rival.x, '#ff3b3b', h / 2 - 1);

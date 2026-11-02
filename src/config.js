@@ -283,6 +283,14 @@ export const LEAGUE = {
 // When a shop suggests another aircraft while it makes the order.
 export const HANGAR = { heavyFrom: 1.8, fragileFrom: 1.6, windyFrom: 1.6, rotate: 3, tipGap: 10, previewHeight: 68 };
 
+// A Double Run is one long trip with two orders tied together on the rope. The lower one comes off at the
+// nearer customer and the aircraft jumps, suddenly lighter. near and gap are how far out each customer is.
+// Levels from first on whose number leaves remainder at are flown this way.
+export const DOUBLE = {
+  first: 12, every: 5, at: 2, maxWeight: 2.2, stack: 1.25, drawGap: 7, prepExtra: 1.5, extraTime: 16,
+  near: 2000, nearSpan: 1500, gap: 1800, gapSpan: 1500, kick: 320, boxKick: 240,
+};
+
 // Levels from these numbers on are routes of two and three orders.
 export const STOPS = { twoFrom: 6, threeFrom: 21 };
 

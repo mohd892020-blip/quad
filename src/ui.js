@@ -283,7 +283,7 @@ export function drawFx(st) {
 
 /* ---------- HUD ---------- */
 const PLACES = { street: 'Street', roof: 'Rooftop', boat: 'Boat', pier: 'Pier', tower: 'Lifeguard tower', sand: 'Beach', rock: 'Rock top', camp: 'Camp', oasis: 'Oasis' };
-const placeName = t => (t.kind === 'bal' ? `Balcony, floor ${t.fl}` : PLACES[t.kind]);
+export const placeName = t => (t.kind === 'bal' ? `Balcony, floor ${t.fl}` : PLACES[t.kind]);
 
 // The HUD ticks ten times a second and most of it has not moved, so only changes reach the page.
 const shown = {};
@@ -296,7 +296,8 @@ const text = (id, value) => put(id, value, v => { $(id).textContent = v; });
 const bar = (id, percent) => put(id, Math.round(percent), v => { $(id).firstChild.style.transform = `scaleX(${v / 100})`; });
 
 export function hud(st) {
-  const legs = st.level.stops.length, tag = legs > 1 ? `Stop ${st.stopAt + 1}/${legs} · ` : '', o = st.has ? st.order : null;
+  const legs = st.level.stops.length, o = st.has ? st.order : null, run = st.stop.parcels;
+  const tag = o?.drop ? `Drop ${o.drop}/${run.length} · ` : legs > 1 ? `Stop ${st.stopAt + 1}/${legs} · ` : '';
   const left = o ? Math.max(0, o.deadline - st.t) : st.prep ? st.prep.left : 0, whole = Math.ceil(left);
   text('clock', (o || st.prep) && whole < Infinity ? `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}` : '--:--');
   put('clockLow', !!o && left < MISSION.lowTime, v => { $('clock').classList.toggle('low', v); });
@@ -310,7 +311,7 @@ export function hud(st) {
   if (Math.abs(st.d.vx) > BOOST.flipSpeed) put('boostBack', st.d.vx < 0, v => { $('boost').classList.toggle('back', v); });
   const reach = WIND.base + WIND.maxDeliveries * WIND.perDelivery;
   put('wind', Math.round(50 + Math.max(-1, Math.min(1, st.wind / reach)) * 50), v => { $('windNeedle').style.transform = `translateX(${v}%)`; });
-  const item = o && st.item;
+  const item = o && (o.drop ? run[o.drop - 1].item : st.item);
   text('oTitle', st.outcome ? st.outcome.why || 'Delivered' : o ? `${tag}${item.label}${item.urgent ? ' · URGENT' : ''} → ${placeName(o.t)}`
     : st.prep ? `${tag}Preparing ${st.prep.item.label}`
     : st.level.training ? 'Training' : `${tag}Land on the green pad at ${st.stop.shop.shop.name}`);
@@ -423,7 +424,7 @@ export function showLevels() {
   const nodes = levelList.map(l => {
     const p = spot(l), best = stars[l.n] || 0;
     const state = l.n > open ? 'locked' : l.n === open ? 'next' : 'done';
-    return `<button class="node ${state}" data-n="${l.n}" style="left:${p.x}%;top:${p.y}px;--zone:${l.shop.zone.map}" aria-label="Level ${l.n}"><b>${l.n}</b><small>${best ? starText(best) : ''}</small></button>`;
+    return `<button class="node ${state}${l.stops[0].parcels ? ' double' : ''}" data-n="${l.n}" style="left:${p.x}%;top:${p.y}px;--zone:${l.shop.zone.map}" aria-label="Level ${l.n}"><b>${l.n}</b><small>${best ? starText(best) : ''}</small></button>`;
   }).join('');
   const path = $('levelsPath');
   path.style.height = height + 'px';
@@ -440,8 +441,10 @@ function openLevelCard(n) {
   $('levelTitle').textContent = `Level ${n}`;
   $('levelBest').textContent = stars[n] ? starText(stars[n]) : '☆☆☆';
   const order = i => (i.urgent ? `${i.label} · urgent` : i.label), to = s => `${placeName(s.t)}, ${Math.round(s.dist / 10)} m`;
-  const { item, shop, limit } = legs[0];
-  const jobs = route
+  const { item, shop, limit, parcels } = legs[0];
+  const jobs = parcels
+    ? [['Double Run', 'Two orders, one trip'], ['Shop', `${shop.shop.name}, ${shop.zone.name}`], ...parcels.map((p, k) => [`Drop ${k + 1}`, `${order(p.item)} to ${to(p)}`]), ['Time', clockText(limit)]]
+    : route
     ? legs.map((s, k) => [`Stop ${k + 1}`, `${order(s.item)} to ${to(s)}, ${clockText(s.limit)}`])
     : [['Order', order(item)], ['Shop', `${shop.shop.name}, ${shop.zone.name}`], ['Preparing', `${item.prep} s`], ['Customer', to(legs[0])], ['Time', clockText(limit)]];
   const rows = [

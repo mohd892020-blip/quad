@@ -1,5 +1,5 @@
 import { sfx } from './audio.js';
-import { BOX, CITY, G, ROPE, ROPE_CTL } from './config.js';
+import { BOX, CITY, DOUBLE, G, ROPE, ROPE_CTL } from './config.js';
 import { ctx, kickDust, shade, view, X, Y } from './ui.js';
 import { nearby, world } from './world.js';
 
@@ -75,6 +75,8 @@ export function stepRope(st, dt) {
   const rvx = (bx.x - bx.px) / dt - d.vx, rvy = (bx.y - bx.py) / dt - d.vy, rv = Math.hypot(rvx, rvy);
   if (rv > c.swingSpeed) st.integ -= dt * (rv - c.swingSpeed) * c.swingDamage * item.fragile;
 }
+
+const BOX_DRAW_GAP = DOUBLE.drawGap;
 
 const DRAW = {
   pizza(S, dmg) {
@@ -172,7 +174,16 @@ export function drawRope(st) {
   ctx.translate(X(bx.x), Y(bx.y));
   ctx.rotate(-ang * .6);
   const dmg = 1 - st.integ / 100, s = S * item.size;
-  DRAW[item.key](s, dmg);
+  // two tied orders hang one over the other, the next to come off at the bottom
+  if (item.parts) {
+    const gap = BOX_DRAW_GAP * S;
+    for (const [part, y] of [[item.parts[1], -gap], [item.parts[0], gap]]) {
+      ctx.save();
+      ctx.translate(0, y);
+      DRAW[part.key](S * part.size, dmg);
+      ctx.restore();
+    }
+  } else DRAW[item.key](s, dmg);
   if (dmg > .4) {
     ctx.strokeStyle = '#5a3a24';
     ctx.lineWidth = 1 * s;
