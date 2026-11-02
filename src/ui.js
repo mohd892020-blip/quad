@@ -415,7 +415,7 @@ function openLevelCard(n) {
   const rows = [
     ...jobs, ['If ruined', route ? `up to -$${Math.max(...legs.map(s => s.item.price))}` : `-$${item.price}`],
     ['Wind', `up to ${l.wind}`], ['Hawks', l.hawks ? `${l.hawks}${route ? ' per stop' : ''}` : 'None'],
-    ['Rival', l.rival ? `Yes${route ? ', last stop' : ''}, speed ${l.rivalSpeed}` : 'None'], ['Cars', l.traffic ? `Yes, speed ${l.carSpeed}` : 'None'],
+    ['Rival', l.rival ? `Yes${route ? ', last stop' : ''}, speed ${l.rivalSpeed}` : 'None'], [l.beach ? 'Boats' : 'Cars', `${l.street ? 'On your street' : 'Yes'}, speed ${l.carSpeed}`],
   ];
   $('levelRows').innerHTML = rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');
   const locked = n > open;

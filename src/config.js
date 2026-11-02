@@ -290,12 +290,13 @@ export const RIVAL = {
   padLift: 30, clearance: 70, lookAhead: 90, climb: 3, approach: 140, hover: 60, arrive: 12, arriveY: 26, bonus: 15, scale: 1.05,
 };
 
-// A level with a customer in the street has traffic, in one lane along the whole city.
+// Every level has traffic in one lane: the road through the city, speedboats on the sea.
 // lane is how far in front of the buildings the wheels roll; the body rises up to the street level.
 export const CARS = {
-  spacing: 1100, spacingRange: 300, speedMin: 150, speedPerLevel: 2, speedMax: 230,
-  length: 62, height: 28, lane: 8, brake: 500, shake: 8, dust: 220, flashRate: 7,
-  paint: ['#d9483b', '#3f6fb0', '#f2efe6', '#3a8f6b', '#e0a52c'], vanEvery: 4, taxiEvery: 5,
+  spacing: 1000, spacingRange: 300, speedMin: 150, speedPerLevel: 2, speedMax: 230, boatSpeed: .85,
+  shapes: { car: { length: 62, height: 28 }, van: { length: 70, height: 32 }, bike: { length: 36, height: 24 }, boat: { length: 66, height: 16 } },
+  lane: 8, brake: 500, shake: 8, dust: 220, flashRate: 7,
+  paint: ['#d9483b', '#3f6fb0', '#f2efe6', '#3a8f6b', '#e0a52c'], bikeEvery: 3, vanEvery: 5, taxiEvery: 7,
 };
 
 export const WIND = {
@@ -358,7 +359,7 @@ export const TIMES = [
   },
 ];
 
-export const PEOPLE = { spacing: 55, speedMin: 14, speedRange: 22, walkRate: 7, sidewalk: 8, height: 20 };
+export const PEOPLE = { spacing: 130, speedMin: 14, speedRange: 22, walkRate: 7, sidewalk: 8, height: 20 };
 export const BIRDS = { spacing: 850, countMin: 4, countRange: 5, heightMin: 40, heightRange: 260, radius: 150, speed: .35, flap: 14 };
 
 export const ORDERS = {

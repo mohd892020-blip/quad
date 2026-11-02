@@ -10,30 +10,39 @@ export const hawkCount = tier => (tier < HAWKS.from ? 0 : tier < HAWKS.twoFrom ?
 export const rivalSpeed = tier => Math.min(RIVAL.speedMax, RIVAL.speed + (tier - RIVAL.from) * RIVAL.speedPerDelivery);
 export const carSpeed = tier => Math.min(CARS.speedMax, CARS.speedMin + tier * CARS.speedPerLevel);
 
-// The cars are on the road from the moment a street level opens.
+const roadKind = i => (i % CARS.bikeEvery === 1 ? 'bike' : i % CARS.vanEvery === 2 ? 'van' : 'car');
+
+// Traffic is under way from the moment a level opens. Each vehicle loops within its own stretch.
 export function planTraffic(st) {
-  const c = CARS, level = st.level;
+  const c = CARS, level = st.level, speed = carSpeed(level.tier);
+  const fill = (lo, hi, v, kindOf) => {
+    for (let x = lo, i = 0; x < hi; x += c.spacing + Math.random() * c.spacingRange, i++) {
+      const kind = kindOf(i);
+      st.cars.push({ x, px: x, v, lo, hi, kind, paint: c.paint[i % c.paint.length], taxi: kind === 'car' && i % c.taxiEvery === 0 });
+    }
+  };
   st.cars = [];
   st.carDir = level.n % 2 ? 1 : -1;
   st.jam = false;
-  if (!level.traffic) return;
-  for (let x = EDGE.left, i = 0; x < BEACH.from; x += c.spacing + Math.random() * c.spacingRange, i++) {
-    st.cars.push({ x, px: x, v: carSpeed(level.tier), paint: c.paint[i % c.paint.length], van: i % c.vanEvery === 1, taxi: i % c.taxiEvery === 2 });
-  }
+  if (level.beach) for (const [a, b] of BEACH.sea) fill(a, b, speed * c.boatSpeed, () => 'boat');
+  else fill(EDGE.left, BEACH.from, speed, roadKind);
 }
 
 // Returns true on the step a car meets the drone or the order. That car stops dead
 // and the rest of the road brakes behind it.
 export function stepTraffic(st, dt) {
-  const c = CARS, { d, box } = st, top = GROUND + c.lane - c.height, span = BEACH.from - EDGE.left;
-  const touches = (car, x, y, r) => Math.abs(x - car.x) < c.length / 2 + r && y + r > top;
+  const c = CARS, { d, box } = st;
+  const touches = (car, x, y, r) => {
+    const s = c.shapes[car.kind];
+    return Math.abs(x - car.x) < s.length / 2 + r && y + r > GROUND + c.lane - s.height;
+  };
   let met = false;
   for (const car of st.cars) {
     car.px = car.x;
     if (st.jam) car.v = Math.max(0, car.v - c.brake * dt);
     car.x += st.carDir * car.v * dt;
-    if (car.x > BEACH.from || car.x < EDGE.left) car.x = car.px = car.x - st.carDir * span;
-    if (st.jam || st.wreck) continue;
+    if (car.x > car.hi || car.x < car.lo) car.x = car.px = car.x - st.carDir * (car.hi - car.lo);
+    if (st.jam || st.wreck || st.level.training) continue;
     if (touches(car, d.x, d.y, DRONE.radius) || (st.has && touches(car, box.x, box.y, BOX.padX * st.item.size))) {
       car.v = 0;
       st.jam = met = true;
@@ -138,12 +147,46 @@ export function stepAction(st, dt) {
 }
 
 /* ---------- render ---------- */
-// A side-on car drawn facing right; the scale flips it for the other direction.
+function paintBike(car, light, L, H) {
+  ctx.fillStyle = '#16121c';
+  ctx.beginPath();
+  for (const x of [-L * .36, L * .36]) {
+    ctx.moveTo(x + 6, -6);
+    ctx.arc(x, -6, 6, 0, 7);
+  }
+  ctx.fill();
+  ctx.fillStyle = shade(car.paint, light);
+  ctx.fillRect(-L * .34, -11, L * .68, 5);
+  ctx.fillStyle = shade('#26303f', light);
+  ctx.fillRect(-L * .1, -H + 2, L * .26, H - 12);
+  ctx.fillStyle = shade(car.paint, Math.max(.8, light));
+  ctx.beginPath();
+  ctx.arc(L * .1, -H + 1, 4.5, 0, 7);
+  ctx.fill();
+}
+
+function paintBoat(car, light, L, H) {
+  ctx.fillStyle = 'rgba(255,255,255,.6)';
+  ctx.fillRect(-L * 1.1, -3, L * .6, 2);
+  ctx.fillStyle = shade(car.paint, light);
+  ctx.beginPath();
+  ctx.moveTo(-L / 2, -H * .6);
+  ctx.lineTo(L / 2, -H * .6);
+  ctx.lineTo(L * .3, 0);
+  ctx.lineTo(-L * .44, 0);
+  ctx.fill();
+  ctx.fillStyle = shade('#26303f', Math.max(.7, light));
+  ctx.fillRect(-L * .04, -H, L * .22, H * .4);
+}
+
+// A side-on vehicle drawn facing right; the scale flips it for the other direction.
 function paintCar(car, light) {
-  const c = CARS, L = c.length, H = c.height, body = car.taxi ? '#f2c230' : car.paint;
+  const c = CARS, { length: L, height: H } = c.shapes[car.kind], van = car.kind === 'van', body = car.taxi ? '#f2c230' : car.paint;
+  if (car.kind === 'bike') { paintBike(car, light, L, H); return; }
+  if (car.kind === 'boat') { paintBoat(car, light, L, H); return; }
   ctx.fillStyle = shade(body, light);
   ctx.beginPath();
-  if (car.van) {
+  if (van) {
     ctx.moveTo(-L / 2, -5); ctx.lineTo(-L / 2, -H); ctx.lineTo(L * .3, -H); ctx.lineTo(L / 2, -H * .5); ctx.lineTo(L / 2, -5);
   } else {
     ctx.moveTo(-L / 2, -5); ctx.lineTo(-L / 2, -H * .58); ctx.lineTo(-L * .28, -H * .62); ctx.lineTo(-L * .16, -H);
@@ -151,7 +194,7 @@ function paintCar(car, light) {
   }
   ctx.fill();
   ctx.fillStyle = shade('#26303f', Math.max(.7, light));
-  if (car.van) ctx.fillRect(L * .1, -H + 4, L * .2, H * .36);
+  if (van) ctx.fillRect(L * .1, -H + 4, L * .2, H * .36);
   else ctx.fillRect(-L * .12, -H + 3, L * .32, H * .3);
   if (car.taxi) {
     ctx.fillStyle = '#2b1b14';
@@ -174,7 +217,7 @@ export function drawCars(st) {
   if (!st.cars) return;
   const S = view.S, c = CARS, pal = world.pal, flash = Math.sin(st.t * c.flashRate) > 0, y = Y(GROUND + c.lane);
   for (const car of st.cars) {
-    const sx = X(lerp(st, car, 'x')), reach = c.length * S;
+    const s = c.shapes[car.kind], sx = X(lerp(st, car, 'x')), reach = s.length * 1.6 * S;
     if (sx < -reach || sx > view.W + reach) continue;
     ctx.save();
     ctx.translate(sx, y);
@@ -182,11 +225,11 @@ export function drawCars(st) {
     paintCar(car, pal.light);
     if (st.jam && !car.v) {
       ctx.fillStyle = flash ? '#ffc23d' : '#7a5a1e';
-      ctx.fillRect(-c.length / 2, -c.height * .32, 4, 4);
-      ctx.fillRect(c.length / 2 - 4, -c.height * .32, 4, 4);
+      ctx.fillRect(-s.length / 2, -s.height * .32, 4, 4);
+      ctx.fillRect(s.length / 2 - 4, -s.height * .32, 4, 4);
     }
     ctx.restore();
-    if (pal.windowGlow > .5 && !view.lowQ) glow(ctx, 'rgba(255,233,168,.55)', sx + st.carDir * (c.length / 2 + 12) * S, y - c.height * .4 * S, 26 * S);
+    if (pal.windowGlow > .5 && !view.lowQ && car.kind !== 'boat') glow(ctx, 'rgba(255,233,168,.55)', sx + st.carDir * (s.length / 2 + 12) * S, y - s.height * .4 * S, 26 * S);
   }
 }
 

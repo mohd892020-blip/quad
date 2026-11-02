@@ -42,16 +42,16 @@ export function buildLevels() {
       stops.push({ shop, item, t, dist, limit: timeLimit(item, dist), rival: false });
       shop = nextShop(t, shop, shops);
     }
-    // a street customer brings traffic, and traffic is threat enough without a race
-    const traffic = stops.some(s => s.t.kind === 'street'), race = tier >= RIVAL.from && r() < RIVAL.chance;
-    const rival = race && !traffic;
+    // timing a street drop between the cars is threat enough without a race
+    const street = stops.some(s => s.t.kind === 'street'), race = tier >= RIVAL.from && r() < RIVAL.chance;
+    const rival = race && !street;
     stops[count - 1].rival = rival;
     levels.push({
       n, tier, shop: start, stops, beach,
       hawks: hawkCount(reach),
       rival,
       rivalSpeed: rivalSpeed(tier),
-      traffic,
+      street,
       carSpeed: carSpeed(tier),
       wind: Math.round((WIND.base + Math.min(tier, WIND.maxDeliveries) * WIND.perDelivery) * (beach ? BEACH.windBoost : 1)),
     });
