@@ -219,7 +219,7 @@ export const HANGAR = { heavyFrom: 1.8, fragileFrom: 1.6, windyFrom: 1.6, rotate
 // Levels from these numbers on are routes of two and three orders.
 export const STOPS = { twoFrom: 6, threeFrom: 21 };
 
-export const LEVELS = { count: 40, seed: 2026, maxDist: 5000, resultDelay: .9, rowGap: 92, pathWave: .85, pathWidth: 30, balconyMaxSize: 1.3, wayMargin: 24 };
+export const LEVELS = { count: 40, seed: 2026, maxDist: 6500, resultDelay: .9, rowGap: 92, pathWave: .85, pathWidth: 30, balconyMaxSize: 1.3, wayMargin: 24 };
 
 // The lesson flight: how far the drone must go in each step, measured from the green pad.
 export const TRAINING = { prep: 2, climb: 90, ringX: 420, ringY: 150, ringReach: 46, boostFor: .4, padLift: 20, rope: 40 };
@@ -322,10 +322,10 @@ export const PEOPLE = { spacing: 55, speedMin: 14, speedRange: 22, walkRate: 7, 
 export const BIRDS = { spacing: 850, countMin: 4, countRange: 5, heightMin: 40, heightRange: 260, radius: 150, speed: .35, flap: 14 };
 
 export const ORDERS = {
-  minDist: 300,
+  minDist: 700,
   stepDist: 260,
   maxSteps: 12,
-  span: 900,
+  span: 1200,
   spanPerDelivery: 120,
   // a customer needs open air: how close something solid or a line may come to their spot
   clearX: 20,
