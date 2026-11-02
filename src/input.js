@@ -4,6 +4,8 @@ import { settings } from './storage.js';
 // l/r/u/dn/rd/ru are held states, axis is the joystick in -1..1, holdTap and landTap are one-shot presses.
 // sink is worked out each step: the DOWN button, or the rope key anywhere the rope has nothing to do.
 export const keys = { l: 0, r: 0, u: 0, dn: 0, sink: 0, rd: 0, ru: 0, boost: 0, axis: 0, holdTap: 0, landTap: 0 };
+// What flight sees while the aircraft is held on its pad.
+export const PARKED = { ...keys };
 
 const km = {
   ArrowLeft: 'l', KeyA: 'l', ArrowRight: 'r', KeyD: 'r', ArrowUp: 'u', KeyW: 'u', Space: 'u',

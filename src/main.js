@@ -6,12 +6,12 @@ import { BEACH, CAMERA, CITY_SEED, DRONE, DUST, FIXED_DT, GROUND, HANGAR, HUD_IN
 import { initLeague } from './league.js';
 import { buildLevels } from './levels.js';
 import {
-  autoDeliver, chargeDrone, drawBatteryCue, drawHalos, drawOrderTime, drawPointer, drawPrep, drawTarget, failMission, hangarHint, newGame, prepareFirstOrder, stepHealth, stepCargo,
+  autoDeliver, chargeDrone, drawBatteryCue, drawHalos, drawOrderTime, drawPointer, drawPrep, drawTarget, failMission, hangarHint, newGame, prepareFirstOrder, restrain, stepHealth, stepCargo,
   stepMission, stepShop, zones,
 } from './delivery.js';
 import { currentModel, drawAirframe, drawDrone, drawShadow, rotorLoad, stepBoost, stepDrone, stepHold, stepLand } from './drone.js';
 import { beginTraining, drawLesson, stepTraining, trainingLevel } from './training.js';
-import { initInput, keys } from './input.js';
+import { initInput, keys, PARKED } from './input.js';
 import { drawRope, stepRope, stepRopeLength } from './rope.js';
 import { initShop } from './shop.js';
 import { drawSandstorm, touchesSink } from './desert.js';
@@ -26,6 +26,8 @@ import { drawCity, drawMap, drawSky, dropSprites, genWorld, stepCamera, stepCloc
 let st = null, hudT = 0, last = performance.now(), levels = [];
 const pace = { t: 0, n: 0, even: 0, last: 0, easy: 0, raised: false, tried: false };
 
+const controls = () => (st.prep?.opening ? PARKED : keys);
+
 export function step(dt) {
   st.t += dt;
   stepClock(dt);
@@ -38,14 +40,15 @@ export function step(dt) {
     stepFx(st, dt);
     return;
   }
-  const zone = zones(st);
+  const zone = zones(st), pilot = controls();
+  if (pilot === PARKED) restrain(st, keys);
   keys.sink = keys.dn || (keys.rd && !zone.rope) ? 1 : 0;
-  stepHold(st, keys, zone.hold);
-  stepLand(st, keys, zone.land);
-  stepRopeLength(st, keys, zone, dt);
-  stepBoost(st, keys, dt);
+  stepHold(st, pilot, zone.hold);
+  stepLand(st, pilot, zone.land);
+  stepRopeLength(st, pilot, zone, dt);
+  stepBoost(st, pilot, dt);
   const fall = st.d.vy;
-  const grounded = stepDrone(st, keys, dt);
+  const grounded = stepDrone(st, pilot, dt);
   if (grounded && !st.onGround && fall > DUST.minSpeed) kickDust(st, st.d.x, st.d.y + DRONE.radius, fall);
   st.onGround = grounded;
   if (st.has) {
@@ -186,7 +189,7 @@ function loop(now) {
   }
   showActions(zones(st), !!st.anchor, !!st.landing, st.boosting);
   showHangarTip(paused ? null : hangarHint(st));
-  updateRotor(!paused && !st.wreck && st.d.bat > 0, rotorLoad(st, keys), currentModel());
+  updateRotor(!paused && !st.wreck && st.d.bat > 0, rotorLoad(st, controls()), currentModel());
   requestAnimationFrame(loop);
 }
 

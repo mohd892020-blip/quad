@@ -68,9 +68,16 @@ export function startMission(st, shop, item) {
 }
 
 // A level opens on the pad with the shop starting on its first order, which takes the item's own prep time.
+// This one order holds the aircraft down until it is loaded.
 export function prepareFirstOrder(st) {
   const { shop, item } = st.stop;
-  st.prep = { shop, item, left: item.prep };
+  st.prep = { shop, item, left: item.prep, opening: true, nudge: 0 };
+}
+
+// Reaching for the controls too soon only shakes the notice that says why nothing moves.
+export function restrain(st, keys) {
+  if (keys.l || keys.r || keys.u || keys.dn || keys.rd || keys.boost || keys.axis) st.prep.nudge = PREP.nudge;
+  keys.holdTap = keys.landTap = 0;
 }
 
 function endMission(st) {
@@ -182,16 +189,17 @@ export function stepMission(st, dt) {
   }
   const { shop } = st.stop, p = shopPad(shop);
   const parked = Math.abs(d.x - p.x) < c.padReach && d.y < p.y && d.y > p.y - DRONE.radius - c.padGap && Math.hypot(d.vx, d.vy) < c.padSpeed;
-  if (!parked || st.t < st.readyAt) {
+  if (!st.prep?.opening && (!parked || st.t < st.readyAt)) {
     st.prep = null;
     return;
   }
   if (!st.prep) {
     const { item } = st.stop;
-    st.prep = { shop, item, left: item.prep };
+    st.prep = { shop, item, left: item.prep, nudge: 0 };
     hud(st);
   }
   st.prep.left -= dt;
+  st.prep.nudge = Math.max(0, st.prep.nudge - dt);
   if (st.prep.left <= 0) {
     const { item } = st.prep;
     st.prep = null;
@@ -433,14 +441,42 @@ export function drawPrep(st) {
     ctx.arc(x, y, r, 0, 7);
     ctx.stroke();
   }
-  const text = p ? `${Math.ceil(p.left)}s` : 'Ready', ty = Math.max(view.top + c.text, y - r - w / 2 - c.textGap);
-  ctx.font = `800 ${c.text}px Tajawal,sans-serif`;
+  ctx.restore();
+  drawPrepNote(st, x, y - r - w / 2 - c.note.gap, fade);
+}
+
+// Over the ring, against the open sky: what the shop is doing, and what that means for the player.
+function drawPrepNote(st, x, bottom, fade) {
+  const c = PREP.note, p = st.prep, nudge = p ? p.nudge / PREP.nudge : 0, name = p?.opening ? 'YOUR ORDER' : p?.item.label.toUpperCase();
+  const title = p ? `PREPARING ${name}  ${Math.ceil(p.left)}s` : 'ORDER READY', sub = !p ? '' : p.opening ? 'Takeoff when it is ready' : 'Stay on the pad', h = sub ? c.tall : c.h;
+  ctx.save();
+  ctx.font = `800 ${c.title}px Tajawal,sans-serif`;
+  const titleW = ctx.measureText(title).width;
+  ctx.font = `700 ${c.sub}px Tajawal,sans-serif`;
+  const w = Math.max(titleW, ctx.measureText(sub).width) + c.padX * 2;
+  const cx = Math.max(w / 2 + 6, Math.min(view.W - w / 2 - 6, x)) + Math.sin(st.t * c.rate) * c.shake * nudge, y = Math.max(view.top + c.edge, bottom - h);
+  ctx.globalAlpha = fade;
+  ctx.fillStyle = c.fill;
+  ctx.beginPath();
+  ctx.roundRect(cx - w / 2, y, w, h, c.radius);
+  ctx.fill();
+  if (nudge) {
+    ctx.globalAlpha = fade * nudge;
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = '#ffc23d';
+    ctx.stroke();
+    ctx.globalAlpha = fade;
+  }
   ctx.textAlign = 'center';
-  ctx.lineWidth = 3;
-  ctx.strokeStyle = c.track;
-  ctx.strokeText(text, x, ty);
-  ctx.fillStyle = c.ink;
-  ctx.fillText(text, x, ty);
+  ctx.textBaseline = 'middle';
+  ctx.font = `800 ${c.title}px Tajawal,sans-serif`;
+  ctx.fillStyle = p ? '#ffd879' : '#7fe0a8';
+  ctx.fillText(title, cx, y + (sub ? c.titleY : h / 2) + 1);
+  if (sub) {
+    ctx.font = `700 ${c.sub}px Tajawal,sans-serif`;
+    ctx.fillStyle = PREP.ink;
+    ctx.fillText(sub, cx, y + c.subY);
+  }
   ctx.restore();
 }
 
@@ -553,7 +589,7 @@ export function drawOrderTime(st) {
 // A bold arrow circling the drone. It stays close to where the player is already
 // looking, so it can never slide under the controls or the HUD.
 export function drawPointer(st) {
-  if (st.wreck || st.outcome || st.done) return;
+  if (st.wreck || st.outcome || st.done || st.prep) return;
   const { W, S } = view, c = POINTER, g = goal(st), sx = X(g.x), sy = Y(g.y), m = c.safeMargin;
   if (sx > m && sx < W - m && sy > view.top + m && sy < view.bottom - m) return;
   const dx = X(st.d.x), dy = Y(st.d.y), ang = Math.atan2(sy - dy, sx - dx);
