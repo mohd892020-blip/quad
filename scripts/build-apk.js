@@ -64,7 +64,7 @@ if (!existsSync(keystore)) {
   ]);
 }
 const signer = join(build, 'lib', 'apksigner.jar');
-run(java, ['-jar', signer, 'sign', '--ks', keystore, '--ks-key-alias', KEY_ALIAS, '--ks-pass', `pass:${KEY_PASS}`, '--key-pass', `pass:${KEY_PASS}`, '--out', out, aligned]);
+run(java, ['-jar', signer, 'sign', '--v4-signing-enabled', 'false', '--ks', keystore, '--ks-key-alias', KEY_ALIAS, '--ks-pass', `pass:${KEY_PASS}`, '--key-pass', `pass:${KEY_PASS}`, '--out', out, aligned]);
 run(java, ['-jar', signer, 'verify', out]);
 rmSync(tmp, { recursive: true, force: true });
 console.log(`${out} ${(statSync(out).size / 1024).toFixed(1)} kB, version ${version}.${code}`);
