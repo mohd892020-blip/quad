@@ -284,8 +284,12 @@ export const PREP = {
 // all the missing charge back, and a trip that takes twice as long gets half.
 export const BATTERY = { lowSecs: 20, criticalSecs: 10, chargingBelow: 99, shopReach: 60, grace: 30, pace: 150 };
 
-// The order's time left, over the aircraft. Sizes are in pixels; lift scales with the view.
-export const ORDER_TIME = { lift: 30, gap: 12, clearCue: 52, w: 42, h: 18, text: 12, alpha: .82, fill: .3, pulse: 4 };
+// The order's time left and a bar that runs down with it, over the aircraft. Sizes are in pixels; lift
+// scales with the view. stages colour the bar by the share of time still left.
+export const ORDER_TIME = {
+  lift: 30, gap: 16, clearCue: 56, w: 50, h: 25, text: 12, textY: -3, alpha: .86, fill: .34, pulse: 4,
+  barW: 36, barH: 3, barY: 7, track: .22, stages: [[0, '#ff7a5c'], [.25, '#ffc23d'], [.5, '#4fc27c']],
+};
 
 export const BOOST = { force: 900, drain: 60, refill: 18, refillDelay: .6, batteryDrain: 2.5 };
 

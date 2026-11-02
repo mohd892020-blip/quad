@@ -477,7 +477,7 @@ export function drawBatteryCue(st) {
   ctx.restore();
 }
 
-// The time left on the order, small and quiet over the aircraft, and clear of the battery cue.
+// The time left on the order and a bar running down with it, quiet over the aircraft and clear of the battery cue.
 export function drawOrderTime(st) {
   const c = ORDER_TIME, o = st.order;
   if (!st.has || !o || o.limit === Infinity || st.wreck || st.outcome || st.done) return;
@@ -494,7 +494,18 @@ export function drawOrderTime(st) {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = low ? '#ff9a84' : '#fff3df';
-  ctx.fillText(clockText(left), x, y + 1);
+  ctx.fillText(clockText(left), x, y + c.textY);
+  const share = left / o.limit, bar = c.barW * share, barX = x - c.barW / 2, barY = y + c.barY - c.barH / 2;
+  ctx.fillStyle = `rgba(255,255,255,${c.track})`;
+  ctx.beginPath();
+  ctx.roundRect(barX, barY, c.barW, c.barH, c.barH / 2);
+  ctx.fill();
+  if (bar > 0) {
+    ctx.fillStyle = c.stages.filter(([from]) => share >= from).pop()[1];
+    ctx.beginPath();
+    ctx.roundRect(barX, barY, bar, c.barH, c.barH / 2);
+    ctx.fill();
+  }
   ctx.restore();
 }
 
