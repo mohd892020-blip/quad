@@ -361,8 +361,14 @@ export const FERRY = { from: 15520, to: 16880, speed: 62, w: 190, deckH: 30, bow
 // The lesson flight: how far the drone must go in each step, measured from the green pad.
 export const TRAINING = { prep: 2, climb: 90, ringX: 420, ringY: 150, ringReach: 46, boostFor: .4, padLift: 20, rope: 40 };
 
-// The arrow circles the drone, so it can never slip under the controls or the HUD.
-export const POINTER = { orbit: 62, size: 11, bob: 3, alpha: .7, line: 3, textSize: 12, safeMargin: 44, bottomGap: 60 };
+// The arrow circles the drone, so it can never slip under the controls or the HUD. Its orbit is the reach of the aircraft
+// or the order on the rope, plus clear pixels for the arrow and its chevrons, and never under minOrbit. All sizes are in
+// pixels. customer and shop are its light and deep facets, by where it is pointing.
+export const POINTER = {
+  minOrbit: 80, clear: 46, size: 12, bob: 2.5, bobRate: 3, alpha: .92, rim: 1.2, chevrons: 2, chevronGap: 9, chevronSize: 6, chevronWidth: 2.4, flow: 1.3,
+  textSize: 12, pillH: 20, pillPad: 9, pillGap: 7, safeMargin: 44, bottomGap: 60,
+  customer: ['#ffe08a', '#f09a1a'], shop: ['#a2f2c3', '#27ad66'], shade: 'rgba(20,15,40,.45)', edge: 'rgba(255,255,255,.85)', pill: 'rgba(16,12,36,.42)',
+};
 
 // The ring around the aircraft while the shop works. It clears the aircraft's own span by gap and is made of ticks, each
 // taking up tick of its share of the circle. They light clockwise from the top, red to gold to green, so the colour

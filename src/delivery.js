@@ -2,7 +2,7 @@ import { clearAction, planMission, planTraffic } from './action.js';
 import { sfx } from './audio.js';
 import { standout } from './contrast.js';
 import {
-  AIRCRAFT, BATTERY, CAMERA, CONTRAST, DELIVERY, DEV, DOUBLE, DRONE, FIXED_DT, FX, HANGAR, HEALTH, LAND, LEVELS, MISSION, ORDER_TIME, ORDERS, POINTER, PREP, RESTAURANT, RIVAL, ROPE, ROPE_CTL, WIND,
+  AIRCRAFT, BATTERY, BOX, CAMERA, CARGO, CONTRAST, DELIVERY, DEV, DOUBLE, DRONE, FIXED_DT, FX, HANGAR, HEALTH, LAND, LEVELS, MISSION, ORDER_TIME, ORDERS, POINTER, PREP, RESTAURANT, RIVAL, ROPE, ROPE_CTL, WIND,
 } from './config.js';
 import { currentModel } from './drone.js';
 import { loadProgress, owns, saveProgress, settings } from './storage.js';
@@ -591,44 +591,70 @@ export function drawOrderTime(st) {
   ctx.restore();
 }
 
-// A bold arrow circling the drone. It stays close to where the player is already
-// looking, so it can never slide under the controls or the HUD.
+// A faceted dart circling the aircraft, wide enough to clear its span and the swing of the order on the rope, with
+// chevrons running out from behind it toward the goal. It stays near where the player is already looking, so it can
+// never slide under the controls or the HUD.
 export function drawPointer(st) {
   if (st.wreck || st.outcome || st.done || st.prep) return;
   const { W, S } = view, c = POINTER, g = goal(st), sx = X(g.x), sy = Y(g.y), m = c.safeMargin;
   if (sx > m && sx < W - m && sy > view.top + m && sy < view.bottom - m) return;
-  const dx = X(st.d.x), dy = Y(st.d.y), ang = Math.atan2(sy - dy, sx - dx);
-  const r = Math.max(c.orbit * S, c.orbit * .8) + Math.sin(st.t * 5) * c.bob;
-  const clampY = y => Math.max(view.top + m, Math.min(view.bottom - m, y));
-  const px = Math.max(m, Math.min(W - m, dx + Math.cos(ang) * r)), py = clampY(dy + Math.sin(ang) * r);
-  const z = c.size;
+  const dx = X(st.d.x), dy = Y(st.d.y), ang = Math.atan2(sy - dy, sx - dx), z = c.size, [light, deep] = st.has ? c.customer : c.shop;
+  const reach = st.has ? st.ropeLen + BOX.anchorY + BOX.padX * st.item.size * CARGO.drawScale : currentModel().span * CONTRAST.scale;
+  const r = Math.max(c.minOrbit, reach * S + c.clear) + Math.sin(st.t * c.bobRate) * c.bob;
+  const px = Math.max(m, Math.min(W - m, dx + Math.cos(ang) * r)), py = Math.max(view.top + m, Math.min(view.bottom - m, dy + Math.sin(ang) * r));
   ctx.save();
-  ctx.globalAlpha = c.alpha;
   ctx.translate(px, py);
   ctx.rotate(ang);
-  ctx.beginPath();
-  ctx.moveTo(z, 0);
-  ctx.lineTo(-z * .7, -z * .75);
-  ctx.lineTo(-z * .3, 0);
-  ctx.lineTo(-z * .7, z * .75);
-  ctx.closePath();
-  ctx.lineJoin = 'round';
-  ctx.lineWidth = c.line;
-  ctx.strokeStyle = 'rgba(20,15,40,.6)';
+  ctx.lineCap = ctx.lineJoin = 'round';
+  ctx.strokeStyle = light;
+  ctx.lineWidth = c.chevronWidth;
+  for (let i = 0; i < c.chevrons; i++) {
+    const x = -z - c.chevronGap * (i + 1), wave = 1 - ((st.t * c.flow + i / c.chevrons) % 1);
+    ctx.globalAlpha = c.alpha * wave;
+    ctx.beginPath();
+    ctx.moveTo(x - c.chevronSize, -c.chevronSize);
+    ctx.lineTo(x, 0);
+    ctx.lineTo(x - c.chevronSize, c.chevronSize);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = c.alpha;
+  const dart = () => {
+    ctx.beginPath();
+    ctx.moveTo(z * 1.3, 0);
+    ctx.lineTo(-z * .8, -z * .9);
+    ctx.lineTo(-z * .35, 0);
+    ctx.lineTo(-z * .8, z * .9);
+    ctx.closePath();
+  };
+  dart();
+  ctx.lineWidth = c.rim + 2;
+  ctx.strokeStyle = c.shade;
   ctx.stroke();
-  ctx.fillStyle = st.has ? '#ffc23d' : '#4fc27c';
+  ctx.fillStyle = deep;
   ctx.fill();
+  ctx.fillStyle = light;
+  ctx.beginPath();
+  ctx.moveTo(z * 1.3, 0);
+  ctx.lineTo(-z * .8, -z * .9);
+  ctx.lineTo(-z * .35, 0);
+  ctx.closePath();
+  ctx.fill();
+  dart();
+  ctx.lineWidth = c.rim;
+  ctx.strokeStyle = c.edge;
+  ctx.stroke();
   ctx.restore();
   const text = `${Math.round(Math.hypot(g.x - st.d.x, g.y - st.d.y) / 10)} m`;
   ctx.font = `800 ${c.textSize}px Tajawal,sans-serif`;
   ctx.textAlign = 'center';
-  const tw = ctx.measureText(text).width / 2 + 8 || 30;
-  const lx = Math.max(tw, Math.min(W - tw, px)), ly = clampY(py + (py > dy ? 1 : -1) * (z + c.textSize));
-  ctx.globalAlpha = c.alpha;
-  ctx.lineWidth = c.line;
-  ctx.strokeStyle = 'rgba(20,15,40,.7)';
-  ctx.strokeText(text, lx, ly);
+  ctx.textBaseline = 'middle';
+  const half = ctx.measureText(text).width / 2 + c.pillPad || 30, under = py + z + c.pillGap + c.pillH, lx = Math.max(half + 4, Math.min(W - half - 4, px));
+  const top = under < view.bottom ? under - c.pillH : py - z - c.pillGap - c.pillH;
+  ctx.fillStyle = c.pill;
+  ctx.beginPath();
+  ctx.roundRect(lx - half, top, half * 2, c.pillH, c.pillH / 2);
+  ctx.fill();
   ctx.fillStyle = '#fff3df';
-  ctx.fillText(text, lx, ly);
-  ctx.globalAlpha = 1;
+  ctx.fillText(text, lx, top + c.pillH / 2 + 1);
+  ctx.textBaseline = 'alphabetic';
 }
