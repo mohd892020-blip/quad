@@ -67,11 +67,10 @@ export function startMission(st, shop, item) {
   hud(st);
 }
 
-// A level opens with its first order already on the rope, so the first thing the player does is fly.
-export function loadFirstOrder(st) {
+// A level opens on the pad with the shop starting on its first order, which takes the item's own prep time.
+export function prepareFirstOrder(st) {
   const { shop, item } = st.stop;
-  st.ready = PREP.flash;
-  startMission(st, shop, item);
+  st.prep = { shop, item, left: item.prep };
 }
 
 function endMission(st) {
@@ -203,7 +202,7 @@ export function stepMission(st, dt) {
 
 // While the shop works, it may suggest an aircraft that suits the order better.
 export function hangarHint(st) {
-  // the first order comes loaded, so its suggestion stands until the aircraft leaves the pad
+  // the first order's suggestion stands until the aircraft leaves the pad
   const item = st.prep?.item ?? (st.has && st.onGround && !st.stopAt ? st.item : null);
   if (!item || st.level.training) return null;
   const c = HANGAR, named = key => AIRCRAFT.find(a => a.key === key);
