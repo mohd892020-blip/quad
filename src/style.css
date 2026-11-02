@@ -187,14 +187,14 @@ body{background:var(--night);color:var(--ink);font-family:var(--body);overflow:h
   padding:calc(6px + env(safe-area-inset-top,0px)) max(12px,env(safe-area-inset-right,0px)) 0 max(12px,env(safe-area-inset-left,0px))}
 #hud .pill{background:var(--strip);border-color:transparent;padding:0 8px;height:32px;box-sizing:border-box;border-radius:9px;display:flex;align-items:center}
 #hud .icon{width:32px;padding:0;justify-content:center;font-size:11px}
-#clock{font-variant-numeric:tabular-nums;font-weight:800;color:var(--ink);font-size:15px;min-width:38px;justify-content:center}
+#hud #clock{flex:none;width:56px;padding:0;font-variant-numeric:tabular-nums;font-weight:800;color:var(--ink);font-size:15px;justify-content:center}
 #meters{flex:0 1 320px;min-width:0;gap:5px}
 #meters svg{width:12px;height:12px;flex:none}
 #meters .bar,#meters .stack{flex:1;min-width:0}
 .stack{display:grid;gap:2px}
 #meters .bar{height:6px}
 #meters .bar.thin{height:3px}
-#batPct{flex:none;min-width:30px;text-align:right;color:var(--ink);font-size:12px;font-weight:800;font-variant-numeric:tabular-nums}
+#batPct{flex:none;width:34px;text-align:right;color:var(--ink);font-size:12px;font-weight:800;font-variant-numeric:tabular-nums}
 #batPct.low{color:var(--tomato)}
 #oTitle{flex:1 1 120px;min-width:0;margin:0;color:var(--ink);font-size:13px;font-weight:700;text-shadow:0 1px 3px rgba(20,15,40,.9);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #wind{flex:none;display:flex;align-items:center}
@@ -202,7 +202,7 @@ body{background:var(--night);color:var(--ink);font-family:var(--body);overflow:h
 #windTrack::before{content:"";position:absolute;left:50%;top:-1px;bottom:-1px;width:1px;background:rgba(255,255,255,.6)}
 #map{flex:1 0 100%;display:block;width:100%;height:6px;border-radius:3px}
 @media (max-width:640px){
-  #meters{flex:1 1 200px}
+  #meters{flex:1 1 160px}
   #oTitle{order:1;flex-basis:60%}
   #wind{order:2}
   #map{order:3}
