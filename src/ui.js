@@ -279,7 +279,8 @@ export function drawFx(st) {
 }
 
 /* ---------- HUD ---------- */
-const placeName = t => (t.kind === 'bal' ? `Balcony, floor ${t.fl}` : t.kind === 'street' ? 'Street' : 'Rooftop');
+const PLACES = { street: 'Street', roof: 'Rooftop', boat: 'Boat', pier: 'Pier', tower: 'Lifeguard tower', sand: 'Beach' };
+const placeName = t => (t.kind === 'bal' ? `Balcony, floor ${t.fl}` : PLACES[t.kind]);
 
 // The HUD ticks ten times a second and most of it has not moved, so only changes reach the page.
 const shown = {};

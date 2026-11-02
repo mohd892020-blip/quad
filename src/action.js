@@ -1,5 +1,5 @@
 import { sfx } from './audio.js';
-import { BOX, CARS, DRONE, EDGE, GROUND, HAWKS, HEALTH, RIVAL } from './config.js';
+import { BEACH, BOX, CARS, DRONE, EDGE, GROUND, HAWKS, HEALTH, RIVAL } from './config.js';
 import { currentModel, drawAirframe } from './drone.js';
 import { ctx, glow, kickDust, pop, shade, view, X, Y } from './ui.js';
 import { roofAt, world } from './world.js';
@@ -17,7 +17,7 @@ export function planTraffic(st) {
   st.carDir = level.n % 2 ? 1 : -1;
   st.jam = false;
   if (!level.traffic) return;
-  for (let x = EDGE.left, i = 0; x < EDGE.right; x += c.spacing + Math.random() * c.spacingRange, i++) {
+  for (let x = EDGE.left, i = 0; x < BEACH.from; x += c.spacing + Math.random() * c.spacingRange, i++) {
     st.cars.push({ x, px: x, v: carSpeed(level.tier), paint: c.paint[i % c.paint.length], van: i % c.vanEvery === 1, taxi: i % c.taxiEvery === 2 });
   }
 }
@@ -25,14 +25,14 @@ export function planTraffic(st) {
 // Returns true on the step a car meets the drone or the order. That car stops dead
 // and the rest of the road brakes behind it.
 export function stepTraffic(st, dt) {
-  const c = CARS, { d, box } = st, top = GROUND + c.lane - c.height, span = EDGE.right - EDGE.left;
+  const c = CARS, { d, box } = st, top = GROUND + c.lane - c.height, span = BEACH.from - EDGE.left;
   const touches = (car, x, y, r) => Math.abs(x - car.x) < c.length / 2 + r && y + r > top;
   let met = false;
   for (const car of st.cars) {
     car.px = car.x;
     if (st.jam) car.v = Math.max(0, car.v - c.brake * dt);
     car.x += st.carDir * car.v * dt;
-    if (car.x > EDGE.right || car.x < EDGE.left) car.x = car.px = car.x - st.carDir * span;
+    if (car.x > BEACH.from || car.x < EDGE.left) car.x = car.px = car.x - st.carDir * span;
     if (st.jam || st.wreck) continue;
     if (touches(car, d.x, d.y, DRONE.radius) || (st.has && touches(car, box.x, box.y, BOX.padX * st.item.size))) {
       car.v = 0;

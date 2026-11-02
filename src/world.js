@@ -1,11 +1,12 @@
-import { BIRDS, CAMERA, CELL, CITY, CLOCK, GROUND, GROUND_BOX, ORDERS, PEOPLE, PERSPECTIVE, SHOPS, SPRITE, TIMES, WIND, ZONES } from './config.js';
+import { BEACH, BIRDS, CAMERA, CELL, CITY, CLOCK, GROUND, GROUND_BOX, ORDERS, PEOPLE, PERSPECTIVE, SHOPS, SPRITE, TIMES, WIND, ZONES } from './config.js';
+import { buildSeaside, drawSeaBehind, drawShore } from './seaside.js';
 import { ctx, glow, shade, view, X, Y } from './ui.js';
 
 const CLOTHES = ['#e8492c', '#f2efe6', '#4fa3c2', '#ffc23d', '#7cc28f', '#d97aa8', '#3f5f8f', '#fafafa'];
 const SHIRTS = ['#e8492c', '#4fa3c2', '#ffc23d', '#7cc28f', '#d97aa8', '#f2efe6', '#5a6b8c'];
 
 export const world = {
-  B: [], solids: [], cells: [], edge: [], lines: [], targets: [], shops: [], rigs: [],
+  B: [], solids: [], cells: [], edge: [], lines: [], targets: [], shops: [], rigs: [], kiosks: [], seaTargets: [],
   far1: [], far2: [], people: [], flocks: [], span: 1, clock: 0, pal: null, palKey: -1, live: new Set(),
 };
 
@@ -34,9 +35,10 @@ export function shopPad(b) {
   return { x: b.x + CITY.padInset, y: b.top };
 }
 
+// Any pad charges, in the city or on the coast.
 export function nearestShop(x) {
   let best = world.shops[0];
-  for (const b of world.shops) if (Math.abs(b.x + b.w / 2 - x) < Math.abs(best.x + best.w / 2 - x)) best = b;
+  for (const b of [...world.shops, ...world.kiosks]) if (Math.abs(b.x + b.w / 2 - x) < Math.abs(best.x + best.w / 2 - x)) best = b;
   return best;
 }
 
@@ -207,9 +209,13 @@ export function genWorld(seed) {
     });
   }
 
+  const coast = buildSeaside(B.length);
+  B.push(...coast.kiosks);
+  solids.push(...coast.solids);
+
   dropSprites();
   indexColliders(solids);
-  Object.assign(world, { B, solids, lines, targets: reachable, shops, rigs, far1, far2, people, flocks, span });
+  Object.assign(world, { B, solids, lines, targets: reachable, shops, rigs, far1, far2, people, flocks, span, kiosks: coast.kiosks, seaTargets: coast.targets });
 }
 
 export function dropSprites() {
@@ -229,7 +235,7 @@ function blendTimes(a, b, t) {
     sky: a.sky.map(([at, c], i) => [at, mixHex(c, b.sky[i][1], t)]),
     lit: a.lit.map((c, i) => mixHex(c, b.lit[i], t)),
     stars: num('stars'), discCut: num('discCut'), light: num('light'), extraLit: num('extraLit'), windowGlow: num('windowGlow'), signGlow: num('signGlow'),
-    disc: col('disc'), discShade: col('discShade'), far1: col('far1'), far2: col('far2'), ground: col('ground'), walk: col('walk'),
+    disc: col('disc'), discShade: col('discShade'), far1: col('far1'), far2: col('far2'), ground: col('ground'), walk: col('walk'), sea: col('sea'), sand: col('sand'),
   };
 }
 
@@ -363,7 +369,7 @@ function paintBuilding(g, b) {
       g.fillRect(wx - 2, wy + z.winH, z.winW + 4, 2.5);
     }
   }
-  if (style === 'village') {
+  if (style === 'village' || style === 'beach') {
     // a tiled cap across the top of the wall
     g.fillStyle = shade('#b4553a', time.light);
     g.beginPath();
@@ -689,7 +695,7 @@ function drawBirds(st) {
 // The strip map: zones as bands, then shops, the customer, and the player on top.
 export function drawMap(st) {
   const c = document.getElementById('map'), w = view.mapW, h = view.mapH;
-  const k = view.DPR, left = CITY.leftBuilding.x, span = world.span;
+  const k = view.DPR, left = CITY.leftBuilding.x, span = BEACH.to - left;
   if (c.width !== Math.round(w * k)) {
     c.width = Math.round(w * k);
     c.height = Math.round(h * k);
@@ -721,15 +727,25 @@ export function drawMap(st) {
 }
 
 export function drawCity(st) {
-  const { W, H } = view, time = world.pal;
+  const { W, H } = view, time = world.pal, coast = X(BEACH.from);
+  // the skyline ends at the coast; only then is it worth a clip
+  ctx.save();
+  if (coast < W) {
+    ctx.beginPath();
+    ctx.rect(0, 0, Math.max(0, coast), H);
+    ctx.clip();
+  }
   drawFar(st, world.far2, .25, time.far2, 40, .9);
   if (!view.lowQ) drawFar(st, world.far1, .5, time.far1, 10, 1);
+  ctx.restore();
+  drawSeaBehind();
   ctx.fillStyle = time.ground;
   ctx.fillRect(0, Y(GROUND), W, H);
   drawBuildings();
   drawRigs(st);
   ctx.fillStyle = time.walk;
   ctx.fillRect(0, Y(GROUND + PEOPLE.sidewalk), W, H);
+  drawShore(st);
   drawLines(st);
   drawPeople(st);
   drawBirds(st);

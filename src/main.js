@@ -1,6 +1,6 @@
 import { drawBoost, drawCars, drawHawks, drawRival, stepAction, stepTraffic } from './action.js';
-import { initAudio, updateRotor } from './audio.js';
-import { CAMERA, CITY_SEED, DRONE, DUST, FIXED_DT, GROUND, HANGAR, HUD_INTERVAL, MAX_FRAME_DT, QUALITY } from './config.js';
+import { initAudio, sfx, updateRotor } from './audio.js';
+import { BEACH, CAMERA, CITY_SEED, DRONE, DUST, FIXED_DT, GROUND, HANGAR, HUD_INTERVAL, MAX_FRAME_DT, QUALITY } from './config.js';
 import { initLeague } from './league.js';
 import { buildLevels } from './levels.js';
 import {
@@ -12,6 +12,7 @@ import { beginTraining, drawLesson, stepTraining, trainingLevel } from './traini
 import { initInput, keys } from './input.js';
 import { drawRope, stepRope, stepRopeLength } from './rope.js';
 import { initShop } from './shop.js';
+import { touchesSea } from './seaside.js';
 import { loadProgress, settings } from './storage.js';
 import {
   ctx, drawFx, drawMarks, hideModals, hideOverlay, hud, initLevels, initSheet, kickDust, levelsOpen, lowerQuality, lowestTier, measureHud, modalOpen, onDevActions, onStart,
@@ -48,6 +49,11 @@ function step(dt) {
   stepMission(st, dt);
   if (stepAction(st, dt) && st.has) failMission(st, 'The rival got there first');
   stepShop(st, grounded, dt);
+  if (!st.outcome && !st.done && touchesSea(st)) {
+    kickDust(st, st.d.x, GROUND, BEACH.splash);
+    sfx('box');
+    failMission(st, 'Lost at sea', st.has);
+  }
   if (st.lesson) stepTraining(st, zone, dt);
   stepHeading(st, dt);
   stepCamera(st, dt);

@@ -15,9 +15,9 @@ export const CELL = { size: 256, base: -2400, margin: 48 };
 
 export const G = 700;
 export const GROUND = 560;
-export const GROUND_BOX = { x: -2000, w: 20000, h: 200 };
+export const GROUND_BOX = { x: -2000, w: 22500, h: 200 };
 // The drone stops at these, well inside the ground, so it can never fly off the end of the world.
-export const EDGE = { left: -1000, right: 14800 };
+export const EDGE = { left: -1000, right: 20000 };
 export const CITY_SEED = 7;
 
 // A job: its clock, when harder customers appear, and the pad that starts it.
@@ -64,7 +64,33 @@ export const ZONES = [
     widthMin: 130, widthRange: 110, heightMin: 300, heightRange: 220, gapRange: 70,
     tankChance: .35, dishChance: .3, craneChance: .22, towerChance: .3, lineChance: .25, powerChance: .8, lineMinH: 170, winW: 22, winH: 30,
   },
+  { name: 'Seaside', from: 14300, style: 'beach', map: '#3fb0c8', stones: ['#c99a5e'], winW: 12, winH: 16 },
 ];
+
+// The open coast past the city. Sea spans are water to fall into; sand and the island are safe.
+// Every level whose number divides by every is flown here, from its three beach kiosks.
+export const BEACH = {
+  from: 14300, to: 19900, every: 5, minDist: 900, windBoost: 1.25, splash: 240,
+  sea: [[15050, 17000], [17560, 19200]],
+  kiosks: [
+    { x: 14560, shop: { name: 'Beach Bar', items: ['coffee', 'watermelon'], glow: '#4fa3c2' } },
+    { x: 17140, shop: { name: 'Island Grill', items: ['falafel', 'pizza'], glow: '#ff5a3c' } },
+    { x: 19400, shop: { name: 'Sweet Shack', items: ['cake', 'flowers'], glow: '#d97aa8' } },
+  ],
+  kioskH: 110, kioskColor: '#c99a5e',
+  towers: [14430, 17030, 19280],
+  piers: [{ x: 14960, w: 460 }, { x: 19000, w: 280 }],
+  boats: [
+    { x: 15640, w: 130, paint: '#d9483b' }, { x: 16200, w: 110, paint: '#3f6fb0' }, { x: 16620, w: 140, paint: '#3a8f6b' },
+    { x: 17760, w: 120, paint: '#e0a52c' }, { x: 18260, w: 140, paint: '#d9483b' }, { x: 18700, w: 110, paint: '#3f6fb0' },
+  ],
+  towels: [14860, 17450, 19800],
+  palms: [14380, 14830, 17080, 17500, 19760], umbrellas: [14480, 14900, 17490, 19690], umbrellaPaint: ['#e8492c', '#4fa3c2', '#ffc23d', '#d97aa8'],
+  horizon: 110, headland: 260, headlandH: 170, seen: 220,
+  deckH: 26, plankH: 8, towerH: 120, towerW: 70, legW: 6, flagH: 34, pierEnd: 40, pileGap: 70, pileDrop: 18,
+  mastAt: .62, mastH: 66, mastW: 4, boatSpot: .24, targetLift: 11, bob: 2, bobRate: 1.6,
+  palmH: 120, umbrellaH: 44, waveStep: 12, waveLength: 26, waveRate: 2.2, waveHeight: 2.5,
+};
 
 export const DRONE = {
   radius: 15,
@@ -92,7 +118,7 @@ export const DRONE = {
 export const HEALTH = {
   hitSpeed: 150,
   perSpeed: .13,
-  materials: { wall: 1, ground: .9, steel: 1.25, balcony: .8, tank: .7, dish: .5 },
+  materials: { wall: 1, ground: .9, steel: 1.25, balcony: .8, tank: .7, dish: .5, wood: .75 },
   hawkHit: 4,
   smokeAt: 60,
   fireAt: 30,
@@ -303,17 +329,17 @@ export const CLOCK = { hold: 120, fade: 20, steps: 16, startAt: 2 };
 export const TIMES = [
   {
     name: 'Sunset', sky: [[0, '#140f2a'], [.45, '#3b2452'], [.8, '#b4505a'], [1, '#f0a259']],
-    stars: .7, disc: '#fff1d0', discShade: '#3b2452', discCut: 1, far1: '#3d2849', far2: '#2c1d40',
+    stars: .7, disc: '#fff1d0', discShade: '#3b2452', discCut: 1, far1: '#3d2849', far2: '#2c1d40', sea: '#7a4a6e', sand: '#b98a6a',
     ground: '#2a1d2c', walk: '#3a2c33', light: 1, lit: ['#4a3a52', '#f2a65a', '#ffd27a'], extraLit: 0, windowGlow: 0, signGlow: .5,
   },
   {
     name: 'Night', sky: [[0, '#05060f'], [.45, '#0b0f28'], [.8, '#171d40'], [1, '#232a52']],
-    stars: 1, disc: '#e8ecff', discShade: '#0a0e26', discCut: 1, far1: '#141a38', far2: '#0e1228',
+    stars: 1, disc: '#e8ecff', discShade: '#0a0e26', discCut: 1, far1: '#141a38', far2: '#0e1228', sea: '#141c3e', sand: '#45424f',
     ground: '#10131f', walk: '#1a1c2a', light: .48, lit: ['#1f2233', '#e8a24f', '#ffd884'], extraLit: .22, windowGlow: 1, signGlow: .75,
   },
   {
     name: 'Day', sky: [[0, '#3f8fd6'], [.45, '#7db8e8'], [.8, '#b9dcef'], [1, '#eaf4f2']],
-    stars: 0, disc: '#fff3c4', discShade: '#7db8e8', discCut: 0, far1: '#9db8cc', far2: '#b7cddd',
+    stars: 0, disc: '#fff3c4', discShade: '#7db8e8', discCut: 0, far1: '#9db8cc', far2: '#b7cddd', sea: '#3f9fc8', sand: '#e8d6a8',
     ground: '#6f6a62', walk: '#8c867b', light: 1.08, lit: ['#5f7f95', '#7c9bb0', '#a8c4d6'], extraLit: 0, windowGlow: 0, signGlow: .2,
   },
 ];
