@@ -202,9 +202,10 @@ export const ROPE_CTL = {
 // Hold is a critically damped spring on the spot where it was pressed.
 export const HOLD = { spring: 14, damp: 7.5, drain: .5 };
 
-// Land is offered over a shop pad with no order on the rope. Sideways it uses Hold's spring; once within
-// lineUp of the pad it sinks at speed, easing down to touch just above the roof.
-export const LAND = { zoneX: 130, zoneY: 320, lineUp: 24, speed: 120, touch: 40, ease: 1.2, follow: 6 };
+// Land is offered near any shop pad to an aircraft slower than maxSpeed, with or without an order on the rope.
+// It crosses at up to across, climbing over anything in the way, then within lineUp of the pad it sinks at speed,
+// easing down to touch just above the roof.
+export const LAND = { zoneX: 280, zoneY: 460, maxSpeed: 260, across: 170, pull: 2.4, look: 60, clear: 30, lineUp: 24, speed: 120, touch: 40, ease: 1.2, follow: 6 };
 
 // feel bends the stick: above 1 small moves stay gentle, below 1 they bite early. size scales all
 // touch controls, fade is how much of them shows. thumb starts the stick where the finger lands.

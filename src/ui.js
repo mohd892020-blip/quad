@@ -307,7 +307,7 @@ export function hud(st) {
   bar('bHp', st.hp);
   bar('bHeat', o && st.item.heat ? st.heat : 0);
   bar('bBox', o ? st.integ : 0);
-  put('boost', Math.round(st.boost), v => { $('boostFill').style.transform = `scaleY(${v / 100})`; });
+  put('boost', Math.round(st.boost), v => { $('boostFill').style.setProperty('--fuel', v); });
   if (Math.abs(st.d.vx) > BOOST.flipSpeed) put('boostBack', st.d.vx < 0, v => { $('boost').classList.toggle('back', v); });
   const reach = WIND.base + WIND.maxDeliveries * WIND.perDelivery;
   put('wind', Math.round(50 + Math.max(-1, Math.min(1, st.wind / reach)) * 50), v => { $('windNeedle').style.transform = `translateX(${v}%)`; });
@@ -374,9 +374,9 @@ function show(id, on) {
 
 // A two-state button: its text changes with what it would do next.
 function flip(id, on, idle, active) {
-  const el = $(id), label = on ? active : idle;
-  if (el.textContent === label) return;
-  el.textContent = label;
+  const el = $(id), label = on ? active : idle, text = el.querySelector('span') || el;
+  if (text.textContent === label) return;
+  text.textContent = label;
   el.classList.toggle('on', on);
 }
 
@@ -417,14 +417,14 @@ export function hideModals() {
 
 export function showLevels() {
   hideModals();
-  const { stars, money } = loadProgress(), open = reachedLevel(stars), gap = LEVELS.rowGap;
+  const { stars, money } = loadProgress(), open = reachedLevel(stars), gap = LEVELS.rowGap, unlocked = n => settings.dev || n <= open;
   const height = (levelList.length + 1) * gap;
   const spot = l => ({ x: 50 + Math.sin(l.n * LEVELS.pathWave) * LEVELS.pathWidth, y: height - l.n * gap });
   const road = levelList.map(l => { const p = spot(l); return `${p.x},${p.y}`; }).join(' ');
   const nodes = levelList.map(l => {
     const p = spot(l), best = stars[l.n] || 0;
-    const state = l.n > open ? 'locked' : l.n === open ? 'next' : 'done';
-    return `<button class="node ${state}${l.stops[0].parcels ? ' double' : ''}" data-n="${l.n}" style="left:${p.x}%;top:${p.y}px;--zone:${l.shop.zone.map}" aria-label="Level ${l.n}"><b>${l.n}</b><small>${best ? starText(best) : ''}</small></button>`;
+    const state = !unlocked(l.n) ? 'locked' : l.n === open ? 'next' : 'done';
+    return `<button class="node ${state}${l.stops[0].parcels ? ' double' : ''}" data-n="${l.n}" style="left:${p.x}%;top:${p.y}px;--zone:${l.shop.zone.map}" aria-label="Mission ${l.n}"><b>${l.n}</b><small>${best ? starText(best) : ''}</small></button>`;
   }).join('');
   const path = $('levelsPath');
   path.style.height = height + 'px';
@@ -438,7 +438,7 @@ export function showLevels() {
 function openLevelCard(n) {
   const l = levelList[n - 1], { stars } = loadProgress(), open = reachedLevel(stars), legs = l.stops, route = legs.length > 1;
   picked = l;
-  $('levelTitle').textContent = `Level ${n}`;
+  $('levelTitle').textContent = `Mission ${n}`;
   $('levelBest').textContent = stars[n] ? starText(stars[n]) : '☆☆☆';
   const order = i => (i.urgent ? `${i.label} · urgent` : i.label), to = s => `${placeName(s.t)}, ${Math.round(s.dist / 10)} m`;
   const { item, shop, limit, parcels } = legs[0];
@@ -454,9 +454,9 @@ function openLevelCard(n) {
     ...(l.beach ? [['Danger', 'Open sea']] : l.desert ? [['Danger', 'Quicksand, sandstorms']] : []),
   ];
   $('levelRows').innerHTML = rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');
-  const locked = n > open;
+  const locked = n > open && !settings.dev;
   $('levelPlay').disabled = locked;
-  $('levelPlay').textContent = locked ? `Finish level ${open} first` : 'Start';
+  $('levelPlay').textContent = locked ? `Finish mission ${open} first` : 'Start';
   $('levelCard').hidden = false;
 }
 
@@ -471,7 +471,7 @@ export function showResult(o, level, hasNext) {
     : `<div class="seal${o.passed ? ' ok' : ''}"><svg class="ico"><use href="#i-${o.passed ? 'check' : 'close'}"/></svg></div>`;
   hero.setAttribute('aria-label', o.passed && !o.training ? `${o.stars} of 3 stars` : '');
   for (const id of ['resultMap', 'resultRetry']) $(id).className = id === lead ? 'go wide' : 'ghost round';
-  $('resultWhy').textContent = o.training ? 'You are ready for Level 1' : o.passed ? `+$${o.tip}${o.beat ? ' · Rival beaten' : ''}` : o.cost ? `${o.why} · -$${o.cost}` : o.why;
+  $('resultWhy').textContent = o.training ? 'You are ready for Mission 1' : o.passed ? `+$${o.tip}${o.beat ? ' · Rival beaten' : ''}` : o.cost ? `${o.why} · -$${o.cost}` : o.why;
   $('resultNext').hidden = !next;
   card.hidden = false;
 }
@@ -479,7 +479,7 @@ export function showResult(o, level, hasNext) {
 // The map button pauses. Leaving with an order in the air costs what ruining it would.
 function openPause() {
   const cost = acts.stake(), level = acts.level(), { money, del } = loadProgress();
-  $('pauseTitle').textContent = level.training ? 'Training' : `Level ${level.n}`;
+  $('pauseTitle').textContent = level.training ? 'Training' : `Mission ${level.n}`;
   $('pauseStats').textContent = `$${money} · ${del} ${del === 1 ? 'delivery' : 'deliveries'}`;
   $('pauseWhy').textContent = cost ? `Leaving loses the order: -$${cost}` : '';
   $('pauseCard').hidden = false;
@@ -609,7 +609,7 @@ export function initSheet() {
     b.dataset.key = a.key;
     b.addEventListener('click', () => {
       if (!owns(a.key)) {
-        $('planeNote').textContent = `${a.name} costs $${SHOP.aircraft[a.key]} in the Shop on the level map`;
+        $('planeNote').textContent = `${a.name} costs $${SHOP.aircraft[a.key]} in the Shop on the mission map`;
         return;
       }
       settings.plane = a.key;
@@ -644,6 +644,8 @@ export function initSheet() {
       settings.dev = true;
       saveSettings();
       showDev();
+      markPlanes();
+      if (levelsOpen()) showLevels();
     } else $('devMsg').textContent = 'Wrong password. Try again.';
     code.value = '';
   });

@@ -69,14 +69,18 @@ export function stepLand(st, keys, pad) {
   } else if (tap && pad) st.landing = { x: pad.x, y: pad.y - DRONE.radius, armed: false };
 }
 
-function flyLanding(st, dt) {
-  const d = st.d, c = DRONE, a = st.landing, sink = Math.abs(a.x - d.x) < LAND.lineUp ? Math.min(LAND.speed, LAND.touch + (a.y - d.y) * LAND.ease) : 0;
+function flyLanding(st, dt, over) {
+  const d = st.d, c = DRONE, L = LAND, a = st.landing, gap = a.x - d.x, lined = Math.abs(gap) < L.lineUp;
+  // anything tall on the way is climbed before crossing
+  const wall = !lined && d.y + c.radius > roofAt(d.x + Math.sign(gap) * L.look, L.look) - L.clear;
+  const across = wall ? 0 : Math.max(-L.across, Math.min(L.across, gap * L.pull));
+  const sink = wall ? -L.speed : lined ? Math.min(L.speed, L.touch + (a.y - d.y) * L.ease) : 0;
   d.a += -d.a * Math.min(1, dt * c.tiltRate);
-  d.vx += ((a.x - d.x) * HOLD.spring - d.vx * HOLD.damp + st.wind * c.windForce) * dt;
-  d.vy += (sink - d.vy) * LAND.follow * dt;
+  d.vx += ((across - d.vx) * L.follow + st.wind * c.windForce) * dt;
+  d.vy += (sink - d.vy) * L.follow * dt;
   d.x += d.vx * dt;
   d.y += d.vy * dt;
-  d.bat = Math.max(0, d.bat - dt * (c.batDrain + HOLD.drain * c.batDrainLift) / currentModel().battery);
+  d.bat = Math.max(0, d.bat - dt * (c.batDrain + HOLD.drain * c.batDrainLift) * (1 + over * LOAD.drainGain) / currentModel().battery);
 }
 
 function flyHeld(st, dt, over) {
@@ -103,7 +107,7 @@ export function stepDrone(st, keys, dt) {
   // an empty drone flies like one carrying pizza, the weight every factor is measured from
   const over = st.has ? st.item.weight - 1 : 0;
   if (st.anchor) flyHeld(st, dt, over);
-  else if (st.landing) flyLanding(st, dt);
+  else if (st.landing) flyLanding(st, dt, over);
   else {
     const powered = d.bat > 0;
     const tgt = (keys.r - keys.l + keys.axis) * c.tiltMax;

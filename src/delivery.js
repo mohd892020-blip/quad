@@ -211,25 +211,23 @@ export function hangarHint(st) {
 
 const NO_ZONE = { rope: false, hold: false, land: null };
 
-// The pad under the drone, if Land can take it there. An order on the rope has to be flown in by hand.
+// The pad Land can take the drone to, from close by and at a sensible speed.
 function padBelow(st) {
   const d = st.d;
-  if (st.has || st.onGround || st.wreck || st.outcome || st.done || d.bat <= 0) return null;
+  if (st.onGround || st.wreck || st.outcome || st.done || d.bat <= 0 || (!st.landing && Math.hypot(d.vx, d.vy) > LAND.maxSpeed)) return null;
   const p = shopPad(nearestShop(d.x)), drop = p.y - d.y;
   return Math.abs(d.x - p.x) < LAND.zoneX && drop > 0 && drop < LAND.zoneY ? p : null;
 }
 
 // Where rope and hold controls apply: rope right above the customer, hold over a wider area.
 export function zones(st) {
-  if (!st.has || !st.order) {
-    const land = padBelow(st);
-    return land ? { ...NO_ZONE, land } : NO_ZONE;
-  }
+  const land = padBelow(st);
+  if (!st.has || !st.order) return land ? { ...NO_ZONE, land } : NO_ZONE;
   const c = ROPE_CTL, T = st.order.t, dx = Math.abs(T.x - st.d.x), dy = T.y - st.d.y;
   return {
     rope: dx < c.zoneX && dy > 0 && dy < c.zoneY,
     hold: dx < c.holdX && dy > -c.holdAbove && dy < c.holdY,
-    land: null,
+    land,
   };
 }
 
