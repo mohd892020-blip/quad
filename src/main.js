@@ -17,7 +17,7 @@ import { drawSandstorm, touchesSink } from './desert.js';
 import { touchesSea } from './seaside.js';
 import { loadProgress, settings } from './storage.js';
 import {
-  ctx, drawFx, drawMarks, hideModals, hideOverlay, hud, initLevels, initSheet, kickDust, levelsOpen, lowerQuality, lowestTier, measureHud, modalOpen, onDevActions, onStart,
+  ctx, drawFx, drawMarks, frost, hideModals, hideOverlay, hud, initLevels, initSheet, kickDust, levelsOpen, lowerQuality, lowestTier, measureHud, modalOpen, onDevActions, onStart,
   previewCanvas, shakeOffset, sheetOpen, showActions, showHangarTip, showKeyHints, showLesson, showLevels, showResult, stepFx, view,
 } from './ui.js';
 import { drawCity, drawMap, drawSky, dropSprites, genWorld, stepCamera, stepClock, stepWind } from './world.js';
@@ -114,7 +114,10 @@ function render() {
   drawOrderTime(s);
 }
 
+let previewAt = 0;
 function drawPreview(time) {
+  if (time - previewAt < HANGAR.previewEvery) return;
+  previewAt = time;
   const c = previewCanvas(), g = c.getContext('2d'), k = c.height / HANGAR.previewHeight;
   g.setTransform(k, 0, 0, k, c.width / 2, c.height / 2);
   g.clearRect(-c.width, -c.height, c.width * 2, c.height * 2);
@@ -139,6 +142,7 @@ function loop(now) {
   const dt = Math.min(MAX_FRAME_DT, frame);
   last = now;
   const paused = modalOpen();
+  frost(paused && !levelsOpen());
   if (!paused) watchPace(frame);
   if (sheetOpen()) drawPreview(now / 1000);
   if (!paused) {

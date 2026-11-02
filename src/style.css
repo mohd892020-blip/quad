@@ -9,7 +9,6 @@
   --well:rgba(10,8,44,.2);
   --dim:radial-gradient(130% 100% at 50% 38%,rgba(14,12,46,.36),rgba(6,5,26,.76));
   --gold:linear-gradient(#ffe391,#ffb52e);
-  --grain:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .08 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
   --display:"Lalezar","Tajawal",system-ui,sans-serif;
   --body:"Tajawal",system-ui,sans-serif;
   color-scheme:dark;
@@ -18,6 +17,7 @@ html,body{height:100%}
 body{background:var(--night);color:var(--ink);font-family:var(--body);overflow:hidden;overscroll-behavior:none;touch-action:none;-webkit-user-select:none;user-select:none}
 #wrap{position:fixed;inset:0}
 #c{display:block;width:100%;height:100%}
+#frost{position:absolute;inset:0;z-index:4;width:100%;height:100%;pointer-events:none}
 .pill{background:var(--panel);border:1px solid rgba(255,243,223,.12);border-radius:12px;padding:6px 12px}
 .bar{height:8px;border-radius:4px;background:rgba(255,255,255,.12);overflow:hidden}
 .bar i{display:block;height:100%;width:100%;transform-origin:0 50%}
@@ -39,19 +39,16 @@ kbd{display:inline-grid;place-items:center;min-width:24px;height:24px;box-sizing
 .brief{animation:hintFade var(--hint) linear both}
 @keyframes hintFade{85%{opacity:1}100%{opacity:0}}
 #overlay{position:absolute;inset:0;z-index:4;display:grid;place-items:center;background:var(--dim);padding:16px max(16px,env(safe-area-inset-right,0px)) 16px max(16px,env(safe-area-inset-left,0px))}
-/* Liquid glass over a dimmed scene: the card is brighter than what is behind it. Layers from the top: grain, a highlight
-   on the shoulder, a soft bounce in the far corner, the body of the glass, then the tint each screen sets. */
-.card{--tint:rgba(104,92,214,.2);box-sizing:border-box;max-width:400px;width:100%;margin-block:auto;padding:24px 22px 22px;text-align:center;position:relative;isolation:isolate;color:#fff;border-radius:32px;
-  background:var(--grain),radial-gradient(70% 46% at 18% 0,rgba(255,255,255,.36),transparent 72%),radial-gradient(60% 50% at 96% 100%,rgba(255,255,255,.14),transparent 70%),linear-gradient(160deg,rgba(255,255,255,.15),rgba(255,255,255,.04) 58%,rgba(255,255,255,.09)),var(--tint);
-  -webkit-backdrop-filter:blur(22px) saturate(190%);backdrop-filter:blur(22px) saturate(190%);
-  box-shadow:0 40px 80px -24px rgba(4,3,24,.75),0 12px 30px -12px rgba(4,3,24,.5),inset 0 18px 30px -18px rgba(255,255,255,.34),inset 0 -18px 30px -20px rgba(255,255,255,.12);
+/* Liquid glass over a frozen, frosted copy of the scene: the card is brighter than what is behind it. Layers from the top:
+   a highlight on the shoulder, a soft bounce in the far corner, the body of the glass, then the tint each screen sets.
+   Everything here is painted once: no live blur, mask or filter, and the opening moves only opacity and transform. */
+.card{--tint:rgba(104,92,214,.34);--lift:0 18px 34px -16px rgba(4,3,24,.8);--rim:inset 0 0 0 1.4px rgba(255,255,255,.28),inset 0 1.4px 0 rgba(255,255,255,.75);box-sizing:border-box;max-width:400px;width:100%;margin-block:auto;padding:24px 22px 22px;text-align:center;position:relative;isolation:isolate;color:#fff;border-radius:32px;
+  background:radial-gradient(70% 46% at 18% 0,rgba(255,255,255,.36),transparent 72%),radial-gradient(60% 50% at 96% 100%,rgba(255,255,255,.14),transparent 70%),linear-gradient(160deg,rgba(255,255,255,.15),rgba(255,255,255,.04) 58%,rgba(255,255,255,.09)),var(--tint);
+  box-shadow:var(--lift),var(--rim);
   text-shadow:0 1px 2px rgba(8,8,40,.35);animation:glassIn .5s cubic-bezier(.2,1.1,.3,1) both}
-/* the rim: bright where the light lands, almost gone on the sides */
-.card::before{content:"";position:absolute;inset:0;padding:1.4px;border-radius:inherit;background:linear-gradient(140deg,rgba(255,255,255,.95),rgba(255,255,255,.18) 30%,rgba(255,255,255,.06) 55%,rgba(255,255,255,.6));-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0);pointer-events:none}
-.card::after{content:"";position:absolute;inset:0;z-index:-1;border-radius:inherit;background:linear-gradient(105deg,transparent 42%,rgba(255,255,255,.2) 50%,transparent 58%) no-repeat 150% 0/300% 100%;animation:glassSweep 1.3s .2s ease-out both;pointer-events:none}
+.card::after{content:"";position:absolute;inset:0;z-index:-1;border-radius:inherit;background:linear-gradient(105deg,transparent 34%,rgba(255,255,255,.2) 50%,transparent 66%);opacity:0;animation:glassSweep .9s .15s ease-out;pointer-events:none}
 @keyframes glassIn{from{opacity:0;transform:translateY(22px) scale(.94)}}
-@keyframes glassSweep{to{background-position:-50% 0}}
-@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.card{background:var(--grain),linear-gradient(160deg,#4a4296,#2a2560)}}
+@keyframes glassSweep{35%{opacity:1}}
 .card h1{font-family:var(--display);font-weight:400;font-size:54px;line-height:1;margin:0;color:#fff;text-wrap:balance}
 .go{font-family:var(--display);font-size:23px;background:var(--gold);color:#3a2200;text-shadow:none;border:0;border-radius:40px;padding:10px 34px;cursor:pointer;position:relative;box-shadow:inset 0 1px 0 rgba(255,255,255,.75),inset 0 -2px 0 rgba(170,90,0,.28),0 14px 26px -10px rgba(255,170,40,.7)}
 .wide{flex:1;width:100%;min-height:52px;box-sizing:border-box}
@@ -266,10 +263,10 @@ kbd{display:inline-grid;place-items:center;min-width:24px;height:24px;box-sizing
 .stickRow{display:grid;grid-template-columns:44px 1fr;align-items:center;gap:8px;font-size:13px;font-weight:700}
 .stickRow .seg button{flex:1;min-height:34px;padding:0 4px;font-size:13px}
 /* Mission result: the stars or a seal stand on the top edge of the glass. */
-#resultCard .card{--tint:rgba(30,196,126,.32);max-width:340px;gap:6px;padding:20px 22px 22px;box-shadow:0 40px 90px -22px rgba(30,190,130,.5),0 12px 30px -12px rgba(4,3,24,.5),inset 0 18px 30px -18px rgba(255,255,255,.34),inset 0 -18px 30px -20px rgba(255,255,255,.12)}
-#resultCard.bad .card{--tint:rgba(240,58,48,.4);box-shadow:0 40px 90px -22px rgba(236,64,60,.5),0 12px 30px -12px rgba(4,3,24,.5),inset 0 18px 30px -18px rgba(255,255,255,.34),inset 0 -18px 30px -20px rgba(255,255,255,.12)}
+#resultCard .card{--tint:rgba(30,196,126,.42);--lift:0 18px 40px -14px rgba(30,190,130,.7);max-width:340px;gap:6px;padding:20px 22px 22px}
+#resultCard.bad .card{--tint:rgba(240,58,48,.5);--lift:0 18px 40px -14px rgba(236,64,60,.7)}
 #resultStars{position:relative;z-index:1;display:flex;justify-content:center;align-items:flex-end;height:92px;margin:-70px 0 4px;letter-spacing:0;font-size:0}
-#resultStars svg{width:70px;height:70px;margin-bottom:-4px;filter:drop-shadow(0 8px 10px rgba(90,50,0,.45));animation:starPop .6s cubic-bezier(.2,1.7,.4,1) calc(.25s + var(--n)*.16s) backwards}
+#resultStars svg{width:70px;height:70px;margin-bottom:-4px;animation:starPop .6s cubic-bezier(.2,1.7,.4,1) calc(.25s + var(--n)*.16s) backwards}
 #resultStars svg:nth-child(1){transform:rotate(-14deg)}
 #resultStars svg:nth-child(2){width:96px;height:96px;margin:0 -10px 8px}
 #resultStars svg:nth-child(3){transform:rotate(14deg)}

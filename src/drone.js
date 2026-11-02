@@ -184,14 +184,16 @@ export function drawShadow(st) {
 
 const DARK = '#1d1420', METAL = '#2b2233';
 
+// An outline holds still, so it takes the rotors at their full sweep.
+let plain = false;
+const sweep = phase => (plain ? 1 : Math.abs(Math.sin(phase)));
+
 function disc(g, x, y, r, phase, alpha = .55, tilt = 0) {
   g.fillStyle = `rgba(235,235,250,${alpha})`;
   g.beginPath();
-  g.ellipse(x, y, r * Math.abs(Math.sin(phase)) + 2, 2.3, tilt, 0, 7);
+  g.ellipse(x, y, r * sweep(phase) + 2, 2.3, tilt, 0, 7);
   g.fill();
 }
-
-let plain = false;
 
 function led(g, col, x, y, r) {
   if (!view.lowQ && !plain) glow(g, col, x, y, r);
@@ -202,7 +204,7 @@ const RED = '#ff3b3b', GREEN = '#4dff8a', WARM = 'rgba(255,240,200,.8)';
 // Each frame is drawn in its own units around (0,0); spin is the rotor phase.
 const AIRFRAMES = {
   courier(g, spin) {
-    const s = Math.abs(Math.sin(spin));
+    const s = sweep(spin), rest = plain ? 1 : 1 - s;
     // back rotors (depth)
     g.fillStyle = '#3a3046';
     g.fillRect(-20, -11, 4, 6);
@@ -210,7 +212,7 @@ const AIRFRAMES = {
     g.fillStyle = 'rgba(220,220,240,.35)';
     g.beginPath();
     g.ellipse(-18, -13, 13 * s + 2, 2, 0, 0, 7);
-    g.ellipse(24, -13, 13 * (1 - s) + 2, 2, 0, 0, 7);
+    g.ellipse(24, -13, 13 * rest + 2, 2, 0, 0, 7);
     g.fill();
     // arms
     g.fillStyle = METAL;
@@ -233,7 +235,7 @@ const AIRFRAMES = {
     g.fillRect(26, -9, 6, 7);
     g.fillStyle = 'rgba(240,240,255,.55)';
     g.beginPath();
-    g.ellipse(-29, -11, 15 * (1 - s) + 2, 2.4, 0, 0, 7);
+    g.ellipse(-29, -11, 15 * rest + 2, 2.4, 0, 0, 7);
     g.ellipse(29, -11, 15 * s + 2, 2.4, 0, 0, 7);
     g.fill();
     led(g, RED, -29, -8, 11);
@@ -397,7 +399,7 @@ const AIRFRAMES = {
     disc(g, 26, 1, 3, spin * .3, .3);
     g.fillStyle = 'rgba(240,240,255,.45)';
     g.beginPath();
-    g.ellipse(-29, 1, 1.6, 8 * Math.abs(Math.sin(spin)) + 2, 0, 0, 7);
+    g.ellipse(-29, 1, 1.6, 8 * sweep(spin) + 2, 0, 0, 7);
     g.fill();
     led(g, RED, -38, -2, 8);
     led(g, GREEN, 38, -2, 8);
@@ -586,13 +588,17 @@ export function drawAirframe(g, key, t, pose = FLAT) {
 
 export function drawDrone(st) {
   if (st.wreck) return;
-  const d = st.d, blink = (st.t * 2 % 1) < .15;
+  const d = st.d, blink = (st.t * 2 % 1) < .15, key = settings.plane, moving = currentModel().gear === 'retract';
   // retracting legs tuck up away from the ground; tilting rotors lean into the speed
   const fold = Math.max(0, Math.min(1, (roofAt(d.x, 20) - d.y - 40) / 60)), pose = { fold, lean: Math.max(-1, Math.min(1, d.vx / 300)) };
-  drawStandout(st, d.a, (g, soft) => {
-    plain = soft;
-    drawAirframe(g, settings.plane, st.t, pose);
+  // the rim of an aircraft that changes shape follows it in a few steps
+  const held = moving ? { fold: Math.round(fold * 2) / 2, lean: Math.round(pose.lean * 2) / 2 } : FLAT;
+  drawStandout(st, d.a, `${key}/${held.fold}/${held.lean}`, g => {
+    plain = true;
+    drawAirframe(g, key, 0, held);
     plain = false;
+  }, g => {
+    drawAirframe(g, key, st.t, pose);
     g.fillStyle = blink ? '#ff3b3b' : '#6b1d1d';
     g.fillRect(-33, -3, 3, 3);
     g.fillStyle = blink ? '#4dff8a' : '#1d5b33';

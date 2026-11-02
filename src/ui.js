@@ -1,5 +1,5 @@
 import { toggleMute } from './audio.js';
-import { AIRCRAFT, BADGE, BOOST, DEV, DUST, FX, G, HANGAR, HEALTH, JOY, KEY_HINT, LEVELS, MISSION, POINTER, QUALITY, SHAKE, SHOP, VIEW, WIND } from './config.js';
+import { AIRCRAFT, BADGE, BOOST, DEV, DUST, FROST, FX, G, HANGAR, HEALTH, JOY, KEY_HINT, LEVELS, MISSION, POINTER, QUALITY, SHAKE, SHOP, VIEW, WIND } from './config.js';
 import { applyControls } from './input.js';
 import { loadProgress, owns, saveSettings, settings } from './storage.js';
 
@@ -397,6 +397,21 @@ const MODALS = ['levels', 'levelCard', 'resultCard', 'pauseCard', 'shop', 'leagu
 export const modalOpen = () => sheetOpen() || MODALS.some(id => !$(id).hidden);
 // The level map is opaque, so nothing behind it needs drawing.
 export const levelsOpen = () => !$('levels').hidden;
+
+// One draw when a screen opens, where a live blur of the scene costs a phone every frame the screen is up.
+let frosted = false;
+export function frost(on) {
+  if (on === frosted) return;
+  frosted = on;
+  const f = $('frost');
+  f.hidden = !on;
+  if (!on) return;
+  f.width = Math.ceil(view.W / FROST.shrink);
+  f.height = Math.ceil(view.H / FROST.shrink);
+  const g = f.getContext('2d', { alpha: false });
+  g.imageSmoothingQuality = 'medium';
+  g.drawImage(cv, 0, 0, f.width, f.height);
+}
 
 /* ---------- levels ---------- */
 let levelList = [], acts = {}, picked = null, resultLevel = null;

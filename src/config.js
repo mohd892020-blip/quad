@@ -5,6 +5,8 @@ export const MAX_FRAME_DT = .05;
 export const HUD_INTERVAL = .1;
 
 export const VIEW = { refH: 600, refW: 560 };
+// A screen stands on a copy of the scene shrunk this many times; stretched back up, it reads as frosted glass.
+export const FROST = { shrink: 10 };
 export const PERSPECTIVE = { depth: .93, eyeY: .38 };
 // Step down a tier when frames average slower than slowFrame over a window, ignoring tab-switch gaps.
 // A phone remembers its tier, so the next launch starts where this one settled.
@@ -289,7 +291,8 @@ export const LEAGUE = {
 };
 
 // When a shop suggests another aircraft while it makes the order.
-export const HANGAR = { heavyFrom: 1.8, fragileFrom: 1.6, windyFrom: 1.6, rotate: 3, tipGap: 10, previewHeight: 68 };
+// previewEvery: seconds between pictures of the spinning aircraft in settings, which need not keep up with the screen.
+export const HANGAR = { heavyFrom: 1.8, fragileFrom: 1.6, windyFrom: 1.6, rotate: 3, tipGap: 10, previewHeight: 68, previewEvery: .05 };
 
 // A Double Run is one long trip with two orders tied together on the rope. The lower one comes off at the
 // nearer customer and the aircraft jumps, suddenly lighter. near and gap are how far out each customer is.

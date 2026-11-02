@@ -63,12 +63,10 @@ export function stepContrast(st, dt) {
   p.edge += ((p.want === c.light ? 1 : 0) - p.edge) * Math.min(1, dt * c.rate);
 }
 
-const sheet = document.createElement('canvas'), rim = document.createElement('canvas');
+const sheet = document.createElement('canvas'), mask = document.createElement('canvas');
 const RIM = [[1, 0], [-1, 0], [0, 1], [0, -1], [.7, .7], [-.7, .7], [.7, -.7], [-.7, -.7]];
-const edgeInk = e => {
-  const [a, b] = [CONTRAST.dark, CONTRAST.light].map(rgb);
-  return `rgb(${a.map((v, i) => Math.round(v + (b[i] - v) * e))})`;
-};
+const RIMS_KEPT = 48;
+const rims = new Map();
 
 function fit(c, side) {
   if (c.width !== side) c.width = c.height = side;
@@ -80,39 +78,59 @@ function fit(c, side) {
   return g;
 }
 
-// paint(g, plain) draws the aircraft around (0,0) in world units; plain leaves out the soft lights.
-export function drawStandout(st, a, paint) {
+// A rim is cut from the aircraft once for each ink and kept, so a frame only stamps one image.
+function rimOf(look, ink, side, lay) {
+  const key = `${look}|${ink}|${side}`;
+  let s = rims.get(key);
+  if (s) return s;
+  if (rims.size >= RIMS_KEPT) rims.clear();
+  const g = fit(mask, side), r = CONTRAST.rimPx * view.DPR;
+  lay(g);
+  g.globalCompositeOperation = 'source-in';
+  g.fillStyle = ink;
+  g.fillRect(0, 0, side, side);
+  s = document.createElement('canvas');
+  s.width = s.height = side;
+  const out = s.getContext('2d');
+  for (const [x, y] of RIM) out.drawImage(mask, x * r, y * r);
+  rims.set(key, s);
+  return s;
+}
+
+// flat(g) draws the aircraft's outline around (0,0) in world units, the same every time for one look; live(g) draws it now.
+export function drawStandout(st, a, look, flat, live) {
   const c = CONTRAST, p = st.standout, sx = X(st.d.x), sy = Y(st.d.y), S = view.S * c.scale, D = view.DPR;
   // the feet stay where the body touches down, however large the aircraft is drawn
-  const foot = (1 - 1 / c.scale) * DRONE.radius, side = Math.ceil(c.box * S * D), mid = side / 2, size = side / D, k = S * D, left = sx - size / 2, top = sy - size / 2;
-  const lay = (g, plain) => {
+  const foot = (1 - 1 / c.scale) * DRONE.radius, side = Math.ceil(c.box * S * D), mid = side / 2, size = side / D, k = S * D;
+  const lay = (g, tilt, paint) => {
     g.setTransform(k, 0, 0, k, mid, mid);
-    g.rotate(a);
+    g.rotate(tilt);
     g.translate(0, -foot);
-    paint(g, plain);
+    paint(g);
     g.setTransform(1, 0, 0, 1, 0, 0);
   };
-  const edge = fit(rim, side);
-  lay(edge, true);
-  edge.globalCompositeOperation = 'source-in';
-  edge.fillStyle = edgeInk(p.edge);
-  edge.fillRect(0, 0, side, side);
-  for (const [x, y] of view.lowQ ? RIM.slice(0, 4) : RIM) ctx.drawImage(rim, left + x * c.rimPx, top + y * c.rimPx, size, size);
+  ctx.save();
+  ctx.translate(sx, sy);
+  ctx.rotate(a);
+  for (const [ink, share] of [[c.dark, 1 - p.edge], [c.light, p.edge]]) {
+    if (share < c.rest) continue;
+    ctx.globalAlpha = share;
+    ctx.drawImage(rimOf(look, ink, side, g => lay(g, 0, flat)), -size / 2, -size / 2, size, size);
+  }
+  ctx.globalAlpha = 1;
   if (p.k < c.rest) {
-    ctx.save();
-    ctx.translate(sx, sy);
-    ctx.rotate(a);
     ctx.scale(S, S);
     ctx.translate(0, -foot);
-    paint(ctx, false);
+    live(ctx);
     ctx.restore();
     return;
   }
+  ctx.restore();
   const g = fit(sheet, side);
-  lay(g, false);
+  lay(g, a, live);
   g.globalCompositeOperation = 'source-atop';
   g.globalAlpha = (p.ink === c.light ? c.tintLight : c.tintDark) * p.k;
   g.fillStyle = p.ink;
   g.fillRect(0, 0, side, side);
-  ctx.drawImage(sheet, left, top, size, size);
+  ctx.drawImage(sheet, sx - size / 2, sy - size / 2, size, size);
 }
