@@ -179,7 +179,21 @@ export const ROPE_CTL = {
 // Hold is a critically damped spring on the spot where it was pressed.
 export const HOLD = { spring: 14, damp: 7.5, drain: .5 };
 
-export const JOY = { dead: .12, knobInset: 28 };
+// feel bends the stick: above 1 small moves stay gentle, below 1 they bite early. size scales all
+// touch controls, fade is how much of them shows. thumb starts the stick where the finger lands.
+export const JOY = {
+  dead: .12, knobGap: 5,
+  sizes: { small: .85, medium: 1, large: 1.2 },
+  feels: { soft: 1.7, normal: 1, sharp: .6 },
+  fades: { solid: 1, light: .65, faint: .4 },
+  options: [
+    { key: 'size', label: 'Size', values: [['small', 'Small'], ['medium', 'Medium'], ['large', 'Large']] },
+    { key: 'feel', label: 'Feel', values: [['soft', 'Soft'], ['normal', 'Normal'], ['sharp', 'Sharp']] },
+    { key: 'fade', label: 'Look', values: [['solid', 'Solid'], ['light', 'Light'], ['faint', 'Faint']] },
+    { key: 'origin', label: 'Stick', values: [['fixed', 'Fixed'], ['thumb', 'Follows thumb']] },
+    { key: 'hand', label: 'Lift', values: [['right', 'Right hand'], ['left', 'Left hand']] },
+  ],
+};
 
 export const HEADING = { minDist: 150, minSpeed: 60, fade: 6, chevrons: 3, gap: 14, offset: 44 };
 

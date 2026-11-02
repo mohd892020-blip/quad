@@ -207,18 +207,19 @@ body{background:var(--night);color:var(--ink);font-family:var(--body);overflow:h
 }
 #boost{position:relative;overflow:hidden}
 #boostFill{position:absolute;inset:0;background:rgba(122,208,255,.32);transform-origin:50% 100%;pointer-events:none}
-.btn{width:64px;height:64px;font-size:22px}
-#up{width:84px;height:84px;font-size:20px}
-#boost{width:58px;height:58px;font-size:13px}
-#joy{width:150px;height:60px}
-#knob{width:46px;height:46px;margin:-23px 0 0 -23px}
+:root{--stick:1}
+.btn{width:calc(64px*var(--stick));height:calc(64px*var(--stick));font-size:22px}
+#up{width:calc(84px*var(--stick));height:calc(84px*var(--stick));font-size:20px}
+#boost{width:calc(58px*var(--stick));height:calc(58px*var(--stick));font-size:13px}
+#joy{width:calc(150px*var(--stick));height:calc(60px*var(--stick));border-radius:calc(30px*var(--stick))}
+#knob{width:calc(46px*var(--stick));height:calc(46px*var(--stick));margin:calc(-23px*var(--stick)) 0 0 calc(-23px*var(--stick))}
 #actions{bottom:calc(104px + env(safe-area-inset-bottom,0px))}
 @media (max-height:480px){
-  .btn{width:56px;height:56px;font-size:18px}
-  #up{width:70px;height:70px;font-size:16px}
-  #boost{width:52px;height:52px;font-size:12px}
-  #joy{width:130px;height:54px}
-  #knob{width:42px;height:42px;margin:-21px 0 0 -21px}
+  .btn{width:calc(56px*var(--stick));height:calc(56px*var(--stick));font-size:18px}
+  #up{width:calc(70px*var(--stick));height:calc(70px*var(--stick));font-size:16px}
+  #boost{width:calc(52px*var(--stick));height:calc(52px*var(--stick));font-size:12px}
+  #joy{width:calc(130px*var(--stick));height:calc(54px*var(--stick));border-radius:calc(27px*var(--stick))}
+  #knob{width:calc(42px*var(--stick));height:calc(42px*var(--stick));margin:calc(-21px*var(--stick)) 0 0 calc(-21px*var(--stick))}
   #actions{bottom:calc(16px + env(safe-area-inset-bottom,0px));right:calc(140px + max(16px,env(safe-area-inset-right,0px)))}
 }
 #pauseStats{font-size:16px;color:#6a5040}
@@ -227,3 +228,10 @@ body{background:var(--night);color:var(--ink);font-family:var(--body);overflow:h
 #pauseKeys{display:none;font-size:12px;font-weight:700;color:#6a5040;line-height:1.4}
 .desk #pauseKeys{display:block}
 .ghost.off{opacity:.5;text-decoration:line-through}
+.lefty #controls,.lefty .grp{flex-direction:row-reverse}
+.lefty #actions{right:auto;left:max(16px,env(safe-area-inset-left,0px));align-items:flex-start}
+@media (max-height:480px){.lefty #actions{right:auto;left:calc(140px + max(16px,env(safe-area-inset-left,0px)))}}
+.desk #touchSection{display:none}
+#stickOptions{display:grid;gap:6px;margin-top:8px}
+.stickRow{display:grid;grid-template-columns:44px 1fr;align-items:center;gap:8px;font-size:13px;font-weight:700}
+.stickRow .seg button{flex:1;min-height:34px;padding:0 4px;font-size:13px}

@@ -16,9 +16,12 @@ const $ = id => document.getElementById(id);
 
 export function applyControls() {
   if (!coarse()) return;
-  const joy = settings.controls === 'joystick';
+  const joy = settings.controls === 'joystick', { size, fade, hand } = settings.stick, panel = $('controls').style;
   $('joy').hidden = !joy;
   $('arrows').hidden = joy;
+  panel.setProperty('--stick', JOY.sizes[size] ?? 1);
+  panel.opacity = JOY.fades[fade] ?? 1;
+  document.body.classList.toggle('lefty', hand === 'left');
 }
 
 function bindHeld(id, k) {
@@ -47,11 +50,12 @@ function releaseAll() {
 
 function bindJoystick() {
   const joy = $('joy'), knob = $('knob');
+  let origin = 0;
   const move = e => {
-    const r = joy.getBoundingClientRect(), reach = r.width / 2 - JOY.knobInset;
-    const v = Math.max(-1, Math.min(1, (e.clientX - (r.left + r.width / 2)) / reach));
-    keys.axis = Math.abs(v) < JOY.dead ? 0 : v;
-    knob.style.transform = `translateX(${v * reach}px)`;
+    const r = joy.getBoundingClientRect(), mid = r.left + r.width / 2, reach = r.width / 2 - knob.offsetWidth / 2 - JOY.knobGap;
+    const v = Math.max(-1, Math.min(1, (e.clientX - origin) / reach)), bend = JOY.feels[settings.stick.feel] ?? 1;
+    keys.axis = Math.abs(v) < JOY.dead ? 0 : Math.sign(v) * Math.abs(v) ** bend;
+    knob.style.transform = `translateX(${Math.max(-reach, Math.min(reach, origin - mid + v * reach))}px)`;
   };
   const end = e => {
     if (e.pointerId !== finger) return;
@@ -62,6 +66,8 @@ function bindJoystick() {
   joy.addEventListener('pointerdown', e => {
     e.preventDefault();
     finger = e.pointerId;
+    const r = joy.getBoundingClientRect();
+    origin = settings.stick.origin === 'thumb' ? e.clientX : r.left + r.width / 2;
     try { joy.setPointerCapture(finger); } catch (_) {}
     move(e);
   });

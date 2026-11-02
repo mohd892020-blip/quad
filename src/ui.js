@@ -1,5 +1,5 @@
 import { toggleMute } from './audio.js';
-import { AIRCRAFT, BADGE, DEV, DUST, FX, G, HANGAR, HEALTH, LEVELS, MISSION, POINTER, QUALITY, SHAKE, SHOP, VIEW, WIND } from './config.js';
+import { AIRCRAFT, BADGE, DEV, DUST, FX, G, HANGAR, HEALTH, JOY, LEVELS, MISSION, POINTER, QUALITY, SHAKE, SHOP, VIEW, WIND } from './config.js';
 import { applyControls } from './input.js';
 import { loadProgress, owns, saveSettings, settings } from './storage.js';
 
@@ -478,6 +478,35 @@ export const previewCanvas = () => $('preview');
 function markControls() {
   $('ctlJoy').setAttribute('aria-pressed', settings.controls === 'joystick');
   $('ctlArrows').setAttribute('aria-pressed', settings.controls === 'arrows');
+  for (const row of $('stickOptions').children) {
+    for (const b of row.lastChild.children) b.setAttribute('aria-pressed', settings.stick[row.dataset.key] === b.dataset.value);
+  }
+}
+
+// One row of choices for each touch setting in config.
+function buildStickOptions() {
+  for (const o of JOY.options) {
+    const row = document.createElement('div'), name = document.createElement('span'), seg = document.createElement('div');
+    row.dataset.key = o.key;
+    row.className = 'stickRow';
+    name.textContent = o.label;
+    seg.className = 'seg';
+    for (const [value, label] of o.values) {
+      const b = document.createElement('button');
+      b.textContent = label;
+      b.dataset.value = value;
+      b.addEventListener('click', () => {
+        settings.stick[o.key] = value;
+        saveSettings();
+        markControls();
+        applyControls();
+      });
+      seg.appendChild(b);
+    }
+    row.appendChild(name);
+    row.appendChild(seg);
+    $('stickOptions').appendChild(row);
+  }
 }
 
 // Read from the numbers, so a rebalanced model gets a true badge without touching this.
@@ -549,6 +578,7 @@ export function initSheet() {
     planes.appendChild(b);
   }
   markPlanes();
+  buildStickOptions();
   markControls();
   showDev();
   const openSheet = () => { $('sheet').hidden = false; };
