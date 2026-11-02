@@ -385,34 +385,38 @@ export function drawHalos(st) {
   if (!view.lowQ) glow(ctx, '#ffc23d', sx, Y(p.y - 6), (34 + pulse * 8) * S);
 }
 
-// The same ring as the delivery bar, filling while the shop makes the order.
+// The bar filling while the shop makes the order. Once loaded it holds full for a moment, clear of the order's clock.
 export function drawPrep(st) {
   const p = st.prep, c = PREP;
   if (!p && !st.ready) return;
-  const S = view.S, x = X(st.d.x), y = Y(st.d.y);
-  ctx.lineWidth = c.width * S;
-  if (!p) {
-    const left = st.ready / c.flash;
-    ctx.globalAlpha = c.alpha * left;
-    ctx.strokeStyle = c.stages[c.stages.length - 1][1];
-    ctx.beginPath();
-    ctx.arc(x, y, (c.radius + (1 - left) * c.flashGrow) * S, 0, 7);
-    ctx.stroke();
-    ctx.globalAlpha = 1;
-    return;
-  }
-  const done = 1 - p.left / p.item.prep;
-  ctx.globalAlpha = c.track;
-  ctx.strokeStyle = '#fff';
+  const w = Math.max(c.minW, c.w * view.S), h = c.h, x = Math.max(c.edge, Math.min(view.W - w - c.edge, X(st.d.x) - w / 2));
+  const y = Math.max(view.top + c.text + c.textGap + c.pad, Y(st.d.y) - c.lift * view.S - c.gap - h - (st.has ? ORDER_TIME.h : 0));
+  const done = p ? 1 - p.left / p.item.prep : 1, r = h / 2 + c.pad, fill = ctx.createLinearGradient(x, 0, x + w, 0);
+  for (const [at, col] of c.stages) fill.addColorStop(at, col);
+  ctx.save();
+  ctx.globalAlpha = p ? 1 : st.ready / c.flash;
+  ctx.fillStyle = c.fill;
   ctx.beginPath();
-  ctx.arc(x, y, c.radius * S, 0, 7);
-  ctx.stroke();
-  ctx.globalAlpha = c.alpha;
-  ctx.strokeStyle = c.stages.filter(([from]) => done >= from).pop()[1];
+  ctx.roundRect(x - c.pad, y - c.pad, w + c.pad * 2, h + c.pad * 2, r);
+  ctx.fill();
+  ctx.fillStyle = fill;
   ctx.beginPath();
-  ctx.arc(x, y, c.radius * S, -Math.PI / 2, -Math.PI / 2 + done * Math.PI * 2);
+  ctx.roundRect(x, y, Math.max(h, w * done), h, h / 2);
+  ctx.fill();
+  ctx.lineWidth = c.lineW;
+  ctx.strokeStyle = c.line;
+  ctx.beginPath();
+  ctx.roundRect(x - c.pad, y - c.pad, w + c.pad * 2, h + c.pad * 2, r);
   ctx.stroke();
-  ctx.globalAlpha = 1;
+  const text = p ? `${p.item.label} ${Math.ceil(p.left)}s` : 'Ready';
+  ctx.font = `800 ${c.text}px Tajawal,sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = c.fill;
+  ctx.strokeText(text, x + w / 2, y - c.pad - c.textGap);
+  ctx.fillStyle = c.line;
+  ctx.fillText(text, x + w / 2, y - c.pad - c.textGap);
+  ctx.restore();
 }
 
 export function drawTarget(st) {

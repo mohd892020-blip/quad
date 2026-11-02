@@ -311,11 +311,11 @@ export const TRAINING = { prep: 2, climb: 90, ringX: 420, ringY: 150, ringReach:
 // The arrow circles the drone, so it can never slip under the controls or the HUD.
 export const POINTER = { orbit: 62, size: 11, bob: 3, alpha: .7, line: 3, textSize: 12, safeMargin: 44, bottomGap: 60 };
 
-// The ring over the drone while the shop works: its colour says how far along the order is,
-// and a last soft ring spreads out when it is ready.
+// The bar over the aircraft while the shop works, wider than any aircraft: red to gold to green along its length, so
+// the colour reached says how far along the order is. flash is how long it holds full, saying Ready, before it fades.
 export const PREP = {
-  radius: 30, width: 4, alpha: .5, track: .12, flash: .45, flashGrow: 18,
-  stages: [[0, '#e8492c'], [.5, '#ffc23d'], [.85, '#4fc27c']],
+  w: 210, minW: 170, h: 16, pad: 3, lift: 42, gap: 12, edge: 8, text: 14, textGap: 7, flash: .9, fill: 'rgba(20,15,40,.86)', line: '#fff3df', lineW: 2,
+  stages: [[0, '#e8492c'], [.5, '#ffc23d'], [1, '#4fc27c']],
 };
 
 // Warnings count seconds of full lift left, so a small battery warns earlier than a big one.

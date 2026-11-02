@@ -577,7 +577,9 @@ export function markPlanes() {
 
 // A pulsing dot on settings, plus the shop's suggestion while the order is made.
 let tipText = null;
-export function showHangarTip(text) {
+export function showHangarTip(hint) {
+  // a toast takes the same spot, and says the more pressing thing
+  const text = $('toast').hidden ? hint : null;
   if (text === tipText) return;
   tipText = text;
   const tip = $('hangarTip');
