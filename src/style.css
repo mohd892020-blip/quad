@@ -284,6 +284,7 @@ body:not(.dev) .devOnly{display:none!important}
 .seal .ico{width:40px;height:40px;stroke-width:3.2}
 #resultCard h2{font-size:clamp(30px,9.4vw,38px);letter-spacing:.015em;text-wrap:balance}
 #resultWhy{font-size:16px;color:#fff}
+#resultCard.bad #resultWhy{letter-spacing:.05em}
 #resultWhy:empty{display:none}
 #resultCard:not(.bad) #resultWhy{font-family:var(--display);font-weight:400;font-size:30px;line-height:1.1;color:#ffdb7a}
 #resultCard .row{flex-wrap:nowrap;margin-top:12px}

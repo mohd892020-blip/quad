@@ -101,12 +101,12 @@ function cheer(st, { x, y }) {
 
 // charged: the player wrecked the goods, so they pay the shop for them.
 export function failMission(st, why, charged = false) {
-  const training = st.level.training, cost = charged && st.item && !training ? Math.min(st.money, st.item.price) : 0;
+  const training = st.level.training, cost = charged && st.item && !training ? Math.min(st.money, st.item.price) : 0, reason = why.toUpperCase();
   st.money -= cost;
   endMission(st);
   if (cost) saveProgress(st.del, st.money);
-  if (training) showToast('Try again', why, false);
-  else finish(st, { passed: false, why, cost });
+  if (training) showToast('Try again', reason, false);
+  else finish(st, { passed: false, why: reason, cost });
   hud(st);
 }
 
