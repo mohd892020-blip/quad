@@ -11,8 +11,8 @@ export function touchesSea(st) {
   return (seaAt(d.x) && d.y + DRONE.radius >= surface) || (st.has && seaAt(box.x) && box.y + BOX.padY * st.item.size >= surface);
 }
 
-function kiosk(spot, idx) {
-  const c = BEACH, w = CITY.restaurant.w, b = {
+export function kiosk(spot, idx, c = BEACH) {
+  const w = CITY.restaurant.w, b = {
     x: spot.x, w, h: c.kioskH, top: GROUND - c.kioskH, zone: zoneAt(spot.x), col: c.kioskColor, idx, bal: [], tank: null, dish: null, lit: [], cols: 0, rows: 0, shop: spot.shop,
   };
   return b;
@@ -115,7 +115,7 @@ function drawBoat(b, st, time) {
   ctx.fill();
 }
 
-function drawPalm(x, st, time) {
+export function drawPalm(x, st, time) {
   const c = BEACH, S = view.S, top = GROUND - c.palmH, sway = Math.sin(st.t * 1.2 + x) * 3;
   ctx.strokeStyle = lit('#8f6a44', time);
   ctx.lineWidth = 6 * S;

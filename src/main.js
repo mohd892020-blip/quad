@@ -12,6 +12,7 @@ import { beginTraining, drawLesson, stepTraining, trainingLevel } from './traini
 import { initInput, keys } from './input.js';
 import { drawRope, stepRope, stepRopeLength } from './rope.js';
 import { initShop } from './shop.js';
+import { drawSandstorm, touchesSink } from './desert.js';
 import { touchesSea } from './seaside.js';
 import { loadProgress, settings } from './storage.js';
 import {
@@ -50,10 +51,11 @@ function step(dt) {
   stepMission(st, dt);
   if (stepAction(st, dt) && st.has) failMission(st, 'The rival got there first');
   stepShop(st, grounded, dt);
-  if (!st.outcome && !st.done && touchesSea(st)) {
+  const lost = st.outcome || st.done ? null : touchesSea(st) ? 'Lost at sea' : touchesSink(st) ? 'Lost in quicksand' : null;
+  if (lost) {
     kickDust(st, st.d.x, GROUND, BEACH.splash);
     sfx('box');
-    failMission(st, 'Lost at sea', st.has);
+    failMission(st, lost, st.has);
   }
   if (st.lesson) stepTraining(st, zone, dt);
   stepHeading(st, dt);
@@ -105,6 +107,7 @@ function render() {
   drawHawks(s);
   drawHeading(s);
   drawFx(s);
+  drawSandstorm(s);
   ctx.restore();
   drawPointer(s);
   drawBatteryCue(s);

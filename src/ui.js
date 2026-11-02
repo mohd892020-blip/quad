@@ -282,7 +282,7 @@ export function drawFx(st) {
 }
 
 /* ---------- HUD ---------- */
-const PLACES = { street: 'Street', roof: 'Rooftop', boat: 'Boat', pier: 'Pier', tower: 'Lifeguard tower', sand: 'Beach' };
+const PLACES = { street: 'Street', roof: 'Rooftop', boat: 'Boat', pier: 'Pier', tower: 'Lifeguard tower', sand: 'Beach', rock: 'Rock top', camp: 'Camp', oasis: 'Oasis' };
 const placeName = t => (t.kind === 'bal' ? `Balcony, floor ${t.fl}` : PLACES[t.kind]);
 
 // The HUD ticks ten times a second and most of it has not moved, so only changes reach the page.
@@ -426,7 +426,8 @@ function openLevelCard(n) {
   const rows = [
     ...jobs, ['If ruined', route ? `up to -$${Math.max(...legs.map(s => s.item.price))}` : `-$${item.price}`],
     ['Wind', `up to ${l.wind}`], ['Hawks', l.hawks ? `${l.hawks}${route ? ' per stop' : ''}` : 'None'],
-    ['Rival', l.rival ? `Yes${route ? ', last stop' : ''}, speed ${l.rivalSpeed}` : 'None'], [l.beach ? 'Boats' : 'Cars', `${l.street ? 'On your street' : 'Yes'}, speed ${l.carSpeed}`],
+    ['Rival', l.rival ? `Yes${route ? ', last stop' : ''}, speed ${l.rivalSpeed}` : 'None'], [l.beach ? 'Boats' : l.desert ? 'Buggies' : 'Cars', `${l.street ? (l.desert ? 'Crossing your drop' : 'On your street') : 'Yes'}, speed ${l.carSpeed}`],
+    ...(l.beach ? [['Danger', 'Open sea']] : l.desert ? [['Danger', 'Quicksand, sandstorms']] : []),
   ];
   $('levelRows').innerHTML = rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');
   const locked = n > open;

@@ -15,9 +15,9 @@ export const CELL = { size: 256, base: -2400, margin: 48 };
 
 export const G = 700;
 export const GROUND = 560;
-export const GROUND_BOX = { x: -2000, w: 22500, h: 200 };
+export const GROUND_BOX = { x: -2000, w: 29000, h: 200 };
 // The drone stops at these, well inside the ground, so it can never fly off the end of the world.
-export const EDGE = { left: -1000, right: 20000 };
+export const EDGE = { left: -1000, right: 26500 };
 export const CITY_SEED = 7;
 
 // A job: its clock, when harder customers appear, and the pad that starts it.
@@ -65,6 +65,7 @@ export const ZONES = [
     tankChance: .35, dishChance: .3, craneChance: .22, towerChance: .3, lineChance: .25, powerChance: .8, lineMinH: 170, winW: 22, winH: 30,
   },
   { name: 'Seaside', from: 14300, style: 'beach', map: '#3fb0c8', stones: ['#c99a5e'], winW: 12, winH: 16 },
+  { name: 'Desert', from: 20000, style: 'desert', map: '#d9a441', stones: ['#c9a06a'], winW: 12, winH: 16 },
 ];
 
 // The open coast past the city. Sea spans are water to fall into; sand and the island are safe.
@@ -90,6 +91,28 @@ export const BEACH = {
   deckH: 26, plankH: 8, towerH: 120, towerW: 70, legW: 6, flagH: 34, pierEnd: 40, pileGap: 70, pileDrop: 18,
   mastAt: .62, mastH: 66, mastW: 4, boatSpot: .24, targetLift: 11, bob: 2, bobRate: 1.6,
   palmH: 120, umbrellaH: 44, waveStep: 12, waveLength: 26, waveRate: 2.2, waveHeight: 2.5,
+};
+
+// The desert past the coast. Quicksand swallows what touches it, gusts raise a sandstorm that cuts the view,
+// and buggies and camels cross it. Levels from first on, whose number leaves remainder at, are flown here.
+export const DESERT = {
+  from: 20000, to: 26300, first: 8, every: 5, at: 3, minDist: 1600, windBoost: 1.4, trafficGap: 1.7, targetLift: 11, kioskH: 110, kioskColor: '#c9a06a', seen: 260,
+  kiosks: [
+    { x: 20320, shop: { name: 'Oasis Cafe', items: ['coffee', 'kunafa'], glow: '#4fa3c2' } },
+    { x: 23040, shop: { name: 'Caravan Grill', items: ['falafel', 'pizza'], glow: '#ff5a3c' } },
+    { x: 25760, shop: { name: 'Field Clinic', items: ['medicine', 'watermelon'], glow: '#4fc27c' } },
+  ],
+  mesas: [{ x: 21050, w: 280, h: 190 }, { x: 22280, w: 220, h: 260 }, { x: 23960, w: 320, h: 170 }, { x: 25240, w: 230, h: 230 }],
+  arches: [{ x: 21600, w: 230, h: 150 }, { x: 24600, w: 210, h: 130 }],
+  sinks: [[21950, 22150], [23560, 23800], [24950, 25130]],
+  cacti: [20720, 21430, 22590, 23420, 24480, 25560, 26180],
+  camps: [20880, 24420, 26120],
+  oases: [22720, 25640],
+  rockColor: '#b5643c', rockCap: '#d98a55', archLeg: 46, archTop: 36,
+  cactusW: 24, cactusH: 62, tentW: 92, tentH: 58, tentAt: -84, poolAt: 56, poolW: 120, signGap: 26, signH: 34,
+  sinkShade: .62, sinkLine: .44, sinkRings: 3, sinkRate: .28, pitH: 10, pitY: 3, deckY: 7, deckH: 8, plank: 14, rippleShade: .9, rippleLong: 46, ripples: [14, 30],
+  duneStep: 26, duneRise: 500, duneLong: 190, duneShort: 73, farDrift: .35, farH: 160, farSwell: 38, nearDrift: .6, nearH: 96, nearSwell: 30,
+  stormFrom: .45, stormHaze: .42, stormLine: .5, stormGrains: 34, stormColor: '226,176,104',
 };
 
 export const DRONE = {
@@ -118,7 +141,7 @@ export const DRONE = {
 export const HEALTH = {
   hitSpeed: 150,
   perSpeed: .13,
-  materials: { wall: 1, ground: .9, steel: 1.25, balcony: .8, tank: .7, dish: .5, wood: .75 },
+  materials: { wall: 1, ground: .9, steel: 1.25, balcony: .8, tank: .7, dish: .5, wood: .75, rock: 1, cactus: .6 },
   hawkHit: 4,
   smokeAt: 60,
   fireAt: 30,
@@ -308,8 +331,11 @@ export const RIVAL = {
 // lane is how far in front of the buildings the wheels roll; the body rises up to the street level.
 export const CARS = {
   spacing: 1000, spacingRange: 300, speedMin: 150, speedPerLevel: 2, speedMax: 230, boatSpeed: .85,
-  shapes: { car: { length: 62, height: 28 }, van: { length: 70, height: 32 }, bike: { length: 36, height: 24 }, boat: { length: 66, height: 16 } },
-  lane: 8, brake: 500, shake: 8, dust: 220, flashRate: 7,
+  shapes: {
+    car: { length: 62, height: 28 }, van: { length: 70, height: 32 }, bike: { length: 36, height: 24 }, boat: { length: 66, height: 16 },
+    buggy: { length: 56, height: 28 }, camel: { length: 58, height: 42, lane: 15 },
+  },
+  lane: 8, buggySpeed: .9, camelSpeed: .3, brake: 500, shake: 8, dust: 220, flashRate: 7,
   paint: ['#d9483b', '#3f6fb0', '#f2efe6', '#3a8f6b', '#e0a52c'], bikeEvery: 3, vanEvery: 5, taxiEvery: 7,
 };
 
@@ -358,17 +384,17 @@ export const CLOCK = { hold: 120, fade: 20, steps: 16, startAt: 2 };
 export const TIMES = [
   {
     name: 'Sunset', sky: [[0, '#140f2a'], [.45, '#3b2452'], [.8, '#b4505a'], [1, '#f0a259']],
-    stars: .7, disc: '#fff1d0', discShade: '#3b2452', discCut: 1, far1: '#3d2849', far2: '#2c1d40', sea: '#7a4a6e', sand: '#b98a6a',
+    stars: .7, disc: '#fff1d0', discShade: '#3b2452', discCut: 1, far1: '#3d2849', far2: '#2c1d40', sea: '#7a4a6e', sand: '#b98a6a', dune: '#c08a5e', duneNear: '#a56c58', duneFar: '#8a585e',
     ground: '#2a1d2c', walk: '#3a2c33', light: 1, lit: ['#4a3a52', '#f2a65a', '#ffd27a'], extraLit: 0, windowGlow: 0, signGlow: .5,
   },
   {
     name: 'Night', sky: [[0, '#05060f'], [.45, '#0b0f28'], [.8, '#171d40'], [1, '#232a52']],
-    stars: 1, disc: '#e8ecff', discShade: '#0a0e26', discCut: 1, far1: '#141a38', far2: '#0e1228', sea: '#141c3e', sand: '#45424f',
+    stars: 1, disc: '#e8ecff', discShade: '#0a0e26', discCut: 1, far1: '#141a38', far2: '#0e1228', sea: '#141c3e', sand: '#45424f', dune: '#4a4552', duneNear: '#2f2e4a', duneFar: '#20233f',
     ground: '#10131f', walk: '#1a1c2a', light: .48, lit: ['#1f2233', '#e8a24f', '#ffd884'], extraLit: .22, windowGlow: 1, signGlow: .75,
   },
   {
     name: 'Day', sky: [[0, '#3f8fd6'], [.45, '#7db8e8'], [.8, '#b9dcef'], [1, '#eaf4f2']],
-    stars: 0, disc: '#fff3c4', discShade: '#7db8e8', discCut: 0, far1: '#9db8cc', far2: '#b7cddd', sea: '#3f9fc8', sand: '#e8d6a8',
+    stars: 0, disc: '#fff3c4', discShade: '#7db8e8', discCut: 0, far1: '#9db8cc', far2: '#b7cddd', sea: '#3f9fc8', sand: '#e8d6a8', dune: '#e9c98c', duneNear: '#ddb274', duneFar: '#e6c693',
     ground: '#6f6a62', walk: '#8c867b', light: 1.08, lit: ['#5f7f95', '#7c9bb0', '#a8c4d6'], extraLit: 0, windowGlow: 0, signGlow: .2,
   },
 ];

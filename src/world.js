@@ -1,4 +1,5 @@
-import { BEACH, BIRDS, CAMERA, CELL, CITY, CLOCK, GROUND, GROUND_BOX, ORDERS, PEOPLE, PERSPECTIVE, SHOPS, SPRITE, TIMES, WIND, ZONES } from './config.js';
+import { BEACH, BIRDS, CAMERA, CELL, CITY, CLOCK, DESERT, GROUND, GROUND_BOX, ORDERS, PEOPLE, PERSPECTIVE, SHOPS, SPRITE, TIMES, WIND, ZONES } from './config.js';
+import { buildDesert, drawDesert, drawDunes } from './desert.js';
 import { buildSeaside, drawSeaBehind, drawShore } from './seaside.js';
 import { ctx, glow, shade, view, X, Y } from './ui.js';
 
@@ -6,7 +7,7 @@ const CLOTHES = ['#e8492c', '#f2efe6', '#4fa3c2', '#ffc23d', '#7cc28f', '#d97aa8
 const SHIRTS = ['#e8492c', '#4fa3c2', '#ffc23d', '#7cc28f', '#d97aa8', '#f2efe6', '#5a6b8c'];
 
 export const world = {
-  B: [], solids: [], cells: [], edge: [], lines: [], targets: [], shops: [], rigs: [], kiosks: [], seaTargets: [],
+  B: [], solids: [], cells: [], edge: [], lines: [], targets: [], shops: [], rigs: [], kiosks: [], seaTargets: [], camps: [], sandTargets: [], pads: [],
   far1: [], far2: [], people: [], flocks: [], span: 1, clock: 0, pal: null, palKey: -1, live: new Set(),
 };
 
@@ -35,10 +36,10 @@ export function shopPad(b) {
   return { x: b.x + CITY.padInset, y: b.top };
 }
 
-// Any pad charges, in the city or on the coast.
+// Any pad charges, in the city, on the coast or in the desert.
 export function nearestShop(x) {
-  let best = world.shops[0];
-  for (const b of [...world.shops, ...world.kiosks]) if (Math.abs(b.x + b.w / 2 - x) < Math.abs(best.x + best.w / 2 - x)) best = b;
+  let best = world.pads[0];
+  for (const b of world.pads) if (Math.abs(b.x + b.w / 2 - x) < Math.abs(best.x + best.w / 2 - x)) best = b;
   return best;
 }
 
@@ -212,10 +213,16 @@ export function genWorld(seed) {
   const coast = buildSeaside(B.length);
   B.push(...coast.kiosks);
   solids.push(...coast.solids);
+  const sand = buildDesert(B.length);
+  B.push(...sand.kiosks, ...sand.rocks);
+  solids.push(...sand.solids);
 
   dropSprites();
   indexColliders(solids);
-  Object.assign(world, { B, solids, lines, targets: reachable, shops, rigs, far1, far2, people, flocks, span, kiosks: coast.kiosks, seaTargets: coast.targets });
+  Object.assign(world, {
+    B, solids, lines, targets: reachable, shops, rigs, far1, far2, people, flocks, span, kiosks: coast.kiosks, seaTargets: coast.targets,
+    camps: sand.kiosks, sandTargets: sand.targets, pads: [...shops, ...coast.kiosks, ...sand.kiosks],
+  });
 }
 
 export function dropSprites() {
@@ -236,6 +243,7 @@ function blendTimes(a, b, t) {
     lit: a.lit.map((c, i) => mixHex(c, b.lit[i], t)),
     stars: num('stars'), discCut: num('discCut'), light: num('light'), extraLit: num('extraLit'), windowGlow: num('windowGlow'), signGlow: num('signGlow'),
     disc: col('disc'), discShade: col('discShade'), far1: col('far1'), far2: col('far2'), ground: col('ground'), walk: col('walk'), sea: col('sea'), sand: col('sand'),
+    dune: col('dune'), duneNear: col('duneNear'), duneFar: col('duneFar'),
   };
 }
 
@@ -340,7 +348,7 @@ function paintBuilding(g, b) {
   g.fillRect(L, T, b.w, Bt - T);
   g.fillStyle = shade(b.col, .85 * time.light);
   g.fillRect(L, T, b.w, 5);
-  if (style !== 'tower') {
+  if (style !== 'tower' && !b.rock) {
     for (let y = T + c.floorH; y < GROUND; y += c.floorH) {
       g.fillStyle = 'rgba(0,0,0,.06)';
       g.fillRect(L, y, b.w, 1.5);
@@ -377,6 +385,19 @@ function paintBuilding(g, b) {
     g.fill();
     g.fillStyle = 'rgba(0,0,0,.14)';
     for (let y = T + 6; y < T + 20; y += 6) g.fillRect(L - 4, y, b.w + 8, 1.5);
+  }
+  if (b.rock) {
+    // worn bands of rock, and a paler cap where the sun lands
+    g.fillStyle = shade(DESERT.rockCap, time.light);
+    g.fillRect(L, T, b.w, 7);
+    g.fillStyle = 'rgba(60,25,10,.14)';
+    for (let y = T + 26, i = 1; y < GROUND; y += 20 + hash(b.idx + i) * 28, i++) g.fillRect(L, y, b.w, 3 + hash(b.idx * 3 + i) * 6);
+  } else if (style === 'desert') {
+    // a striped cloth shade over the stall's door
+    for (let x = L + 12, i = 0, y = GROUND - 64; x < L + b.w - 12; x += 16, i++) {
+      g.fillStyle = shade(i % 2 ? '#f2efe6' : '#b4553a', time.light);
+      g.fillRect(x, y, Math.min(16, L + b.w - 12 - x), 12);
+    }
   }
   if (style === 'souk' && !b.shop) {
     // striped market awning over the street
@@ -695,7 +716,7 @@ function drawBirds(st) {
 // The strip map: zones as bands, then shops, the customer, and the player on top.
 export function drawMap(st) {
   const c = document.getElementById('map'), w = view.mapW, h = view.mapH;
-  const k = view.DPR, left = CITY.leftBuilding.x, span = BEACH.to - left;
+  const k = view.DPR, left = CITY.leftBuilding.x, span = DESERT.to - left;
   if (c.width !== Math.round(w * k)) {
     c.width = Math.round(w * k);
     c.height = Math.round(h * k);
@@ -739,6 +760,7 @@ export function drawCity(st) {
   if (!view.lowQ) drawFar(st, world.far1, .5, time.far1, 10, 1);
   ctx.restore();
   drawSeaBehind();
+  drawDunes();
   ctx.fillStyle = time.ground;
   ctx.fillRect(0, Y(GROUND), W, H);
   drawBuildings();
@@ -746,6 +768,7 @@ export function drawCity(st) {
   ctx.fillStyle = time.walk;
   ctx.fillRect(0, Y(GROUND + PEOPLE.sidewalk), W, H);
   drawShore(st);
+  drawDesert(st);
   drawLines(st);
   drawPeople(st);
   drawBirds(st);
