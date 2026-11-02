@@ -1,11 +1,11 @@
-import { AIRCRAFT, BEACH, CONTRAST, DESERT, GROUND } from './config.js';
+import { AIRCRAFT, BEACH, CONTRAST, DESERT, DRONE, GROUND } from './config.js';
 import { seaAt } from './seaside.js';
 import { settings } from './storage.js';
 import { ctx, view, X, Y } from './ui.js';
 import { world } from './world.js';
 
-// An aircraft painted close to what is behind it would vanish, so a few times a second this reads what
-// stands behind it from the scene itself, and shifts the aircraft lighter or darker and gives it a thin rim.
+// An aircraft is small and the scene is busy, so it always wears a rim. A few times a second this reads what
+// stands behind it from the scene itself and picks the rim's ink; a paint close to the backdrop shifts a little too.
 const rgb = hex => [hex.slice(1, 3), hex.slice(3, 5), hex.slice(5, 7)].map(v => parseInt(v, 16));
 const lin = v => {
   const c = v / 255;
@@ -45,7 +45,8 @@ export function shiftFor(paint, back) {
   return { gap, share: Math.max(0, Math.min(1, (c.near - gap) / (c.near - c.far))), ink: b[0] > c.midLight ? c.dark : c.light };
 }
 
-export const standout = () => ({ k: 0, aim: 0, ink: CONTRAST.dark, want: CONTRAST.dark, wait: 0 });
+// edge runs from dark ink at 0 to light ink at 1, so the rim fades across instead of flipping.
+export const standout = () => ({ k: 0, aim: 0, ink: CONTRAST.dark, want: CONTRAST.dark, wait: 0, edge: 0 });
 
 export function stepContrast(st, dt) {
   const c = CONTRAST, p = st.standout, m = AIRCRAFT.find(a => a.key === settings.plane) || AIRCRAFT[0];
@@ -59,9 +60,15 @@ export function stepContrast(st, dt) {
   // a new ink waits for the old shift to fade, so the colour never jumps
   p.k += ((p.want === p.ink ? p.aim : 0) - p.k) * Math.min(1, dt * c.rate);
   if (p.k < c.rest) p.ink = p.want;
+  p.edge += ((p.want === c.light ? 1 : 0) - p.edge) * Math.min(1, dt * c.rate);
 }
 
 const sheet = document.createElement('canvas'), rim = document.createElement('canvas');
+const RIM = [[1, 0], [-1, 0], [0, 1], [0, -1], [.7, .7], [-.7, .7], [.7, -.7], [-.7, -.7]];
+const edgeInk = e => {
+  const [a, b] = [CONTRAST.dark, CONTRAST.light].map(rgb);
+  return `rgb(${a.map((v, i) => Math.round(v + (b[i] - v) * e))})`;
+};
 
 function fit(c, side) {
   if (c.width !== side) c.width = c.height = side;
@@ -75,32 +82,31 @@ function fit(c, side) {
 
 // paint(g, plain) draws the aircraft around (0,0) in world units; plain leaves out the soft lights.
 export function drawStandout(st, a, paint) {
-  const c = CONTRAST, p = st.standout, sx = X(st.d.x), sy = Y(st.d.y), S = view.S, D = view.DPR;
+  const c = CONTRAST, p = st.standout, sx = X(st.d.x), sy = Y(st.d.y), S = view.S * c.scale, D = view.DPR;
+  // the feet stay where the body touches down, however large the aircraft is drawn
+  const foot = (1 - 1 / c.scale) * DRONE.radius, side = Math.ceil(c.box * S * D), mid = side / 2, size = side / D, k = S * D, left = sx - size / 2, top = sy - size / 2;
+  const lay = (g, plain) => {
+    g.setTransform(k, 0, 0, k, mid, mid);
+    g.rotate(a);
+    g.translate(0, -foot);
+    paint(g, plain);
+    g.setTransform(1, 0, 0, 1, 0, 0);
+  };
+  const edge = fit(rim, side);
+  lay(edge, true);
+  edge.globalCompositeOperation = 'source-in';
+  edge.fillStyle = edgeInk(p.edge);
+  edge.fillRect(0, 0, side, side);
+  for (const [x, y] of view.lowQ ? RIM.slice(0, 4) : RIM) ctx.drawImage(rim, left + x * c.rimPx, top + y * c.rimPx, size, size);
   if (p.k < c.rest) {
     ctx.save();
     ctx.translate(sx, sy);
     ctx.rotate(a);
     ctx.scale(S, S);
+    ctx.translate(0, -foot);
     paint(ctx, false);
     ctx.restore();
     return;
-  }
-  const side = Math.ceil(c.box * S * D), mid = side / 2, size = side / D, k = S * D;
-  const lay = (g, plain) => {
-    g.setTransform(k, 0, 0, k, mid, mid);
-    g.rotate(a);
-    paint(g, plain);
-    g.setTransform(1, 0, 0, 1, 0, 0);
-  };
-  if (!view.lowQ) {
-    const g = fit(rim, side), r = c.rimPx * D;
-    lay(g, true);
-    g.globalCompositeOperation = 'source-in';
-    g.fillStyle = p.ink;
-    g.fillRect(0, 0, side, side);
-    ctx.globalAlpha = c.rim * p.k;
-    for (const [x, y] of [[-r, 0], [r, 0], [0, -r], [0, r]]) ctx.drawImage(rim, sx - size / 2 + x / D, sy - size / 2 + y / D, size, size);
-    ctx.globalAlpha = 1;
   }
   const g = fit(sheet, side);
   lay(g, false);
@@ -108,5 +114,5 @@ export function drawStandout(st, a, paint) {
   g.globalAlpha = (p.ink === c.light ? c.tintLight : c.tintDark) * p.k;
   g.fillStyle = p.ink;
   g.fillRect(0, 0, side, side);
-  ctx.drawImage(sheet, sx - size / 2, sy - size / 2, size, size);
+  ctx.drawImage(sheet, left, top, size, size);
 }

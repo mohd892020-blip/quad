@@ -1,5 +1,5 @@
 import { sfx } from './audio.js';
-import { BEACH, BOX, CARS, DESERT, DRONE, EDGE, GROUND, HAWKS, HEALTH, RIVAL } from './config.js';
+import { BEACH, BOX, CARS, CONTRAST, DESERT, DRONE, EDGE, GROUND, HAWKS, HEALTH, RIVAL } from './config.js';
 import { currentModel, drawAirframe } from './drone.js';
 import { ctx, glow, kickDust, pop, shade, view, X, Y } from './ui.js';
 import { roofAt, world } from './world.js';
@@ -334,13 +334,13 @@ export function drawRival(st) {
 
 export function drawBoost(st) {
   if (!st.boosting) return;
-  const S = view.S, dir = st.boostDir, x = X(st.d.x), y = Y(st.d.y);
+  const S = view.S, dir = st.boostDir, x = X(st.d.x), y = Y(st.d.y), tail = 34 * CONTRAST.scale;
   ctx.strokeStyle = 'rgba(255,243,223,.5)';
   ctx.lineWidth = 2 * S;
   ctx.beginPath();
   for (const [off, len] of [[-9, 34], [0, 48], [9, 30]]) {
-    ctx.moveTo(x - dir * 34 * S, y + off * S);
-    ctx.lineTo(x - dir * (34 + len) * S, y + off * S);
+    ctx.moveTo(x - dir * tail * S, y + off * S);
+    ctx.lineTo(x - dir * (tail + len) * S, y + off * S);
   }
   ctx.stroke();
 }

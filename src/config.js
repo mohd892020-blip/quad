@@ -228,11 +228,12 @@ export const DEV = { password: '930933', chargeTo: 100 };
 // Courier is the prototype's flight, every factor 1. thrust is climb and load strength,
 // speed scales horizontal thrust, battery is capacity, tough divides crash damage.
 // hz is the motor pitch at idle and full throttle. Real classes set the direction, game balance the size.
-// When an aircraft's paint comes close to what is behind it, it shifts toward ink and gains a rim. near is the colour
-// distance where that starts and far where it is full; every is how often the scene is read, in seconds. Darkening
-// stays light so the paint keeps its colour; a dark aircraft on a dark scene needs the stronger lift.
+// The aircraft is drawn scale times its body, always with a rim in ink, the light or dark colour that stands out from
+// what is behind it. When its paint also comes close to that backdrop, the paint shifts toward ink. near is the colour
+// distance where that starts and far where it is full; every is how often the scene is read, in seconds.
+// The shifts stay small: the rim does the work, and the paint keeps its colour.
 export const CONTRAST = {
-  every: .2, near: .24, far: .08, rate: 2.5, rest: .02, tintLight: .45, tintDark: .22, rim: 1, rimPx: 1.3, box: 130, midLight: .62,
+  scale: 1.3, every: .2, near: .24, far: .08, rate: 2.5, rest: .02, tintLight: .2, tintDark: .12, rimPx: 2, box: 170, midLight: .62,
   dark: '#141030', light: '#ffffff', groundGap: 18, skyline: 240,
 };
 
@@ -343,7 +344,7 @@ export const HAWKS = {
 
 export const RIVAL = {
   from: 2, chance: .5, delayMin: 7, delayRange: 2, speed: 135, speedPerDelivery: 3, speedMax: 240,
-  padLift: 30, clearance: 70, lookAhead: 90, climb: 3, approach: 140, hover: 60, arrive: 12, arriveY: 26, bonus: 15, scale: 1.05,
+  padLift: 30, clearance: 70, lookAhead: 90, climb: 3, approach: 140, hover: 60, arrive: 12, arriveY: 26, bonus: 15, scale: 1.3,
 };
 
 // Every level has traffic in one lane: the road through the city, speedboats on the sea.
