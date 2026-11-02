@@ -364,15 +364,17 @@ export const TRAINING = { prep: 2, climb: 90, ringX: 420, ringY: 150, ringReach:
 // The arrow circles the drone, so it can never slip under the controls or the HUD.
 export const POINTER = { orbit: 62, size: 11, bob: 3, alpha: .7, line: 3, textSize: 12, safeMargin: 44, bottomGap: 60 };
 
-// The ring around the aircraft while the shop works. It clears the aircraft's own span by gap, and fills clockwise from
-// the top in slices, red to gold to green, so the colour reached says how far along the order is. flash is how long
-// the finished ring stands, saying Ready, as it spreads by flashGrow and fades. width and gap are in world units,
-// minRadius, minWidth and edge in pixels, so it stays clear on a small screen. note is the caption under the ring, in
-// pixels too; nudge is how many seconds it shakes for when the player tries to leave before the opening order is loaded.
+// The ring around the aircraft while the shop works. It clears the aircraft's own span by gap and is made of ticks, each
+// taking up tick of its share of the circle. They light clockwise from the top, red to gold to green, so the colour
+// reached says how far along the order is. flash is how long the finished ring stands as it spreads by flashGrow and
+// fades. width and gap are in world units, minRadius, minWidth, edge and sparkSize in pixels, so it stays clear on a small
+// screen. note is the caption over the ring, in pixels too; nudge is how many seconds it shakes for when the player
+// tries to leave before the opening order is loaded.
 export const PREP = {
-  gap: 15, minRadius: 36, width: 8, minWidth: 6, edge: 1.5, slices: 60, lap: .012, flash: .9, flashGrow: 16, nudge: .6,
-  note: { gap: 10, edge: 6, h: 26, tall: 42, padX: 14, radius: 12, title: 12.5, sub: 11, titleY: 14, subY: 29, fill: 'rgba(16,12,36,.55)', shake: 4, rate: 46 },
-  track: 'rgba(16,12,36,.62)', ink: '#fff3df', stages: [[0, '#ff3f33'], [.5, '#ffc92e'], [1, '#2fe07a']],
+  gap: 15, minRadius: 36, width: 4.5, minWidth: 4, edge: 1, ticks: 40, tick: .72, alpha: .86, sparkSize: 13, flash: .9, flashGrow: 16, nudge: .6,
+  note: { gap: 10, edge: 6, h: 26, tall: 42, padX: 14, radius: 12, title: 12.5, sub: 11, titleY: 14, subY: 29, fill: 'rgba(16,12,36,.42)', shake: 4, rate: 46 },
+  backing: 'rgba(16,12,36,.2)', dim: 'rgba(255,255,255,.3)', sweep: 'rgba(255,255,255,.08)', spark: 'rgba(255,243,223,.8)', ink: '#fff3df',
+  stages: [[0, '#ff3f33'], [.5, '#ffc92e'], [1, '#2fe07a']],
 };
 
 // Warnings count seconds of full lift left, so a small battery warns earlier than a big one.

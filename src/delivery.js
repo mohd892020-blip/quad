@@ -398,49 +398,54 @@ export function drawHalos(st) {
   if (!view.lowQ) glow(ctx, '#ffc23d', sx, Y(p.y - 6), (34 + pulse * 8) * S);
 }
 
-// Each slice of the ring wears the colour of its place along the stages.
+// Each tick of the ring wears the colour of its place along the stages.
 let ringInk = null;
 function ringPaint() {
   const c = PREP;
-  ringInk = ringInk || Array.from({ length: c.slices }, (_, i) => {
-    const at = i / (c.slices - 1), k = c.stages.findIndex(s => s[0] >= at), [a, from] = c.stages[Math.max(0, k - 1)], [b, to] = c.stages[k];
+  ringInk = ringInk || Array.from({ length: c.ticks }, (_, i) => {
+    const at = i / (c.ticks - 1), k = c.stages.findIndex(s => s[0] >= at), [a, from] = c.stages[Math.max(0, k - 1)], [b, to] = c.stages[k];
     return mixHex(from, to, b > a ? (at - a) / (b - a) : 0);
   });
   return ringInk;
 }
 
-// The ring filling around the aircraft while the shop makes the order. Once loaded it stands whole for a moment, spreading as it fades.
+// A fine ring of ticks around the aircraft while the shop makes the order, lighting up clockwise from the top over a
+// faint sweep of light, so the scene still shows through. Once loaded it stands whole for a moment, spreading as it fades.
 export function drawPrep(st) {
   const p = st.prep, c = PREP;
   if (!p && !st.ready) return;
-  const S = view.S, x = X(st.d.x), y = Y(st.d.y), fade = p ? 1 : st.ready / c.flash, done = p ? 1 - p.left / p.item.prep : 1, turn = Math.PI * 2, top = -Math.PI / 2;
+  const S = view.S, x = X(st.d.x), y = Y(st.d.y), fade = p ? 1 : st.ready / c.flash, done = p ? 1 - p.left / p.item.prep : 1, step = Math.PI * 2 / c.ticks, top = -Math.PI / 2;
   const r = Math.max(c.minRadius, (currentModel().span * CONTRAST.scale + c.gap) * S) + (1 - fade) * c.flashGrow * S, w = Math.max(c.minWidth, c.width * S);
+  const lit = Math.ceil(done * c.ticks), paint = ringPaint(), head = top + done * c.ticks * step;
+  const tick = i => {
+    const a = top + i * step;
+    ctx.moveTo(x + Math.cos(a) * r, y + Math.sin(a) * r);
+    ctx.arc(x, y, r, a, a + step * c.tick);
+  };
   ctx.save();
-  ctx.globalAlpha = fade;
+  ctx.globalAlpha = fade * c.alpha;
+  ctx.fillStyle = c.sweep;
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.arc(x, y, r, top, head);
+  ctx.fill();
   ctx.lineWidth = w + c.edge * 2;
-  ctx.strokeStyle = c.track;
+  ctx.strokeStyle = c.backing;
   ctx.beginPath();
   ctx.arc(x, y, r, 0, 7);
   ctx.stroke();
   ctx.lineWidth = w;
-  if (p) {
-    const paint = ringPaint(), end = top + done * turn;
-    for (let i = 0; i < c.slices && i / c.slices < done; i++) {
-      ctx.strokeStyle = paint[i];
-      ctx.beginPath();
-      ctx.arc(x, y, r, top + i / c.slices * turn, Math.min(end, top + (i + 1) / c.slices * turn + c.lap));
-      ctx.stroke();
-    }
-    ctx.fillStyle = c.ink;
+  ctx.strokeStyle = c.dim;
+  ctx.beginPath();
+  for (let i = lit; i < c.ticks; i++) tick(i);
+  ctx.stroke();
+  for (let i = 0; i < lit; i++) {
+    ctx.strokeStyle = paint[p ? i : c.ticks - 1];
     ctx.beginPath();
-    ctx.arc(x + Math.cos(end) * r, y + Math.sin(end) * r, w * .62, 0, 7);
-    ctx.fill();
-  } else {
-    ctx.strokeStyle = c.stages[c.stages.length - 1][1];
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, 7);
+    tick(i);
     ctx.stroke();
   }
+  if (p && !view.lowQ) glow(ctx, c.spark, x + Math.cos(head) * r, y + Math.sin(head) * r, c.sparkSize);
   ctx.restore();
   drawPrepNote(st, x, y - r - w / 2 - c.note.gap, fade);
 }
