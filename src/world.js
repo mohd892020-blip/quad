@@ -230,7 +230,7 @@ export function dropSprites() {
   world.live.clear();
 }
 
-function mixHex(a, b, t) {
+export function mixHex(a, b, t) {
   const n = parseInt(a.slice(1), 16), m = parseInt(b.slice(1), 16);
   const ch = sh => Math.round((n >> sh & 255) + ((m >> sh & 255) - (n >> sh & 255)) * t);
   return `#${((1 << 24) + (ch(16) << 16) + (ch(8) << 8) + ch(0)).toString(16).slice(1)}`;

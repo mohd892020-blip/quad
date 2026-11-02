@@ -2,12 +2,12 @@ import { clearAction, planMission, planTraffic } from './action.js';
 import { sfx } from './audio.js';
 import { standout } from './contrast.js';
 import {
-  AIRCRAFT, BATTERY, CAMERA, DELIVERY, DEV, DOUBLE, DRONE, FIXED_DT, FX, HANGAR, HEALTH, LAND, LEVELS, MISSION, ORDER_TIME, ORDERS, POINTER, PREP, RESTAURANT, RIVAL, ROPE, ROPE_CTL, WIND,
+  AIRCRAFT, BATTERY, CAMERA, CONTRAST, DELIVERY, DEV, DOUBLE, DRONE, FIXED_DT, FX, HANGAR, HEALTH, LAND, LEVELS, MISSION, ORDER_TIME, ORDERS, POINTER, PREP, RESTAURANT, RIVAL, ROPE, ROPE_CTL, WIND,
 } from './config.js';
 import { currentModel } from './drone.js';
 import { loadProgress, owns, saveProgress, settings } from './storage.js';
 import { addMark, blast, clockText, ctx, glow, hud, placeName, pop, puff, showToast, view, X, Y } from './ui.js';
-import { nearby, nearestShop, shopPad, world } from './world.js';
+import { mixHex, nearby, nearestShop, shopPad, world } from './world.js';
 
 let current = null;
 export const currentShift = () => current;
@@ -391,37 +391,57 @@ export function drawHalos(st) {
   if (!view.lowQ) glow(ctx, '#ffc23d', sx, Y(p.y - 6), (34 + pulse * 8) * S);
 }
 
-// The bar filling while the shop makes the order. Once loaded it holds full for a moment, clear of the order's clock.
+// Each slice of the ring wears the colour of its place along the stages.
+let ringInk = null;
+function ringPaint() {
+  const c = PREP;
+  ringInk ||= Array.from({ length: c.slices }, (_, i) => {
+    const at = i / (c.slices - 1), k = c.stages.findIndex(s => s[0] >= at), [a, from] = c.stages[Math.max(0, k - 1)], [b, to] = c.stages[k];
+    return mixHex(from, to, b > a ? (at - a) / (b - a) : 0);
+  });
+  return ringInk;
+}
+
+// The ring filling around the aircraft while the shop makes the order. Once loaded it stands whole for a moment, spreading as it fades.
 export function drawPrep(st) {
   const p = st.prep, c = PREP;
   if (!p && !st.ready) return;
-  const w = Math.max(c.minW, c.w * view.S), h = c.h, x = Math.max(c.edge, Math.min(view.W - w - c.edge, X(st.d.x) - w / 2));
-  const y = Math.max(view.top + c.text + c.textGap + c.pad, Y(st.d.y) - c.lift * view.S - c.gap - h - (st.has ? ORDER_TIME.h : 0));
-  const done = p ? 1 - p.left / p.item.prep : 1, r = h / 2 + c.pad, fill = ctx.createLinearGradient(x, 0, x + w, 0);
-  for (const [at, col] of c.stages) fill.addColorStop(at, col);
+  const S = view.S, x = X(st.d.x), y = Y(st.d.y), fade = p ? 1 : st.ready / c.flash, done = p ? 1 - p.left / p.item.prep : 1, turn = Math.PI * 2, top = -Math.PI / 2;
+  const r = Math.max(c.minRadius, (currentModel().span * CONTRAST.scale + c.gap) * S) + (1 - fade) * c.flashGrow * S, w = Math.max(c.minWidth, c.width * S);
   ctx.save();
-  ctx.globalAlpha = p ? 1 : st.ready / c.flash;
-  ctx.fillStyle = c.fill;
+  ctx.globalAlpha = fade;
+  ctx.lineWidth = w + c.edge * 2;
+  ctx.strokeStyle = c.track;
   ctx.beginPath();
-  ctx.roundRect(x - c.pad, y - c.pad, w + c.pad * 2, h + c.pad * 2, r);
-  ctx.fill();
-  ctx.fillStyle = fill;
-  ctx.beginPath();
-  ctx.roundRect(x, y, Math.max(h, w * done), h, h / 2);
-  ctx.fill();
-  ctx.lineWidth = c.lineW;
-  ctx.strokeStyle = c.line;
-  ctx.beginPath();
-  ctx.roundRect(x - c.pad, y - c.pad, w + c.pad * 2, h + c.pad * 2, r);
+  ctx.arc(x, y, r, 0, 7);
   ctx.stroke();
-  const text = p ? `${p.item.label} ${Math.ceil(p.left)}s` : 'Ready';
+  ctx.lineWidth = w;
+  if (p) {
+    const paint = ringPaint(), end = top + done * turn;
+    for (let i = 0; i < c.slices && i / c.slices < done; i++) {
+      ctx.strokeStyle = paint[i];
+      ctx.beginPath();
+      ctx.arc(x, y, r, top + i / c.slices * turn, Math.min(end, top + (i + 1) / c.slices * turn + c.lap));
+      ctx.stroke();
+    }
+    ctx.fillStyle = c.ink;
+    ctx.beginPath();
+    ctx.arc(x + Math.cos(end) * r, y + Math.sin(end) * r, w * .62, 0, 7);
+    ctx.fill();
+  } else {
+    ctx.strokeStyle = c.stages[c.stages.length - 1][1];
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, 7);
+    ctx.stroke();
+  }
+  const text = p ? `${Math.ceil(p.left)}s` : 'Ready', ty = Math.max(view.top + c.text, y - r - w / 2 - c.textGap);
   ctx.font = `800 ${c.text}px Tajawal,sans-serif`;
   ctx.textAlign = 'center';
   ctx.lineWidth = 3;
-  ctx.strokeStyle = c.fill;
-  ctx.strokeText(text, x + w / 2, y - c.pad - c.textGap);
-  ctx.fillStyle = c.line;
-  ctx.fillText(text, x + w / 2, y - c.pad - c.textGap);
+  ctx.strokeStyle = c.track;
+  ctx.strokeText(text, x, ty);
+  ctx.fillStyle = c.ink;
+  ctx.fillText(text, x, ty);
   ctx.restore();
 }
 

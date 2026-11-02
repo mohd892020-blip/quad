@@ -237,6 +237,7 @@ export const DEV = { password: '930933', chargeTo: 100 };
 // Courier is the prototype's flight, every factor 1. thrust is climb and load strength,
 // speed scales horizontal thrust, battery is capacity, tough divides crash damage.
 // hz is the motor pitch at idle and full throttle. Real classes set the direction, game balance the size.
+// span is half the drawn width, rotors included, in body units.
 // The aircraft is drawn scale times its body and belongs to the scene: its rim is a faint edge of light at rimIdle,
 // in ink, the light or dark colour that stands out from what is behind it. Only when its paint comes close to that
 // backdrop does the rim rise toward rimNear and the paint shift toward ink. near is the colour distance where that
@@ -247,18 +248,18 @@ export const CONTRAST = {
 };
 
 export const AIRCRAFT = [
-  { key: 'courier', paint: '#e8492c', name: 'Courier', gear: 'arched', thrust: 1, speed: 1, battery: 1, tough: 1, hz: [92, 148], note: 'The all-rounder' },
-  { key: 'miniFold', paint: '#8c97a6', name: 'Mini Fold', gear: 'stubs', thrust: 1.2, speed: .8, battery: 1.15, tough: .6, hz: [200, 310], note: 'Light and long-lived, but fragile' },
-  { key: 'hexa', paint: '#2f8f8a', name: 'Hexa H6', gear: 'tlegs', thrust: 1, speed: .9, battery: 1.25, tough: 1.3, hz: [105, 150], note: 'Steady, with six motors to spare' },
-  { key: 'x8', paint: '#4f5d75', name: 'X8 Cargo', gear: 'skids', thrust: .85, speed: 1, battery: 1, tough: 1.6, hz: [64, 90], note: 'Takes a beating, climbs slowly' },
-  { key: 'fpv', paint: '#17171d', name: 'FPV Racer', gear: 'belly', thrust: 1.6, speed: 1.5, battery: .45, tough: .8, hz: [240, 640], note: 'Wild speed, tiny battery' },
-  { key: 'heavy', paint: '#d9a321', name: 'Heavy Lifter', gear: 'tall', thrust: 1.1, speed: .6, battery: .6, tough: 1.9, hz: [50, 70], note: 'Slow and short-ranged, nearly unbreakable' },
-  { key: 'vtol', paint: '#eef1f6', name: 'VTOL Wing', gear: 'retract', thrust: .8, speed: 1.7, battery: 1.4, tough: .7, hz: [130, 200], note: 'Fastest cruiser, weak climber' },
-  { key: 'whoop', paint: '#2f3540', name: 'Cinewhoop', gear: 'belly', thrust: 1.3, speed: 1.1, battery: .7, tough: 1.3, hz: [300, 600], note: 'Ducted props shrug off bumps' },
-  { key: 'cage', paint: '#8b95a3', name: 'Cage Scout', gear: 'none', thrust: .95, speed: .7, battery: .8, tough: 1.5, hz: [180, 280], note: 'A roll cage for tight streets' },
-  { key: 'agri', paint: '#e9eef2', name: 'Agri Tanker', gear: 'tall', thrust: 1, speed: .7, battery: .75, tough: 1.7, hz: [58, 80], note: 'Farm-built, deep rumble' },
-  { key: 'tandem', paint: '#5a7fa6', name: 'Twin Tandem', gear: 'skids', thrust: 1.15, speed: .85, battery: .9, tough: 1.2, hz: [70, 105], note: 'Two big rotors, strong lifter' },
-  { key: 'tilt', paint: '#d8dde6', name: 'Tiltrotor', gear: 'retract', thrust: .9, speed: 1.45, battery: 1.2, tough: .8, hz: [150, 240], note: 'Rotors swing forward at speed' },
+  { key: 'courier', span: 46, paint: '#e8492c', name: 'Courier', gear: 'arched', thrust: 1, speed: 1, battery: 1, tough: 1, hz: [92, 148], note: 'The all-rounder' },
+  { key: 'miniFold', span: 37, paint: '#8c97a6', name: 'Mini Fold', gear: 'stubs', thrust: 1.2, speed: .8, battery: 1.15, tough: .6, hz: [200, 310], note: 'Light and long-lived, but fragile' },
+  { key: 'hexa', span: 48, paint: '#2f8f8a', name: 'Hexa H6', gear: 'tlegs', thrust: 1, speed: .9, battery: 1.25, tough: 1.3, hz: [105, 150], note: 'Steady, with six motors to spare' },
+  { key: 'x8', span: 48, paint: '#4f5d75', name: 'X8 Cargo', gear: 'skids', thrust: .85, speed: 1, battery: 1, tough: 1.6, hz: [64, 90], note: 'Takes a beating, climbs slowly' },
+  { key: 'fpv', span: 37, paint: '#17171d', name: 'FPV Racer', gear: 'belly', thrust: 1.6, speed: 1.5, battery: .45, tough: .8, hz: [240, 640], note: 'Wild speed, tiny battery' },
+  { key: 'heavy', span: 59, paint: '#d9a321', name: 'Heavy Lifter', gear: 'tall', thrust: 1.1, speed: .6, battery: .6, tough: 1.9, hz: [50, 70], note: 'Slow and short-ranged, nearly unbreakable' },
+  { key: 'vtol', span: 40, paint: '#eef1f6', name: 'VTOL Wing', gear: 'retract', thrust: .8, speed: 1.7, battery: 1.4, tough: .7, hz: [130, 200], note: 'Fastest cruiser, weak climber' },
+  { key: 'whoop', span: 40, paint: '#2f3540', name: 'Cinewhoop', gear: 'belly', thrust: 1.3, speed: 1.1, battery: .7, tough: 1.3, hz: [300, 600], note: 'Ducted props shrug off bumps' },
+  { key: 'cage', span: 18, paint: '#8b95a3', name: 'Cage Scout', gear: 'none', thrust: .95, speed: .7, battery: .8, tough: 1.5, hz: [180, 280], note: 'A roll cage for tight streets' },
+  { key: 'agri', span: 45, paint: '#e9eef2', name: 'Agri Tanker', gear: 'tall', thrust: 1, speed: .7, battery: .75, tough: 1.7, hz: [58, 80], note: 'Farm-built, deep rumble' },
+  { key: 'tandem', span: 43, paint: '#5a7fa6', name: 'Twin Tandem', gear: 'skids', thrust: 1.15, speed: .85, battery: .9, tough: 1.2, hz: [70, 105], note: 'Two big rotors, strong lifter' },
+  { key: 'tilt', span: 36, paint: '#d8dde6', name: 'Tiltrotor', gear: 'retract', thrust: .9, speed: 1.45, battery: 1.2, tough: .8, hz: [150, 240], note: 'Rotors swing forward at speed' },
 ];
 
 // Picker badge: of the stats a model ranks in the top topRank for, the one furthest above
@@ -352,11 +353,13 @@ export const TRAINING = { prep: 2, climb: 90, ringX: 420, ringY: 150, ringReach:
 // The arrow circles the drone, so it can never slip under the controls or the HUD.
 export const POINTER = { orbit: 62, size: 11, bob: 3, alpha: .7, line: 3, textSize: 12, safeMargin: 44, bottomGap: 60 };
 
-// The bar over the aircraft while the shop works, wider than any aircraft: red to gold to green along its length, so
-// the colour reached says how far along the order is. flash is how long it holds full, saying Ready, before it fades.
+// The ring around the aircraft while the shop works. It clears the aircraft's own span by gap, and fills clockwise from
+// the top in slices, red to gold to green, so the colour reached says how far along the order is. flash is how long
+// the finished ring stands, saying Ready, as it spreads by flashGrow and fades. width and gap are in world units,
+// minRadius, minWidth, edge and text in pixels, so it stays clear on a small screen.
 export const PREP = {
-  w: 210, minW: 170, h: 16, pad: 3, lift: 42, gap: 12, edge: 8, text: 14, textGap: 7, flash: .9, fill: 'rgba(20,15,40,.86)', line: '#fff3df', lineW: 2,
-  stages: [[0, '#e8492c'], [.5, '#ffc23d'], [1, '#4fc27c']],
+  gap: 15, minRadius: 36, width: 8, minWidth: 6, edge: 1.5, slices: 60, lap: .012, text: 13, textGap: 6, flash: .9, flashGrow: 16,
+  track: 'rgba(16,12,36,.62)', ink: '#fff3df', stages: [[0, '#ff3f33'], [.5, '#ffc92e'], [1, '#2fe07a']],
 };
 
 // Warnings count seconds of full lift left, so a small battery warns earlier than a big one.
