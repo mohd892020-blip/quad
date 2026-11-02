@@ -4,13 +4,20 @@ export const FIXED_DT = 1 / 120;
 export const MAX_FRAME_DT = .05;
 export const HUD_INTERVAL = .1;
 
-export const VIEW = { refH: 600, refW: 560 };
+// turnDelay: some phones report their new size only this many milliseconds after they turn.
+export const VIEW = { refH: 600, refW: 560, turnDelay: 350 };
 // A screen stands on a copy of the scene shrunk this many times; stretched back up, it reads as frosted glass.
 export const FROST = { shrink: 10 };
 export const PERSPECTIVE = { depth: .93, eyeY: .38 };
-// Step down a tier when frames average slower than slowFrame over a window, ignoring tab-switch gaps.
-// A phone remembers its tier, so the next launch starts where this one settled.
-export const QUALITY = { window: 2, slowFrame: .021, maxFrameGap: .2, tiers: [{ dpr: 1.5 }, { dpr: 1.25 }, { dpr: 1, low: true }] };
+// Step down a tier when frames average slower than slowFrame over a window, two when slower than awfulFrame. Frames that
+// arrive evenly under capFrame are a capped screen, say on battery saver, not a device struggling, so they cost no
+// sharpness: even means evenShare of them landed within evenGap of the one before. Gaps over maxFrameGap are the game
+// being away, not slow. A session that never stepped down tries one tier up after calm windows under easyFrame, and
+// steps back if that turns slow. A phone remembers its tier, so the next launch starts where this one settled.
+export const QUALITY = {
+  window: 2, slowFrame: .021, awfulFrame: .045, capFrame: .036, evenGap: .003, evenShare: .85, easyFrame: .0178, calm: 3, maxFrameGap: 1, start: 1,
+  tiers: [{ dpr: 2 }, { dpr: 1.5 }, { dpr: 1.25 }, { dpr: 1, low: true }, { dpr: .75, low: true }],
+};
 // ahead is how far past the screen edge a building's image is prepared before it is needed.
 export const SPRITE = { padX: 44, padTop: 50, evictMargin: 900, ahead: 420 };
 export const CELL = { size: 256, base: -2400, margin: 48 };
@@ -218,8 +225,9 @@ export const LAND = { zoneX: 280, zoneY: 460, maxSpeed: 260, across: 170, pull: 
 
 // feel bends the stick: above 1 small moves stay gentle, below 1 they bite early. size scales all
 // touch controls, fade is how much of them shows. thumb starts the stick where the finger lands.
+// The controls also follow the screen: its short side over room, kept between roomMin and roomMax.
 export const JOY = {
-  dead: .12, knobGap: 5,
+  dead: .12, knobGap: 5, room: 390, roomMin: .8, roomMax: 1.35,
   sizes: { small: .85, medium: 1, large: 1.2 },
   feels: { soft: 1.7, normal: 1, sharp: .6 },
   fades: { solid: 1, light: .65, faint: .4 },
@@ -524,7 +532,7 @@ export const CAMERA = {
   leadY: .42,
   hudGap: 64,
   shakeDecay: 30,
-  idleSpeed: .4,
+  idleSpeed: 24,
   idleLead: 200,
   idleTimeDiv: 60,
 };

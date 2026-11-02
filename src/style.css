@@ -14,10 +14,11 @@
   color-scheme:dark;
 }
 html,body{height:100%}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 body{background:var(--night);color:var(--ink);font-family:var(--body);overflow:hidden;overscroll-behavior:none;touch-action:none;-webkit-user-select:none;user-select:none}
-#wrap{position:fixed;inset:0}
+#wrap{position:fixed;top:0;right:0;bottom:0;left:0}
 #c{display:block;width:100%;height:100%}
-#frost{position:absolute;inset:0;z-index:4;width:100%;height:100%;pointer-events:none}
+#frost{position:absolute;top:0;right:0;bottom:0;left:0;z-index:4;width:100%;height:100%;pointer-events:none}
 .pill{background:var(--panel);border:1px solid rgba(255,243,223,.12);border-radius:12px;padding:6px 12px}
 .bar{height:8px;border-radius:4px;background:rgba(255,255,255,.12);overflow:hidden}
 .bar i{display:block;height:100%;width:100%;transform-origin:0 50%}
@@ -37,15 +38,15 @@ kbd{display:inline-grid;place-items:center;min-width:24px;height:24px;box-sizing
 #shiftHint::after{content:"";position:absolute;right:-7px;top:50%;margin-top:-7px;border-left:8px solid rgba(20,15,40,.55);border-top:7px solid transparent;border-bottom:7px solid transparent}
 .brief{animation:hintFade var(--hint) linear both}
 @keyframes hintFade{85%{opacity:1}100%{opacity:0}}
-#overlay{position:absolute;inset:0;z-index:4;display:grid;place-items:center;background:var(--dim);padding:16px max(16px,env(safe-area-inset-right,0px)) 16px max(16px,env(safe-area-inset-left,0px))}
+#overlay{position:absolute;top:0;right:0;bottom:0;left:0;z-index:4;display:grid;place-items:center;background:var(--dim);padding:16px max(16px,env(safe-area-inset-right,0px)) 16px max(16px,env(safe-area-inset-left,0px))}
 /* Liquid glass over a frozen, frosted copy of the scene: the card is brighter than what is behind it. Layers from the top:
    a highlight on the shoulder, a soft bounce in the far corner, the body of the glass, then the tint each screen sets.
    Everything here is painted once: no live blur, mask or filter, and the opening moves only opacity and transform. */
-.card{--tint:rgba(104,92,214,.34);--lift:0 18px 34px -16px rgba(4,3,24,.8);--rim:inset 0 0 0 1.4px rgba(255,255,255,.28),inset 0 1.4px 0 rgba(255,255,255,.75);box-sizing:border-box;max-width:400px;width:100%;margin-block:auto;padding:24px 22px 22px;text-align:center;position:relative;isolation:isolate;color:#fff;border-radius:32px;
+.card{--tint:rgba(104,92,214,.34);--lift:0 18px 34px -16px rgba(4,3,24,.8);--rim:inset 0 0 0 1.4px rgba(255,255,255,.28),inset 0 1.4px 0 rgba(255,255,255,.75);box-sizing:border-box;max-width:400px;width:100%;margin-top:auto;margin-bottom:auto;padding:24px 22px 22px;text-align:center;position:relative;isolation:isolate;color:#fff;border-radius:32px;
   background:radial-gradient(70% 46% at 18% 0,rgba(255,255,255,.36),transparent 72%),radial-gradient(60% 50% at 96% 100%,rgba(255,255,255,.14),transparent 70%),linear-gradient(160deg,rgba(255,255,255,.15),rgba(255,255,255,.04) 58%,rgba(255,255,255,.09)),var(--tint);
   box-shadow:var(--lift),var(--rim);
   text-shadow:0 1px 2px rgba(8,8,40,.35);animation:glassIn .5s cubic-bezier(.2,1.1,.3,1) both}
-.card::after{content:"";position:absolute;inset:0;z-index:-1;border-radius:inherit;background:linear-gradient(105deg,transparent 34%,rgba(255,255,255,.2) 50%,transparent 66%);opacity:0;animation:glassSweep .9s .15s ease-out;pointer-events:none}
+.card::after{content:"";position:absolute;top:0;right:0;bottom:0;left:0;z-index:-1;border-radius:inherit;background:linear-gradient(105deg,transparent 34%,rgba(255,255,255,.2) 50%,transparent 66%);opacity:0;animation:glassSweep .9s .15s ease-out;pointer-events:none}
 @keyframes glassIn{from{opacity:0;transform:translateY(22px) scale(.94)}}
 @keyframes glassSweep{35%{opacity:1}}
 .card h1{font-family:var(--display);font-weight:400;font-size:54px;line-height:1;margin:0;color:#fff;text-wrap:balance}
@@ -64,8 +65,8 @@ kbd{display:inline-grid;place-items:center;min-width:24px;height:24px;box-sizing
 #dev{position:absolute;left:max(16px,env(safe-area-inset-left,0px));bottom:calc(100px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:8px;align-items:flex-start;pointer-events:none}
 .act{font-family:var(--body);font-weight:800;font-size:15px;min-height:44px;padding:0 16px;border-radius:22px;border:2px solid rgba(255,243,223,.4);background:rgba(26,20,48,.72);color:var(--ink);pointer-events:auto;touch-action:none;cursor:pointer;white-space:nowrap}
 .act.on{background:rgba(79,194,124,.4);border-color:var(--basil)}
-#sheet{position:absolute;inset:0;z-index:5;display:grid;place-items:start center;overflow:auto;touch-action:pan-y;background:var(--dim);padding:12px max(16px,env(safe-area-inset-right,0px)) 12px max(16px,env(safe-area-inset-left,0px))}
-#sheet .card{display:grid;gap:12px;text-align:left;padding:20px 22px}
+#sheet{position:absolute;top:0;right:0;bottom:0;left:0;z-index:5;display:grid;place-items:start center;overflow:auto;touch-action:pan-y;background:var(--dim);padding:12px max(16px,env(safe-area-inset-right,0px)) 12px max(16px,env(safe-area-inset-left,0px))}
+#sheet .card{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;text-align:left;padding:20px 22px}
 #sheet h2{font-family:var(--display);font-weight:400;font-size:34px;line-height:1;margin:0;color:#fff}
 #sheet h3{font-size:13px;letter-spacing:.06em;text-transform:uppercase;margin:0 0 6px;color:var(--soft)}
 #sheet section{position:relative;z-index:1}
@@ -84,7 +85,7 @@ kbd{display:inline-grid;place-items:center;min-width:24px;height:24px;box-sizing
   .pill{padding:4px 10px}
 }
 #clock.low{color:var(--tomato)}
-#toast{position:absolute;left:0;right:0;top:32%;margin-inline:auto;width:fit-content;max-width:min(86vw,360px);box-sizing:border-box;display:grid;gap:2px;justify-items:center;text-align:center;
+#toast{position:absolute;left:0;right:0;top:32%;margin-left:auto;margin-right:auto;width:fit-content;max-width:min(86vw,360px);box-sizing:border-box;display:grid;gap:2px;justify-items:center;text-align:center;
   padding:8px 18px;border-radius:12px;background:rgba(20,50,34,.9);border:2px solid var(--basil);pointer-events:none;z-index:2}
 #toast.bad{background:rgba(60,18,16,.9);border-color:var(--tomato)}
 #toast b{font-family:var(--display);font-weight:400;font-size:clamp(22px,6vw,30px);line-height:1.1;color:var(--basil)}
@@ -120,13 +121,13 @@ body:not(.dev) .devOnly{display:none!important}
 .devMark{position:relative}
 .devMark::before,.devChip{content:"DEV";padding:2px 5px 1px;border-radius:7px;background:#b517ff;color:#fff;font:800 10px/1 var(--body);letter-spacing:.06em;text-shadow:none;box-shadow:0 0 0 1.5px #fff}
 .devMark::before{position:absolute;top:-7px;left:-5px;z-index:2;pointer-events:none}
-.devChip{display:inline-block;margin-inline-start:3px}
+.devChip{display:inline-block;margin-left:3px}
 .desk #controls{justify-content:flex-end;padding-bottom:calc(52px + env(safe-area-inset-bottom,0px))}
 .desk #boost{width:78px;height:78px;font-size:17px;cursor:pointer;line-height:1.1}
 .desk #actions{bottom:calc(142px + env(safe-area-inset-bottom,0px))}
 #bHp i{background:#ff7a5c}
 @keyframes nudge{50%{transform:scale(1.5);opacity:.55}}
-#hangarTip{position:absolute;left:0;right:0;top:40%;margin-inline:auto;width:fit-content;max-width:min(86vw,360px);z-index:2;pointer-events:auto;cursor:pointer;
+#hangarTip{position:absolute;left:0;right:0;top:40%;margin-left:auto;margin-right:auto;width:fit-content;max-width:min(86vw,360px);z-index:2;pointer-events:auto;cursor:pointer;
   font-family:var(--body);font-weight:800;font-size:14px;min-height:40px;padding:0 16px;border-radius:20px;border:2px solid var(--cheese);background:rgba(26,20,48,.82);color:var(--cheese)}
 #hangarTip:focus-visible{outline:3px solid var(--cheese);outline-offset:2px}
 .chips button{display:grid;justify-items:center;align-content:center;gap:4px;min-height:50px;padding:5px 3px;font-size:13px;line-height:1.1;white-space:nowrap}
@@ -140,14 +141,14 @@ body:not(.dev) .devOnly{display:none!important}
 #planeStats i{height:7px;border-radius:4px;background:rgba(255,255,255,.14);overflow:hidden}
 #planeStats b{display:block;height:100%;background:var(--cheese)}
 #planeStats em{font-style:normal}
-#levels{position:absolute;inset:0;z-index:4;display:flex;flex-direction:column;background:radial-gradient(60% 40% at 12% 22%,rgba(255,112,84,.34),transparent 72%),radial-gradient(60% 46% at 92% 62%,rgba(84,170,255,.32),transparent 72%),radial-gradient(70% 40% at 28% 96%,rgba(255,196,90,.3),transparent 72%),linear-gradient(#241a4d,#3b2452 45%,#6e3358)}
+#levels{position:absolute;top:0;right:0;bottom:0;left:0;z-index:4;display:flex;flex-direction:column;background:radial-gradient(60% 40% at 12% 22%,rgba(255,112,84,.34),transparent 72%),radial-gradient(60% 46% at 92% 62%,rgba(84,170,255,.32),transparent 72%),radial-gradient(70% 40% at 28% 96%,rgba(255,196,90,.3),transparent 72%),linear-gradient(#241a4d,#3b2452 45%,#6e3358)}
 #levelsBar{display:flex;align-items:center;gap:10px;padding:calc(8px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 8px max(16px,env(safe-area-inset-left,0px));background:var(--panel)}
 #levelsBar b{font-family:var(--display);font-weight:400;font-size:24px;color:var(--cheese);line-height:1}
-#levelsBar span{font-family:var(--display);font-size:20px;color:var(--ink);margin-inline-end:auto}
+#levelsBar span{font-family:var(--display);font-size:20px;color:var(--ink);margin-right:auto}
 #levelsGear{background:transparent;border:1px solid rgba(255,243,223,.3);border-radius:10px}
 #levelsScroll{flex:1;min-height:0;overflow-y:auto;touch-action:pan-y;overscroll-behavior:contain}
-#levelsPath{position:relative;max-width:520px;margin-inline:auto}
-#levelsPath svg{position:absolute;inset:0;width:100%;height:100%}
+#levelsPath{position:relative;max-width:520px;margin-left:auto;margin-right:auto}
+#levelsPath svg{position:absolute;top:0;right:0;bottom:0;left:0;width:100%;height:100%}
 #levelsPath polyline{fill:none;stroke:rgba(255,243,223,.32);stroke-width:7;stroke-dasharray:2 11;stroke-linecap:round;vector-effect:non-scaling-stroke}
 .node{position:absolute;width:62px;height:62px;margin:-31px 0 0 -31px;border-radius:50%;border:3px solid rgba(255,243,223,.85);background:var(--zone);color:#fff;cursor:pointer;display:grid;place-items:center;align-content:center;padding:0;font-family:var(--display);box-shadow:0 5px 0 rgba(0,0,0,.28)}
 .node b{font-weight:400;font-size:24px;line-height:1}
@@ -158,7 +159,7 @@ body:not(.dev) .devOnly{display:none!important}
 .node.next{border-color:var(--cheese);animation:nudge 1.3s ease-in-out infinite}
 @media (prefers-reduced-motion:reduce){.node.next{animation:none}}
 .node:focus-visible,.ghost:focus-visible{outline:3px solid var(--cheese);outline-offset:3px}
-.modal{position:absolute;inset:0;z-index:5;display:grid;place-items:start center;overflow:auto;touch-action:pan-y;background:var(--dim);padding:12px max(16px,env(safe-area-inset-right,0px)) 12px max(16px,env(safe-area-inset-left,0px))}
+.modal{position:absolute;top:0;right:0;bottom:0;left:0;z-index:5;display:grid;place-items:start center;overflow:auto;touch-action:pan-y;background:var(--dim);padding:12px max(16px,env(safe-area-inset-right,0px)) 12px max(16px,env(safe-area-inset-left,0px))}
 .modal .card{display:grid;gap:8px;padding:18px 22px}
 .modal h2{font-family:var(--display);font-weight:400;font-size:34px;line-height:1;margin:0;color:#fff}
 .modal p{margin:0;font-weight:700}
@@ -170,7 +171,7 @@ body:not(.dev) .devOnly{display:none!important}
 .modal .row{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;align-items:center}
 .ghost{font-family:var(--body);font-weight:800;font-size:15px;min-height:44px;padding:0 16px;border-radius:22px;border:0;background:rgba(255,255,255,.14);color:#fff;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.34),inset 0 0 0 .5px rgba(255,255,255,.16)}
 .modal .go:disabled{background:rgba(255,255,255,.14);color:var(--soft);box-shadow:none;font-size:16px;cursor:default}
-#lesson{position:absolute;left:0;right:0;margin-inline:auto;box-sizing:border-box;width:min(calc(100% - 32px),380px);display:grid;grid-template-columns:1fr auto;gap:0 10px;align-items:center;padding:8px 12px;border-radius:12px;background:var(--panel);border:2px solid var(--cheese);z-index:2}
+#lesson{position:absolute;left:0;right:0;margin-left:auto;margin-right:auto;box-sizing:border-box;width:min(calc(100% - 32px),380px);display:grid;grid-template-columns:1fr auto;gap:0 10px;align-items:center;padding:8px 12px;border-radius:12px;background:var(--panel);border:2px solid var(--cheese);z-index:2}
 #lesson small{font-size:11px;font-weight:700;color:var(--muted);grid-column:1}
 #lesson b{font-family:var(--display);font-weight:400;font-size:20px;line-height:1.1;color:var(--cheese);grid-column:1}
 #lesson span{font-size:14px;font-weight:700;color:var(--ink);grid-column:1}
@@ -179,7 +180,7 @@ body:not(.dev) .devOnly{display:none!important}
 .teach{outline:3px solid var(--cheese);outline-offset:3px}
 #openTraining{width:100%}
 @media (max-height:480px){
-  #lesson{left:max(16px,env(safe-area-inset-left,0px));right:auto;margin-inline:0;width:230px;padding:6px 10px}
+  #lesson{left:max(16px,env(safe-area-inset-left,0px));right:auto;margin-left:0;margin-right:0;width:230px;padding:6px 10px}
   #lesson b{font-size:17px}
   #lesson span{font-size:12px}
 }
@@ -238,7 +239,7 @@ body:not(.dev) .devOnly{display:none!important}
 #land.on{background:rgba(79,194,124,.85);color:#fff;box-shadow:none}
 #land .ico{width:18px;height:18px;stroke-width:2.6}
 /* the ring around the button is the boost that is left */
-#boostFill{position:absolute;inset:0;border-radius:50%;background:conic-gradient(#7ad0ff calc(var(--fuel,100)*1%),rgba(255,255,255,.16) 0);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 5px),#000 calc(100% - 4.5px));mask:radial-gradient(farthest-side,transparent calc(100% - 5px),#000 calc(100% - 4.5px));pointer-events:none}
+#boostFill{position:absolute;top:0;right:0;bottom:0;left:0;border-radius:50%;background:conic-gradient(#7ad0ff calc(var(--fuel,100)*1%),rgba(255,255,255,.16) 0);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 5px),#000 calc(100% - 4.5px));mask:radial-gradient(farthest-side,transparent calc(100% - 5px),#000 calc(100% - 4.5px));pointer-events:none}
 #boost .ico{position:relative;width:78%;height:60%}
 #boost.back .ico{transform:scaleX(-1)}
 :root{--stick:1}
@@ -306,7 +307,7 @@ body:not(.dev) .devOnly{display:none!important}
 .tool{display:grid;justify-items:center;gap:3px;min-height:64px;padding:8px 2px 6px;border-radius:20px;font-size:12px}
 .corner{position:absolute;top:14px;right:14px;width:38px;height:38px;min-height:0}
 .corner .ico{width:16px;height:16px}
-#levelCard h2{padding-inline:40px}
+#levelCard h2{padding-left:40px;padding-right:40px}
 .go:active,.ghost:active{transform:scale(.97)}
 @media (hover:hover){.go:hover:enabled,.ghost:hover{filter:brightness(1.08)}}
 @media (prefers-reduced-motion:reduce){.card,#resultStars i{animation:none}.card::after{display:none}}

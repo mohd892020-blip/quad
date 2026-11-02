@@ -1,6 +1,6 @@
 import { toggleMute } from './audio.js';
 import { AIRCRAFT, BADGE, BOOST, DEV, DUST, FROST, FX, G, HANGAR, HEALTH, JOY, KEY_HINT, LEVELS, MISSION, POINTER, QUALITY, SHAKE, SHOP, VIEW, WIND } from './config.js';
-import { applyControls } from './input.js';
+import { applyControls, touchUI } from './input.js';
 import { bought, loadProgress, owns, saveSettings, settings } from './storage.js';
 
 const $ = id => document.getElementById(id);
@@ -9,12 +9,24 @@ const cv = $('c');
 // opaque: the sky covers every pixel, and the browser can skip blending the page behind it
 export const ctx = cv.getContext('2d', { alpha: false });
 
+// Phones from before 2022 draw without this.
+if (!CanvasRenderingContext2D.prototype.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r = 0) {
+    const c = Math.min(r, Math.abs(w) / 2, Math.abs(h) / 2);
+    this.moveTo(x + c, y);
+    this.arcTo(x + w, y, x + w, y + h, c);
+    this.arcTo(x + w, y + h, x, y + h, c);
+    this.arcTo(x, y + h, x, y, c);
+    this.arcTo(x, y, x + w, y, c);
+    this.closePath();
+  };
+}
+
 /* ---------- view ---------- */
 export const view = {
   W: 0, H: 0, DPR: 1, S: 1, viewW: 0, viewH: 0, cam: null, lowQ: false, top: 140, bottom: 600, floorGap: 0, mapW: 300, mapH: 18,
-  tier: Math.min(QUALITY.tiers.length - 1, Math.max(0, settings.quality | 0)), dirty: true,
+  tier: Number.isInteger(settings.tier) ? Math.min(QUALITY.tiers.length - 1, Math.max(0, settings.tier)) : QUALITY.start, dirty: true,
 };
-const coarse = () => matchMedia('(pointer:coarse)').matches;
 
 function resize() {
   // a hidden frame reports zero size; keep the last real one or the camera turns to NaN
@@ -30,6 +42,7 @@ function resize() {
   view.viewW = view.W / view.S;
   view.viewH = view.H / view.S;
   view.dirty = true;
+  applyControls();
   measureHud();
 }
 
@@ -39,29 +52,38 @@ export function measureHud() {
   const boost = $('boost').getBoundingClientRect().top, tops = [boost, $('up').getBoundingClientRect().top].filter(Boolean);
   view.bottom = tops.length ? Math.min(...tops) - 8 : view.H - POINTER.bottomGap;
   // on a short screen the rocker stands in the corner, so the street stops above the lower controls
-  view.floorGap = coarse() ? (view.H - (view.W > view.H && boost ? boost - 8 : view.bottom)) / view.S : 0;
+  view.floorGap = touchUI() ? (view.H - (view.W > view.H && boost ? boost - 8 : view.bottom)) / view.S : 0;
   view.mapW = $('map').clientWidth || view.mapW;
   view.mapH = $('map').clientHeight || view.mapH;
   $('toast').style.top = view.top + 12 + 'px';
   $('lesson').style.top = view.top + 8 + 'px';
 }
 addEventListener('resize', resize);
+addEventListener('orientationchange', () => setTimeout(resize, VIEW.turnDelay));
 resize();
 if (globalThis.ResizeObserver) {
   const watch = new ResizeObserver(measureHud);
   for (const id of ['hud', 'controls', 'map']) watch.observe($(id));
 }
 
-export const lowestTier = () => view.tier >= QUALITY.tiers.length - 1;
-
-export function lowerQuality() {
-  view.tier++;
-  if (coarse()) {
-    settings.quality = view.tier;
+// One real step along the tiers, by 1 down or -1 up: on a low-density screen some look the same, so those are passed over.
+function moveTier(by) {
+  const c = QUALITY.tiers, look = i => `${Math.min(c[i].dpr, window.devicePixelRatio || 1)}${!!c[i].low}`, from = look(view.tier);
+  let at = view.tier;
+  while (c[at + by] && look(at) === from) at += by;
+  if (look(at) === from) return false;
+  view.tier = at;
+  if (touchUI()) {
+    settings.tier = at;
     saveSettings();
   }
   resize();
+  return true;
 }
+export function lowerQuality(steps) {
+  while (steps-- && moveTier(1));
+}
+export const raiseQuality = () => moveTier(-1);
 
 export const X = x => (x - view.cam.x) * view.S;
 export const Y = y => (y - view.cam.y) * view.S;
@@ -322,7 +344,7 @@ export function hud(st) {
 const KEY_PANELS = ['keys', 'shiftHint'];
 let hintTimer = 0;
 export function showKeyHints() {
-  if (coarse()) return;
+  if (touchUI()) return;
   clearTimeout(hintTimer);
   for (const id of KEY_PANELS) {
     const el = $(id);
@@ -340,12 +362,12 @@ let taught = [];
 export function showLesson(step, title, body, teach = []) {
   clearTimeout(hintTimer);
   for (const id of KEY_PANELS) $(id).classList.remove('brief');
-  $('shiftHint').hidden = !teach.includes('boost') || coarse();
+  $('shiftHint').hidden = !teach.includes('boost') || touchUI();
   for (const id of taught) $(id).classList.remove('teach');
   taught = teach;
   for (const id of teach) $(id).classList.add('teach');
   $('lesson').hidden = !title;
-  $('keys').hidden = !title || coarse();
+  $('keys').hidden = !title || touchUI();
   if (!title) return;
   $('lessonStep').textContent = step;
   $('lessonTitle').textContent = title;

@@ -1,4 +1,5 @@
 import { ITEMS, ROPE, TRAINING } from './config.js';
+import { touchUI } from './input.js';
 import { saveSettings, settings } from './storage.js';
 import { ctx, showLesson, view, X, Y } from './ui.js';
 import { shopPad, world } from './world.js';
@@ -59,9 +60,9 @@ export function trainingLevel() {
 }
 
 function enter(st, i) {
-  const step = STEPS[i], touch = matchMedia('(pointer:coarse)').matches;
+  const step = STEPS[i];
   st.lesson.i = i;
-  showLesson(`Step ${i + 1} of ${STEPS.length}`, step.title, touch ? step.touch : step.keys, step.teach || []);
+  showLesson(`Step ${i + 1} of ${STEPS.length}`, step.title, touchUI() ? step.touch : step.keys, step.teach || []);
 }
 
 export function beginTraining(st) {

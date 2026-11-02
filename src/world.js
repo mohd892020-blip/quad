@@ -63,10 +63,10 @@ export function indexColliders(solids) {
   const cells = [];
   const cellOf = x => Math.max(0, Math.floor((x - CELL.base) / CELL.size));
   for (const R of solids) {
-    for (let i = cellOf(R.x - CELL.margin); i <= cellOf(R.x + R.w + CELL.margin); i++) (cells[i] ||= []).push(R);
+    for (let i = cellOf(R.x - CELL.margin); i <= cellOf(R.x + R.w + CELL.margin); i++) (cells[i] = cells[i] || []).push(R);
   }
   const last = cellOf(ground.x + ground.w);
-  for (let i = 0; i <= last; i++) (cells[i] ||= []).push(ground);
+  for (let i = 0; i <= last; i++) (cells[i] = cells[i] || []).push(ground);
   world.cells = cells;
   world.edge = [ground];
 }

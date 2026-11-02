@@ -12,17 +12,30 @@ const km = {
 };
 
 const HELD = ['lt', 'rt', 'up', 'down', 'boost', 'ropeDown', 'ropeUp'];
-const coarse = () => matchMedia('(pointer:coarse)').matches;
 const $ = id => document.getElementById(id);
 
+let touch = matchMedia('(pointer:coarse)').matches || /Android|iPhone|iPad|iPod|Mobi/i.test(navigator.userAgent);
+export const touchUI = () => touch;
+
 export function applyControls() {
-  if (!coarse()) return;
-  const joy = settings.controls === 'joystick', { size, fade, hand } = settings.stick, panel = $('controls').style;
+  if (!touch) return;
+  const joy = settings.controls === 'joystick', { size, fade, hand } = settings.stick, room = Math.min(innerWidth, innerHeight) / JOY.room;
   $('joy').hidden = !joy;
   $('arrows').hidden = joy;
-  panel.setProperty('--stick', JOY.sizes[size] ?? 1);
-  panel.opacity = JOY.fades[fade] ?? 1;
+  document.documentElement.style.setProperty('--stick', (JOY.sizes[size] ?? 1) * Math.max(JOY.roomMin, Math.min(JOY.roomMax, room)));
+  $('controls').style.opacity = JOY.fades[fade] ?? 1;
   document.body.classList.toggle('lefty', hand === 'left');
+}
+
+// Some phones pass for a mouse and keyboard, so a real touch always brings the thumb controls.
+function watchForTouch() {
+  addEventListener('pointerdown', e => {
+    if (touch || e.pointerType !== 'touch') return;
+    touch = true;
+    document.body.classList.remove('desk');
+    applyControls();
+    dispatchEvent(new Event('resize'));
+  });
 }
 
 function bindHeld(id, k) {
@@ -117,10 +130,10 @@ function lockPage() {
 }
 
 export function initInput() {
-  const touch = coarse();
   $('controls').hidden = false;
   document.body?.classList.toggle('desk', !touch);
   applyControls();
+  watchForTouch();
 
   addEventListener('keydown', e => {
     if (e.target?.tagName === 'INPUT') return;

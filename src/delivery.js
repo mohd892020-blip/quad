@@ -395,7 +395,7 @@ export function drawHalos(st) {
 let ringInk = null;
 function ringPaint() {
   const c = PREP;
-  ringInk ||= Array.from({ length: c.slices }, (_, i) => {
+  ringInk = ringInk || Array.from({ length: c.slices }, (_, i) => {
     const at = i / (c.slices - 1), k = c.stages.findIndex(s => s[0] >= at), [a, from] = c.stages[Math.max(0, k - 1)], [b, to] = c.stages[k];
     return mixHex(from, to, b > a ? (at - a) / (b - a) : 0);
   });

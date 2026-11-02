@@ -43,7 +43,7 @@ function radar(st, dt) {
 // The ferry shuttles along the bay; an aircraft on Hold rides along with it.
 function ferry(st, dt) {
   const c = FERRY, t = st.stop.t;
-  t.dir ||= 1;
+  t.dir = t.dir || 1;
   const step = t.dir * c.speed * dt;
   t.x += step;
   if (st.anchor) st.anchor.x += step;

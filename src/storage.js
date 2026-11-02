@@ -5,7 +5,7 @@ const SETTINGS_KEY = 'pizzaSettingsV1';
 const GARAGE_KEY = 'pizzaGarageV1';
 
 const STICK = { size: 'medium', feel: 'normal', fade: 'solid', origin: 'fixed', hand: 'right' };
-export const settings = { controls: 'joystick', plane: 'courier', dev: false, muted: false, quality: 0, trained: false, stick: STICK };
+export const settings = { controls: 'joystick', plane: 'courier', dev: false, muted: false, tier: null, trained: false, stick: STICK };
 
 try {
   Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {});

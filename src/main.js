@@ -18,13 +18,13 @@ import { drawSandstorm, touchesSink } from './desert.js';
 import { touchesSea } from './seaside.js';
 import { loadProgress, settings } from './storage.js';
 import {
-  ctx, drawFx, drawMarks, frost, hideModals, hideOverlay, hud, initLevels, initSheet, kickDust, levelsOpen, lowerQuality, lowestTier, measureHud, modalOpen, onDevActions, onStart,
-  previewCanvas, shakeOffset, sheetOpen, showActions, showHangarTip, showKeyHints, showLesson, showLevels, showResult, stepFx, view,
+  ctx, drawFx, drawMarks, frost, hideModals, hideOverlay, hud, initLevels, initSheet, kickDust, levelsOpen, lowerQuality, measureHud, modalOpen, onDevActions, onStart,
+  previewCanvas, raiseQuality, shakeOffset, sheetOpen, showActions, showHangarTip, showKeyHints, showLesson, showLevels, showResult, stepFx, view,
 } from './ui.js';
 import { drawCity, drawMap, drawSky, dropSprites, genWorld, stepCamera, stepClock, stepWind } from './world.js';
 
 let st = null, hudT = 0, last = performance.now(), levels = [];
-const pace = { t: 0, n: 0 };
+const pace = { t: 0, n: 0, even: 0, last: 0, easy: 0, raised: false, tried: false };
 
 export function step(dt) {
   st.t += dt;
@@ -129,19 +129,32 @@ function drawPreview(time) {
   drawAirframe(g, settings.plane, time);
 }
 
-// Steps quality down when the device cannot keep up.
+// Finds the sharpest picture the device keeps up with, and moves further the further off it is.
 function watchPace(frame) {
-  if (lowestTier() || frame > QUALITY.maxFrameGap) return;
+  const c = QUALITY;
+  if (frame > c.maxFrameGap) return;
+  if (Math.abs(frame - pace.last) < c.evenGap) pace.even++;
+  pace.last = frame;
   pace.t += frame;
   pace.n++;
-  if (pace.t < QUALITY.window) return;
-  if (pace.t / pace.n > QUALITY.slowFrame) {
-    lowerQuality();
-    dropSprites();
+  if (pace.t < c.window) return;
+  const avg = pace.t / pace.n, capped = avg < c.capFrame && pace.even / pace.n > c.evenShare, slow = avg > c.slowFrame && !capped, { raised } = pace;
+  pace.t = pace.n = pace.even = 0;
+  pace.raised = false;
+  if (slow) {
+    pace.easy = 0;
+    pace.tried = true;
+    lowerQuality(avg > c.awfulFrame && !raised ? 2 : 1);
+  } else if (avg >= c.easyFrame) {
+    pace.easy = 0;
+    return;
+  } else if (pace.tried || ++pace.easy < c.calm) return;
+  else {
+    pace.tried = true;
+    pace.raised = raiseQuality();
   }
-  pace.t = pace.n = 0;
+  dropSprites();
 }
-
 function loop(now) {
   const frame = (now - last) / 1000;
   const dt = Math.min(MAX_FRAME_DT, frame);
@@ -181,7 +194,7 @@ function start(level) {
   st = newGame(level);
   hideModals();
   last = performance.now();
-  pace.t = pace.n = 0;
+  pace.t = pace.n = pace.even = 0;
   showLesson();
   beginChallenge(st);
   if (level.training) beginTraining(st);
@@ -200,12 +213,15 @@ function leave() {
 }
 
 // Idle demo city behind the start card, until play begins.
-const demo = { x: 0 };
-function idle() {
+const demo = { x: 0, at: performance.now() };
+function idle(now = demo.at) {
   if (st) { requestAnimationFrame(loop); return; }
+  const frame = (now - demo.at) / 1000, dt = Math.min(MAX_FRAME_DT, frame);
+  demo.at = now;
   if (!levelsOpen()) {
+    watchPace(frame);
     ctx.setTransform(view.DPR, 0, 0, view.DPR, 0, 0);
-    demo.x += CAMERA.idleSpeed;
+    demo.x += CAMERA.idleSpeed * dt;
     const fake = {
       cam: { x: demo.x - CAMERA.idleLead, y: GROUND + CAMERA.floorBelow - view.viewH },
       t: demo.x / CAMERA.idleTimeDiv, wind: 0,
