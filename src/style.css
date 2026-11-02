@@ -148,13 +148,34 @@ body:not(.dev) .devOnly{display:none!important}
 #levelsGear{background:transparent;border:1px solid rgba(255,243,223,.3);border-radius:10px}
 #levelsScroll{flex:1;min-height:0;overflow-y:auto;touch-action:pan-y;overscroll-behavior:contain}
 #levelsPath{position:relative;max-width:520px;margin-left:auto;margin-right:auto}
-#levelsPath svg{position:absolute;top:0;right:0;bottom:0;left:0;width:100%;height:100%}
+#levelsPath>svg{position:absolute;top:0;right:0;bottom:0;left:0;width:100%;height:100%}
 #levelsPath polyline{fill:none;stroke:rgba(255,243,223,.32);stroke-width:7;stroke-dasharray:2 11;stroke-linecap:round;vector-effect:non-scaling-stroke}
 .node{position:absolute;width:62px;height:62px;margin:-31px 0 0 -31px;border-radius:50%;border:3px solid rgba(255,243,223,.85);background:var(--zone);color:#fff;cursor:pointer;display:grid;place-items:center;align-content:center;padding:0;font-family:var(--display);box-shadow:0 5px 0 rgba(0,0,0,.28)}
 .node b{font-weight:400;font-size:24px;line-height:1}
 .node small{font-family:var(--body);font-size:10px;line-height:1;color:var(--cheese);letter-spacing:-.5px}
-.node.double::after{content:"×2";position:absolute;top:-7px;right:-9px;padding:2px 6px;border-radius:10px;background:var(--gold);color:#3a2200;font:800 12px var(--body)}
-.node.challenge::after{content:"!";position:absolute;top:-7px;right:-7px;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:#e8492c;color:#fff;font:800 14px var(--body)}
+/* The marks stand outside the node, on the side toward the middle of the map, so they never run off a narrow screen. */
+.signs{position:absolute;left:100%;top:50%;margin:-17px 0 0 5px;display:flex;align-items:center;gap:3px;pointer-events:none}
+.node.west .signs{left:auto;right:100%;margin:-17px 5px 0 0;flex-direction:row-reverse}
+.sign{flex:none;box-sizing:border-box;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;color:#fff;background:#3d3580;border:2px solid rgba(255,255,255,.92);box-shadow:0 3px 0 rgba(0,0,0,.28)}
+.sign svg{width:22px;height:22px;fill:currentColor}
+.sign+.sign{width:27px;height:27px}
+.sign+.sign svg{width:17px;height:17px}
+.node.locked .sign{opacity:.82}
+.sign.eagle{background:linear-gradient(#7a1f14,#2c0c08)}
+.sign.hawk{background:linear-gradient(#a8703a,#5e3a1c)}
+.sign.rival{background:linear-gradient(#e8492c,#a0241a)}
+.sign.double,.sign.finale{background:var(--gold);color:#3a2200}
+.sign.sea,.sign.ferry{background:linear-gradient(#3fb0c8,#1f6f9c)}
+.sign.desert{background:linear-gradient(#e0a84a,#a96e22)}
+.sign.street{background:linear-gradient(#5d6b80,#333d4e)}
+.sign.urgent{background:#fff;color:#e8492c}
+.sign.storm{background:linear-gradient(#4d5f96,#27305a);color:#ffe27a}
+.sign.blackout{background:linear-gradient(#242058,#0c0a26);color:#ffe27a}
+.sign.glass{background:linear-gradient(#7fd8e6,#2f93a8)}
+.sign.radar{background:linear-gradient(#d9382c,#7d1610)}
+.sign.battery{background:linear-gradient(#ff8a5c,#c9402a)}
+.sign.melt{background:linear-gradient(#f7b6cc,#d9709a)}
+.sign.rope{background:linear-gradient(#a98463,#6b4a30)}
 .node.locked{background:#4a4258;color:#a79cb4;border-color:rgba(255,243,223,.3)}
 .node.next{border-color:var(--cheese);animation:nudge 1.3s ease-in-out infinite}
 @media (prefers-reduced-motion:reduce){.node.next{animation:none}}

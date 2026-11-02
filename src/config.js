@@ -325,7 +325,8 @@ export const DOUBLE = {
 export const STOPS = { twoFrom: 6, threeFrom: 21 };
 
 // resultDelay stays under HEALTH.respawnDelay, so a wreck is still on screen when the card opens.
-export const LEVELS = { count: 40, seed: 2026, maxDist: 6500, resultDelay: 2, passDelay: 2.2, rowGap: 92, pathWave: .85, pathWidth: 30, balconyMaxSize: 1.3, wayMargin: 24 };
+// signs is how many marks stand beside a mission on the map.
+export const LEVELS = { count: 40, seed: 2026, maxDist: 6500, resultDelay: 2, passDelay: 2.2, rowGap: 92, pathWave: .85, pathWidth: 30, balconyMaxSize: 1.3, wayMargin: 24, signs: 2 };
 
 // The last missions, each with one rule of its own. map is where it flies, shop which of that map's shops it opens at,
 // near and far how far off the customer is, and kinds which customers will do. stops names the rule of each order on

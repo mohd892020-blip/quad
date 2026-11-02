@@ -451,6 +451,21 @@ function reachedLevel(stars) {
   return n;
 }
 
+// What a mission holds, read at a glance beside its number: its own rule first, then whatever is most likely to end it.
+function signsFor(l) {
+  return [
+    l.challenge && [l.challenge.key === 'hawks' ? 'hawk' : l.challenge.key, l.challenge.name],
+    l.eagles && ['eagle', 'Eagles'],
+    l.stops[0].parcels && ['double', 'Double Run'],
+    l.desert && ['desert', 'Desert'],
+    l.beach && ['sea', 'Open sea'],
+    l.rival && ['rival', 'Rival'],
+    l.street && ['street', 'Street traffic'],
+    l.stops.some(s => s.item.urgent) && ['urgent', 'Urgent order'],
+    l.hawks && !l.challenge && ['hawk', 'Hawks'],
+  ].filter(Boolean).slice(0, LEVELS.signs);
+}
+
 export function hideModals() {
   for (const id of MODALS) $(id).hidden = true;
   $('toast').hidden = true;
@@ -465,8 +480,9 @@ export function showLevels() {
   const road = levelList.map(l => { const p = spot(l); return `${p.x},${p.y}`; }).join(' ');
   const nodes = levelList.map(l => {
     const p = spot(l), best = stars[l.n] || 0;
-    const state = !unlocked(l.n) ? 'locked' : l.n === open ? 'next' : 'done';
-    return `<button class="node ${state}${l.stops[0].parcels ? ' double' : ''}${l.challenge ? ' challenge' : ''}${l.n > open && unlocked(l.n) ? ' devMark' : ''}" data-n="${l.n}" style="left:${p.x}%;top:${p.y}px;--zone:${l.shop.zone.map}" aria-label="Mission ${l.n}"><b>${l.n}</b><small>${best ? starText(best) : ''}</small></button>`;
+    const state = !unlocked(l.n) ? 'locked' : l.n === open ? 'next' : 'done', signs = signsFor(l);
+    const marks = signs.map(([key, name]) => `<i class="sign ${key}" title="${name}"><svg aria-hidden="true"><use href="#s-${key}"/></svg></i>`).join('');
+    return `<button class="node ${state}${p.x > 50 ? ' west' : ''}${l.n > open && unlocked(l.n) ? ' devMark' : ''}" data-n="${l.n}" style="left:${p.x}%;top:${p.y}px;--zone:${l.shop.zone.map}" aria-label="${[`Mission ${l.n}`, ...signs.map(s => s[1])].join(', ')}"><b>${l.n}</b><small>${best ? starText(best) : ''}</small><span class="signs">${marks}</span></button>`;
   }).join('');
   const path = $('levelsPath');
   path.style.height = height + 'px';
