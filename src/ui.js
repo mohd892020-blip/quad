@@ -1,5 +1,5 @@
 import { toggleMute } from './audio.js';
-import { AIRCRAFT, BADGE, DEV, DUST, FX, G, HANGAR, HEALTH, LEVELS, MISSION, POINTER, QUALITY, ROPE, ROPE_CTL, SHAKE, SHOP, VIEW, WIND } from './config.js';
+import { AIRCRAFT, BADGE, DEV, DUST, FX, G, HANGAR, HEALTH, LEVELS, MISSION, POINTER, QUALITY, SHAKE, SHOP, VIEW, WIND } from './config.js';
 import { applyControls } from './input.js';
 import { loadProgress, owns, saveSettings, settings } from './storage.js';
 
@@ -292,11 +292,7 @@ const text = (id, value) => put(id, value, v => { $(id).textContent = v; });
 const bar = (id, percent) => put(id, Math.round(percent), v => { $(id).firstChild.style.transform = `scaleX(${v / 100})`; });
 
 export function hud(st) {
-  const training = st.level.training, legs = st.level.stops.length;
-  const head = `Level ${st.level.n}${legs > 1 ? ` · Stop ${st.stopAt + 1}/${legs}` : ''}`, tag = training ? '' : `${head} · `;
-  put('money', `$${st.money}`, v => { $('money').firstChild.nodeValue = v; });
-  text('del', `${st.del} ${st.del === 1 ? 'delivery' : 'deliveries'}`);
-  const o = st.has ? st.order : null;
+  const legs = st.level.stops.length, tag = legs > 1 ? `Stop ${st.stopAt + 1}/${legs} · ` : '', o = st.has ? st.order : null;
   const left = o ? Math.max(0, o.deadline - st.t) : st.prep ? st.prep.left : 0, whole = Math.ceil(left);
   text('clock', (o || st.prep) && whole < Infinity ? `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}` : '--:--');
   put('clockLow', !!o && left < MISSION.lowTime, v => { $('clock').classList.toggle('low', v); });
@@ -304,21 +300,13 @@ export function hud(st) {
   bar('bHp', st.hp);
   bar('bHeat', o && st.item.heat ? st.heat : 0);
   bar('bBox', o ? st.integ : 0);
-  bar('bBoost', st.boost);
-  bar('bRope', (st.ropeLen - ROPE) / (ROPE_CTL.max - ROPE) * 100);
+  put('boost', Math.round(st.boost), v => { $('boostFill').style.transform = `scaleY(${v / 100})`; });
   const reach = WIND.base + WIND.maxDeliveries * WIND.perDelivery;
   put('wind', Math.round(50 + Math.max(-1, Math.min(1, st.wind / reach)) * 50), v => { $('windNeedle').style.transform = `translateX(${v}%)`; });
-  if (o) {
-    const t = o.t, item = st.item, dist = Math.round(Math.abs(t.x - st.d.x) / 10);
-    text('oTitle', `${tag}${item.urgent ? `${item.label} · URGENT` : item.label}`);
-    text('oSub', `${o.shop.shop.name} → ${placeName(t)} · ${dist} m`);
-  } else if (st.prep) {
-    text('oTitle', `${tag}Preparing ${st.prep.item.label}`);
-    text('oSub', `${st.prep.shop.shop.name} · Stay on the pad`);
-  } else {
-    text('oTitle', training ? 'Training' : head);
-    text('oSub', training ? 'Follow the steps' : `Land on the green pad at ${st.stop.shop.shop.name}`);
-  }
+  const item = o && st.item;
+  text('oTitle', o ? `${tag}${item.label}${item.urgent ? ' · URGENT' : ''} → ${placeName(o.t)}`
+    : st.prep ? `${tag}Preparing ${st.prep.item.label}`
+    : st.level.training ? 'Training' : `${tag}Land on the green pad at ${st.stop.shop.shop.name}`);
 }
 
 // The training panel, and a ring around the control it is talking about.
@@ -328,6 +316,7 @@ export function showLesson(step, title, body, teach = []) {
   taught = teach;
   for (const id of teach) $(id).classList.add('teach');
   $('lesson').hidden = !title;
+  $('keys').hidden = !title || coarse();
   if (!title) return;
   $('lessonStep').textContent = step;
   $('lessonTitle').textContent = title;
@@ -447,8 +436,10 @@ export function showResult(o, level, hasNext) {
 
 // The map button pauses. Leaving with an order in the air costs what ruining it would.
 function openPause() {
-  const cost = acts.stake();
-  $('pauseWhy').textContent = cost ? `Leaving loses the order: -$${cost}` : 'Take your time.';
+  const cost = acts.stake(), level = acts.level(), { money, del } = loadProgress();
+  $('pauseTitle').textContent = level.training ? 'Training' : `Level ${level.n}`;
+  $('pauseStats').textContent = `$${money} · ${del} ${del === 1 ? 'delivery' : 'deliveries'}`;
+  $('pauseWhy').textContent = cost ? `Leaving loses the order: -$${cost}` : '';
   $('pauseCard').hidden = false;
 }
 
@@ -523,7 +514,6 @@ export function showHangarTip(text) {
   if (text) {
     tip.textContent = text;
     tip.style.top = view.top + HANGAR.tipGap + 'px';
-    $('gear').classList.add('dot');
   }
 }
 
@@ -560,11 +550,7 @@ export function initSheet() {
   markPlanes();
   markControls();
   showDev();
-  const openSheet = () => {
-    $('sheet').hidden = false;
-    $('gear').classList.remove('dot');
-  };
-  $('gear').classList.add('dot');
+  const openSheet = () => { $('sheet').hidden = false; };
   $('gear').addEventListener('click', openSheet);
   $('hangarTip').addEventListener('click', openSheet);
   $('mute').classList.toggle('off', settings.muted);

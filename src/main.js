@@ -220,6 +220,7 @@ initLevels(levels, {
     start(trainingLevel());
   },
   stake: () => (st.has ? Math.min(st.money, st.item.price) : 0),
+  level: () => st.level,
 });
 // building sprites hold shop signs, so repaint them once the web fonts arrive
 document.fonts?.ready.then(dropSprites);

@@ -81,7 +81,6 @@ function lockPage() {
 export function initInput() {
   const touch = coarse();
   $('controls').hidden = false;
-  $('keys').hidden = touch;
   document.body?.classList.toggle('desk', !touch);
   applyControls();
 

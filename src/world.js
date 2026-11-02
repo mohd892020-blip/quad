@@ -697,42 +697,27 @@ export function drawMap(st) {
   const g = c.getContext('2d'), mx = x => (x - left) / span * w;
   g.setTransform(k, 0, 0, k, 0, 0);
   g.clearRect(0, 0, w, h);
-  g.font = '700 9px Tajawal,sans-serif';
-  g.textBaseline = 'middle';
   ZONES.forEach((z, i) => {
     const a = Math.max(0, mx(z.from)), b = i + 1 < ZONES.length ? mx(ZONES[i + 1].from) : w;
     g.fillStyle = z.map;
-    g.globalAlpha = .55;
+    g.globalAlpha = .45;
     g.fillRect(a, 0, b - a - 1, h);
     g.globalAlpha = 1;
-    g.fillStyle = '#fff3df';
-    g.fillText(z.name, a + 4, h / 2 + 1);
   });
-  for (const b of world.shops) {
-    const x = mx(b.x + b.w / 2);
-    g.fillStyle = st.has ? 'rgba(255,255,255,.6)' : '#ffc23d';
-    g.fillRect(x - 1.5, h - 7, 3, 7);
-  }
   const dot = (x, col, r) => {
     g.fillStyle = col;
     g.strokeStyle = '#140f2a';
-    g.lineWidth = 1.5;
+    g.lineWidth = 1;
     g.beginPath();
     g.arc(mx(x), h / 2, r, 0, 7);
     g.fill();
     g.stroke();
   };
-  if (st.order) dot(st.order.t.x, '#e8492c', 4.5);
-  if (st.rival) dot(st.rival.x, '#ff3b3b', 3.5);
-  const px = mx(st.d.x);
+  if (st.order) dot(st.order.t.x, '#e8492c', h / 2);
+  else dot(st.stop.shop.x + st.stop.shop.w / 2, '#ffc23d', h / 2);
+  if (st.rival) dot(st.rival.x, '#ff3b3b', h / 2 - 1);
   g.fillStyle = '#fff';
-  g.strokeStyle = '#140f2a';
-  g.lineWidth = 1.5;
-  g.beginPath();
-  g.moveTo(px, 1); g.lineTo(px + 5, h - 1); g.lineTo(px - 5, h - 1);
-  g.closePath();
-  g.fill();
-  g.stroke();
+  g.fillRect(mx(st.d.x) - 1.5, 0, 3, h);
 }
 
 export function drawCity(st) {
