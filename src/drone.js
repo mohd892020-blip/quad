@@ -1,6 +1,6 @@
 import { sfx } from './audio.js';
 import { drawStandout } from './contrast.js';
-import { AIRCRAFT, AUDIO, BOOST, DRONE, EDGE, G, HEALTH, HOLD, LAND, LOAD, SHADOW, SHOP } from './config.js';
+import { AIRCRAFT, AUDIO, BOOST, DRONE, EAGLES, EDGE, G, HEALTH, HOLD, LAND, LOAD, SHADOW, SHOP } from './config.js';
 import { garage, settings } from './storage.js';
 import { addMark, ctx, glow, kickDust, view, X, Y } from './ui.js';
 import { nearby, roofAt } from './world.js';
@@ -111,8 +111,8 @@ export function stepDrone(st, keys, dt) {
   if (st.anchor) flyHeld(st, dt, over);
   else if (st.landing) flyLanding(st, dt, over);
   else {
-    const powered = d.bat > 0;
-    const tgt = (keys.r - keys.l + keys.axis) * c.tiltMax;
+    const powered = d.bat > 0 && !st.falling;
+    const tgt = st.falling ? d.a + EAGLES.spin : (keys.r - keys.l + keys.axis) * c.tiltMax;
     d.a += (tgt - d.a) * Math.min(1, dt * c.tiltRate);
     const thr = powered ? (keys.u ? c.thrustLift * m.thrust : keys.sink ? c.thrustDown : c.thrustIdle) * G * (1 - over * LOAD.thrustLoss / m.thrust) : 0;
     // a parked drone sits on its gear, so wind cannot slide it off a pad

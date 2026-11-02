@@ -1,12 +1,13 @@
 import { sfx } from './audio.js';
-import { BEACH, BOX, CARS, CONTRAST, DESERT, DRONE, EDGE, GROUND, HAWKS, HEALTH, RIVAL } from './config.js';
+import { BEACH, BOX, CARS, CONTRAST, DESERT, DRONE, EAGLES, EDGE, G, GROUND, HAWKS, HEALTH, RIVAL } from './config.js';
 import { currentModel, drawAirframe } from './drone.js';
-import { ctx, glow, kickDust, pop, shade, view, X, Y } from './ui.js';
+import { ctx, glow, kickDust, pop, shade, showToast, view, X, Y } from './ui.js';
 import { roofAt, world } from './world.js';
 
 const lerp = (st, q, k) => q['p' + k] + (q[k] - q['p' + k]) * (st.blend ?? 1);
 
 export const hawkCount = tier => (tier < HAWKS.from ? 0 : tier < HAWKS.twoFrom ? 1 : tier < HAWKS.threeFrom ? 2 : 3);
+export const eagleCount = n => (n < EAGLES.first || n % EAGLES.every !== EAGLES.at ? 0 : n < EAGLES.twoFrom ? 1 : 2);
 export const rivalSpeed = tier => Math.min(RIVAL.speedMax, RIVAL.speed + (tier - RIVAL.from) * RIVAL.speedPerDelivery);
 export const carSpeed = tier => Math.min(CARS.speedMax, CARS.speedMin + tier * CARS.speedPerLevel);
 
@@ -69,6 +70,14 @@ export function planMission(st, shop) {
     st.hawks.push({ homeX: x, homeY: y, x, y, px: x, py: y, state: 'circle', t: 0, phase: Math.random() * 7 });
   }
 
+  // an eagle guards the last leg, so a route has its order to lose on the way home
+  st.eagles = [];
+  const lastLeg = st.stopAt === st.level.stops.length - 1;
+  for (let i = 0; lastLeg && i < (st.level.eagles ?? 0); i++) {
+    const x = from + span * (EAGLES.pathMin + Math.random() * EAGLES.pathRange), y = roofAt(x, EAGLES.orbit) - EAGLES.lift;
+    st.eagles.push({ homeX: x, homeY: y, x, y, px: x, py: y, state: 'soar', t: 0, phase: Math.random() * 7, aim: 0, pass: 0, tore: false });
+  }
+
   st.rival = null;
   if (st.stop.rival) {
     const x = shop.x + shop.w / 2, y = shop.top - RIVAL.padLift;
@@ -83,6 +92,7 @@ export function planMission(st, shop) {
 export function clearAction(st) {
   st.rival = null;
   for (const h of st.hawks) if (h.state !== 'flee') { h.state = 'flee'; h.t = 0; }
+  for (const e of st.eagles) if (e.state !== 'flee' && e.state !== 'dead') { e.state = 'flee'; e.t = 0; }
 }
 
 function stepHawks(st, dt) {
@@ -126,6 +136,90 @@ function stepHawks(st, dt) {
     }
   }
   st.hawks = st.hawks.filter(h => h.state !== 'flee' || h.t < c.fleeTime);
+}
+
+function markPrey(st, e) {
+  const c = EAGLES;
+  e.state = 'mark';
+  e.t = 0;
+  e.tore = false;
+  sfx('eagle');
+  if (e.pass) return;
+  pop(st, e.x, e.y - c.reach, 'EAGLE!', '#ff5a3c');
+  showToast('Eagle!', 'Dodge it. One hit brings you down', false);
+}
+
+function killEagle(st, e) {
+  const c = EAGLES;
+  e.state = 'dead';
+  e.t = 0;
+  e.vx = Math.cos(e.aim) * c.deadKick;
+  e.vy = -c.deadKick;
+  for (let i = 0; i < c.feathers; i++) {
+    st.parts.push({ x: e.x, y: e.y, vx: (Math.random() - .5) * 260, vy: -Math.random() * 200, t: 0, crumb: 1, col: c.feather });
+  }
+}
+
+// Returns true on the step an eagle reaches the aircraft.
+export function stepEagles(st, dt) {
+  const c = EAGLES, d = st.d, bx = st.box;
+  let struck = false;
+  for (const e of st.eagles) {
+    e.px = e.x;
+    e.py = e.y;
+    e.t += dt;
+    const gap = Math.hypot(d.x - e.x, d.y - e.y), want = Math.atan2(d.y - e.y, d.x - e.x);
+    if (e.state === 'soar') {
+      e.x = e.homeX + Math.cos(e.t * c.circleRate + e.phase) * c.orbit;
+      e.y = e.homeY + Math.sin(e.t * c.circleRate * 2 + e.phase) * c.orbit * .3;
+      if (st.has && gap < c.trigger) markPrey(st, e);
+    } else if (e.state === 'mark') {
+      e.aim = want;
+      e.y -= c.markRise * dt;
+      if (e.t > c.markTime) {
+        e.state = 'dive';
+        e.t = 0;
+        sfx('whoosh');
+      }
+    } else if (e.state === 'dive') {
+      const off = Math.atan2(Math.sin(want - e.aim), Math.cos(want - e.aim)), limit = c.turnRate * dt;
+      e.aim += Math.max(-limit, Math.min(limit, off));
+      e.x += Math.cos(e.aim) * c.diveSpeed * dt;
+      e.y += Math.sin(e.aim) * c.diveSpeed * dt;
+      if (gap < c.hitDist && !st.wreck && !st.falling) {
+        struck = true;
+        killEagle(st, e);
+      } else if (st.has && !e.tore && Math.hypot(bx.x - e.x, bx.y - e.y) < c.boxDist) {
+        e.tore = true;
+        st.integ -= c.damage;
+        st.shake = Math.max(st.shake, c.hitShake);
+        pop(st, e.x, e.y - 24, 'Torn!', '#e8492c');
+        sfx('box');
+      } else if (Math.abs(off) > Math.PI / 2 || e.t > c.diveTime) {
+        e.state = 'climb';
+        e.t = 0;
+      }
+    } else if (e.state === 'climb') {
+      e.x += Math.cos(e.aim) * c.climbSpeed * dt;
+      e.y -= c.climbRise * dt;
+      if (e.t > c.climbTime) {
+        if (++e.pass < c.passes && st.has) markPrey(st, e);
+        else {
+          e.state = 'flee';
+          e.t = 0;
+        }
+      }
+    } else if (e.state === 'dead') {
+      e.vy += G * dt;
+      e.x += e.vx * dt;
+      e.y += e.vy * dt;
+    } else {
+      e.x += c.fleeX * dt * Math.sign(e.x - d.x || 1);
+      e.y -= c.fleeY * dt;
+    }
+  }
+  st.eagles = st.eagles.filter(e => (e.state === 'dead' ? e.t < c.deadLife && e.y < GROUND : e.state !== 'flee' || e.t < c.fleeTime));
+  return struck;
 }
 
 // Moves the rival over the rooftops; returns true on the step it reaches the customer.
@@ -310,6 +404,104 @@ export function drawHawks(st) {
     ctx.fillStyle = '#ffc23d';
     ctx.fillRect(sx + Math.sign(face || 1) * 8 * S - 1.5 * S, sy, 3 * S, 2.5 * S);
   }
+}
+
+// A broad wing from the shoulder, drawn side on, splitting into finger feathers at the tip. lift is 1 at the top of the beat.
+function eagleWing(lift, col) {
+  const y = -6 - 34 * lift, x = -16;
+  ctx.fillStyle = col;
+  ctx.beginPath();
+  ctx.moveTo(11, -3);
+  ctx.quadraticCurveTo(7, y * .7, x + 9, y);
+  ctx.lineTo(x + 4, y - 7);
+  ctx.lineTo(x + 2, y + 1);
+  ctx.lineTo(x - 4, y - 4);
+  ctx.lineTo(x - 3, y + 5);
+  ctx.lineTo(x - 10, y + 1);
+  ctx.lineTo(x - 6, y + 10);
+  ctx.quadraticCurveTo(-17, y * .35, -13, -2);
+  ctx.closePath();
+  ctx.fill();
+}
+
+// Facing +x: dark body, white head and fanned white tail, a hooked yellow beak and talons that come forward to strike.
+function paintEagle(st, e, lift, hunting) {
+  eagleWing(lift * .86 + .1, '#2a1d14');
+  ctx.fillStyle = '#efe9dc';
+  ctx.beginPath();
+  ctx.moveTo(-16, -3);
+  ctx.lineTo(-34, -8);
+  ctx.lineTo(-37, -1);
+  ctx.lineTo(-34, 6);
+  ctx.lineTo(-16, 3);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#3b2a1d';
+  ctx.beginPath();
+  ctx.moveTo(22, -5);
+  ctx.quadraticCurveTo(8, -11, -15, -5);
+  ctx.lineTo(-20, 0);
+  ctx.quadraticCurveTo(0, 9, 21, 4);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = '#f2b632';
+  ctx.lineWidth = 2.6;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  const reach = hunting ? 8 : 2;
+  ctx.moveTo(0, 5);
+  ctx.lineTo(reach, 12);
+  ctx.moveTo(-6, 5);
+  ctx.lineTo(reach - 6, 12);
+  ctx.stroke();
+  ctx.lineCap = 'butt';
+  ctx.fillStyle = '#f4efe4';
+  ctx.beginPath();
+  ctx.arc(21, -3, 7.5, 0, 7);
+  ctx.fill();
+  ctx.fillStyle = '#f2b632';
+  ctx.beginPath();
+  ctx.moveTo(26, -7);
+  ctx.quadraticCurveTo(37, -7, 35.5, 2);
+  ctx.quadraticCurveTo(33, -1, 26.5, -1);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = hunting ? '#e8201c' : '#2a1d14';
+  ctx.beginPath();
+  ctx.arc(24, -5, 1.7, 0, 7);
+  ctx.fill();
+  eagleWing(lift, '#4a3424');
+}
+
+export function drawEagles(st) {
+  const S = view.S, c = EAGLES, d = st.d;
+  for (const e of st.eagles) {
+    const sx = X(lerp(st, e, 'x')), sy = Y(lerp(st, e, 'y')), reach = c.reach * c.scale * S * 1.2, dead = e.state === 'dead';
+    if (sx < -reach || sx > view.W + reach) continue;
+    const hunting = e.state === 'mark' || e.state === 'dive', stoop = e.state === 'dive', level = e.state === 'soar' || e.state === 'flee' || e.state === 'climb';
+    const heading = level ? 0 : e.aim, face = e.state === 'soar' ? (-Math.sin(e.t * c.circleRate + e.phase) >= 0 ? 1 : -1) : (e.x >= e.px ? 1 : -1);
+    const beat = Math.sin(st.t * (hunting ? c.stoopFlap : c.flap) + e.phase), lift = dead ? -.3 : stoop ? .12 + beat * .04 : .4 + beat * .6;
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.scale(face * S * c.scale, S * c.scale);
+    ctx.rotate(dead ? e.t * c.deadSpin : face > 0 ? heading : Math.PI - heading);
+    if (e.state === 'mark' && !view.lowQ) glow(ctx, 'rgba(255,70,50,.55)', 0, 0, 60);
+    paintEagle(st, e, lift, hunting);
+    ctx.restore();
+  }
+  const prey = st.eagles.find(e => e.state === 'mark' || e.state === 'dive');
+  if (!prey || st.wreck || st.outcome || st.done) return;
+  // like a hit marker, an arc around the aircraft points the way the danger is coming from, on screen or off it
+  const x = X(d.x), y = Y(d.y), a = Math.atan2(prey.y - d.y, prey.x - d.x), r = Math.max(c.alarmMin, c.alarmRadius * S);
+  ctx.save();
+  ctx.globalAlpha = .55 + .45 * Math.sin(st.t * c.alarmRate);
+  ctx.lineCap = 'round';
+  ctx.lineWidth = c.alarmWidth;
+  ctx.strokeStyle = c.alarmColor;
+  ctx.beginPath();
+  ctx.arc(x, y, r, a - c.alarmSpread, a + c.alarmSpread);
+  ctx.stroke();
+  ctx.restore();
 }
 
 export function drawRival(st) {

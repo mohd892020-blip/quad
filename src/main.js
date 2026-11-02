@@ -1,4 +1,4 @@
-import { drawBoost, drawCars, drawHawks, drawRival, stepAction, stepTraffic } from './action.js';
+import { drawBoost, drawCars, drawEagles, drawHawks, drawRival, stepAction, stepEagles, stepTraffic } from './action.js';
 import { initAudio, sfx, updateRotor } from './audio.js';
 import { beginChallenge, drawChallenge, drawWeather, stepChallenge } from './challenge.js';
 import { stepContrast } from './contrast.js';
@@ -6,8 +6,8 @@ import { BEACH, CAMERA, CITY_SEED, DRONE, DUST, FIXED_DT, GROUND, HANGAR, HUD_IN
 import { initLeague } from './league.js';
 import { buildLevels } from './levels.js';
 import {
-  autoDeliver, chargeDrone, drawBatteryCue, drawHalos, drawOrderTime, drawPointer, drawPrep, drawTarget, failMission, hangarHint, newGame, prepareFirstOrder, restrain, stepHealth, stepCargo,
-  stepMission, stepShop, zones,
+  autoDeliver, chargeDrone, drawBatteryCue, drawHalos, drawOrderTime, drawPointer, drawPrep, drawTarget, explode, failMission, hangarHint, newGame, prepareFirstOrder, restrain, stepHealth, stepCargo,
+  stepMission, stepShop, strikeDown, zones,
 } from './delivery.js';
 import { currentModel, drawAirframe, drawDrone, drawShadow, rotorLoad, stepBoost, stepDrone, stepHold, stepLand } from './drone.js';
 import { beginTraining, drawLesson, stepTraining, trainingLevel } from './training.js';
@@ -26,7 +26,7 @@ import { drawCity, drawMap, drawSky, dropSprites, genWorld, stepCamera, stepCloc
 let st = null, hudT = 0, last = performance.now(), levels = [];
 const pace = { t: 0, n: 0, even: 0, last: 0, easy: 0, raised: false, tried: false };
 
-const controls = () => (st.prep?.opening ? PARKED : keys);
+const controls = () => (st.prep?.opening || st.falling ? PARKED : keys);
 
 export function step(dt) {
   st.t += dt;
@@ -35,13 +35,14 @@ export function step(dt) {
   stepWind(st, dt);
   if (stepTraffic(st, dt)) failMission(st, 'Traffic stopped', st.has);
   stepHealth(st, dt);
+  if (stepEagles(st, dt) && st.has) strikeDown(st);
   if (st.wreck) {
     stepCamera(st, dt);
     stepFx(st, dt);
     return;
   }
   const zone = zones(st), pilot = controls();
-  if (pilot === PARKED) restrain(st, keys);
+  if (st.prep?.opening) restrain(st, keys);
   keys.sink = keys.dn || (keys.rd && !zone.rope) ? 1 : 0;
   stepHold(st, pilot, zone.hold);
   stepLand(st, pilot, zone.land);
@@ -51,6 +52,7 @@ export function step(dt) {
   const grounded = stepDrone(st, pilot, dt);
   if (grounded && !st.onGround && fall > DUST.minSpeed) kickDust(st, st.d.x, st.d.y + DRONE.radius, fall);
   st.onGround = grounded;
+  if (grounded && st.falling) explode(st);
   if (st.has) {
     stepRope(st, dt);
     stepCargo(st, dt);
@@ -113,6 +115,7 @@ function render() {
   drawDrone(s);
   drawPrep(s);
   drawHawks(s);
+  drawEagles(s);
   drawFx(s);
   drawSandstorm(s);
   drawWeather(s);
@@ -189,7 +192,7 @@ function loop(now) {
   }
   showActions(zones(st), !!st.anchor, !!st.landing, st.boosting);
   showHangarTip(paused ? null : hangarHint(st));
-  updateRotor(!paused && !st.wreck && st.d.bat > 0, rotorLoad(st, controls()), currentModel());
+  updateRotor(!paused && !st.wreck && !st.falling && st.d.bat > 0, rotorLoad(st, controls()), currentModel());
   requestAnimationFrame(loop);
 }
 

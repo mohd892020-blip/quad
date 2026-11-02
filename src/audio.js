@@ -172,6 +172,7 @@ const SOUNDS = {
   whoosh: t => burst(t, .3, .4, 1400, 'bandpass'),
   boom: t => { burst(t, .7, 1, 240); tone(90, 32, t, .6, .8, 'sine'); },
   hawk: t => tone(1900, 900, t, .32, .35),
+  eagle: t => { tone(1500, 620, t, .6, .4, 'sawtooth'); tone(1180, 520, t + .07, .5, .28); },
   battery: t => { tone(880, 880, t, .1, .3); tone(660, 660, t + .13, .16, .3); },
   thunder: t => { burst(t + .08, .9, .6, 170); tone(72, 38, t, .7, .4, 'sine'); },
 };

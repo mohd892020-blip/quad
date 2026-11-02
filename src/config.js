@@ -338,9 +338,9 @@ export const CHALLENGES = [
   { key: 'battery', name: 'Last Drops', note: '40% battery, no boost and a long way to go', map: 'city', shop: 1, item: 'falafel', kinds: ['roof'], near: 1900, far: 2500, hawks: 1, wind: 130, startBat: 40, noBoost: true, extra: 10 },
   { key: 'melt', name: 'Melting Point', note: 'Ice cream in the desert. Melted means failed', map: 'desert', shop: 0, item: 'icecream', kinds: ['rock'], near: 1200, far: 2500, hawks: 1, wind: 170 },
   { key: 'ferry', name: 'Ferry Drop', note: 'The customer is on a moving ferry. Hold rides along', map: 'beach', shop: 0, item: 'coffee', hawks: 1, wind: 150, extra: 14 },
-  { key: 'hawks', name: 'Hawk Season', note: 'Six hawks on the way. Shield the order with your aircraft', map: 'city', shop: 6, item: 'kunafa', kinds: ['roof'], near: 2400, far: 3400, hawks: 6, wind: 140, extra: 10 },
+  { key: 'hawks', name: 'Hawk Season', note: 'Six hawks on the way. Shield the order with your aircraft', map: 'city', shop: 6, item: 'kunafa', kinds: ['roof'], near: 2400, far: 3400, hawks: 6, eagles: 1, wind: 140, extra: 10 },
   { key: 'rope', name: 'Long Line', note: 'Double rope. Fly high, the load hangs far below you', map: 'city', shop: 8, item: 'pizza', kinds: ['roof'], near: 1500, far: 2600, hawks: 1, wind: 150, rope: 130, extra: 10 },
-  { key: 'finale', name: 'Grand Finale', note: 'A storm, then a blackout, then a race', map: 'city', shop: 7, stops: ['storm', 'blackout', 'race'], kinds: ['roof', 'bal'], near: 900, far: 1700, hawks: 2, wind: 220, rival: true, rivalSpeed: 160, extra: 12 },
+  { key: 'finale', name: 'Grand Finale', note: 'A storm, then a blackout, then a race', map: 'city', shop: 7, stops: ['storm', 'blackout', 'race'], kinds: ['roof', 'bal'], near: 900, far: 1700, hawks: 2, eagles: 1, wind: 220, rival: true, rivalSpeed: 160, extra: 12 },
 ];
 
 // reach is how far the aircraft's lights carry, clear the share of it that stays fully lit.
@@ -405,6 +405,19 @@ export const HAWKS = {
   from: 1, twoFrom: 4, threeFrom: 20, pathMin: .3, pathRange: .5, lift: 90, orbit: 60, circleRate: 1.4,
   trigger: 200, diveSpeed: 380, diveTime: 3, hitDist: 22, shooDist: 30, damage: 14, hitShake: 6,
   fleeX: 240, fleeY: 200, fleeTime: 2.5,
+};
+
+// An eagle hunts the aircraft itself, where a hawk goes for the order. It soars over the last leg of a mission from first
+// on, on every level whose number leaves remainder at. Once the aircraft is within trigger it screams, marks it for markTime
+// and stoops at diveSpeed, turning at most turnRate radians a second, so a hard change of course slips it. A stoop that
+// passes the aircraft climbs away for climbTime and comes round again, passes times in all. Touching the order tears off
+// damage; touching the aircraft cuts its motors and kills the eagle. spin is how fast the aircraft tumbles as it falls.
+export const EAGLES = {
+  first: 24, every: 5, at: 4, twoFrom: 39, pathMin: .35, pathRange: .4, lift: 170, orbit: 90, circleRate: .9, flap: 5, stoopFlap: 26,
+  trigger: 300, markTime: .7, markRise: 40, diveSpeed: 470, turnRate: 2.2, diveTime: 2.4, hitDist: 30, boxDist: 30, damage: 26, hitShake: 8,
+  climbSpeed: 240, climbRise: 200, climbTime: 1.3, passes: 3, fleeX: 300, fleeY: 240, fleeTime: 2.5,
+  deadLife: 3, deadSpin: 5, deadKick: 120, feathers: 18, feather: '#6b4a30', spin: 1.2, scale: 1, reach: 60,
+  alarmRadius: 74, alarmMin: 58, alarmSpread: .5, alarmWidth: 5, alarmRate: 12, alarmColor: '#ff3b30',
 };
 
 export const RIVAL = {

@@ -22,7 +22,7 @@ export function newGame(level) {
     has: false, heat: 100, integ: 100, order: null, item: null, hold: 0, readyAt: 0,
     wind: 0, windT: 0, windNext: WIND.firstAt, pops: [], parts: [], shake: 0, acc: 0,
     dust: [], dustN: 0, onGround: true, ropeLen: level.rope ?? ROPE, anchor: null,
-    boost: 100, boosting: false, boostDir: 1, boostWait: 0, hawks: [], rival: null, prep: null,
+    boost: 100, boosting: false, boostDir: 1, boostWait: 0, hawks: [], eagles: [], falling: false, rival: null, prep: null,
     hp: 100, wreck: 0, lastHit: null, smokeDue: 0, marks: [], smoke: [], blasts: [], batWarn: 0, charging: false, ready: 0,
     leg: { t: 0, x: p.x }, charge: 0, standout: standout(),
   };
@@ -306,8 +306,24 @@ function carryToShop(st, shop, rebuilt) {
   showToast('Back at the shop', `${shop.shop.name} patched you up`, true);
 }
 
-function explode(st) {
+// An eagle's strike kills the motors. The order is gone with it, and the aircraft falls burning until it meets something.
+export function strikeDown(st) {
+  const { box } = st;
+  for (let i = 0; i < DELIVERY.crashCrumbs; i++) {
+    st.parts.push({ x: box.x, y: box.y, vx: (Math.random() - .5) * 200, vy: -Math.random() * 220, t: 0, crumb: 1 });
+  }
+  st.falling = true;
+  st.anchor = st.landing = null;
+  st.boosting = false;
+  st.hp = Math.min(st.hp, HEALTH.fireAt - 1);
+  st.shake = HEALTH.blastShake;
+  sfx('crash');
+  failMission(st, 'Downed by an eagle', true);
+}
+
+export function explode(st) {
   const c = HEALTH, d = st.d, hit = st.lastHit;
+  st.falling = false;
   blast(st, d.x, d.y);
   // the scar lands where it struck, or on the surface just below a blast in the open
   if (hit && st.t - hit.t < c.hitMemory) addMark(st, hit.x, hit.y, c.markBlast, c.markBurn, hit.R);

@@ -492,7 +492,7 @@ function openLevelCard(n) {
   const rows = [
     ...(l.challenge ? [['Challenge', l.challenge.name], ['Rule', l.challenge.note]] : []),
     ...jobs, ['If ruined', route ? `up to -$${Math.max(...legs.map(s => s.item.price))}` : `-$${item.price}`],
-    ['Wind', `up to ${l.wind}`], ['Hawks', l.hawks ? `${l.hawks}${route ? ' per stop' : ''}` : 'None'],
+    ['Wind', `up to ${l.wind}`], ['Hawks', l.hawks ? `${l.hawks}${route ? ' per stop' : ''}` : 'None'], ...(l.eagles ? [['Eagles', `${l.eagles}${route ? ', last stop' : ''}, one hit downs you`]] : []),
     ['Rival', l.rival ? `Yes${route ? ', last stop' : ''}, speed ${l.rivalSpeed}` : 'None'], ...(l.calm ? [] : [[l.beach ? 'Boats' : l.desert ? 'Buggies' : 'Cars', `${l.street ? (l.desert ? 'Crossing your drop' : 'On your street') : 'Yes'}, speed ${l.carSpeed}`]]),
     ...(l.beach ? [['Danger', 'Open sea']] : l.desert ? [['Danger', 'Quicksand, sandstorms']] : []),
   ];

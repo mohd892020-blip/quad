@@ -1,4 +1,4 @@
-import { carSpeed, hawkCount, rivalSpeed } from './action.js';
+import { carSpeed, eagleCount, hawkCount, rivalSpeed } from './action.js';
 import { BEACH, BOX, CHALLENGES, DESERT, DOUBLE, DRONE, FERRY, GROUND, ITEMS, LEVELS, RADAR, RIVAL, ROPE, ROPE_CTL, STOPS, WIND } from './config.js';
 import { targetsFor, timeLimit } from './delivery.js';
 import { nearby, rng, world } from './world.js';
@@ -79,7 +79,7 @@ function challengeLevel(c, n) {
   }
   stops[stops.length - 1].rival = !!c.rival;
   return {
-    n, tier, shop: stops[0].shop, stops, beach, desert, hawks: c.hawks, rival: !!c.rival, rivalSpeed: c.rivalSpeed ?? rivalSpeed(tier), street: false, carSpeed: carSpeed(tier), wind: c.wind,
+    n, tier, shop: stops[0].shop, stops, beach, desert, hawks: c.hawks, eagles: c.eagles ?? 0, rival: !!c.rival, rivalSpeed: c.rivalSpeed ?? rivalSpeed(tier), street: false, carSpeed: carSpeed(tier), wind: c.wind,
     challenge: c, startBat: c.startBat, noBoost: c.noBoost, rope: c.rope, calm: beach,
   };
 }
@@ -113,6 +113,7 @@ export function buildLevels() {
     levels.push({
       n, tier, shop: run ? run.shop : start, stops: run ? [run] : stops, beach, desert,
       hawks: hawkCount(reach),
+      eagles: eagleCount(n),
       rival,
       rivalSpeed: rivalSpeed(tier),
       street: street && !run,
