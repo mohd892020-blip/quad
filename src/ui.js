@@ -440,7 +440,7 @@ export function showResult(o, level, hasNext) {
   const card = $('resultCard');
   card.classList.toggle('bad', !o.passed);
   $('resultTitle').textContent = o.training ? 'TRAINING COMPLETE' : o.passed ? 'MISSION PASSED' : 'MISSION FAILED';
-  $('resultStars').textContent = o.passed && !o.training ? starText(o.stars) : '';
+  $('resultStars').innerHTML = o.passed && !o.training ? [...starText(o.stars)].map((s, i) => `<i style="--n:${i}"${s === '☆' ? ' class="off"' : ''}>${s}</i>`).join('') : '';
   $('resultWhy').textContent = o.training ? 'You are ready for Level 1' : o.passed ? `+$${o.tip}${o.beat ? ' · Rival beaten' : ''}` : o.cost ? `${o.why} · -$${o.cost}` : o.why;
   $('resultNext').hidden = !o.passed || !hasNext;
   card.hidden = false;
