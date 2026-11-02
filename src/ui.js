@@ -440,9 +440,14 @@ export function showResult(o, level, hasNext) {
   const card = $('resultCard');
   card.classList.toggle('bad', !o.passed);
   $('resultTitle').textContent = o.training ? 'TRAINING COMPLETE' : o.passed ? 'MISSION PASSED' : 'MISSION FAILED';
-  $('resultStars').innerHTML = o.passed && !o.training ? [...starText(o.stars)].map((s, i) => `<i style="--n:${i}"${s === '☆' ? ' class="off"' : ''}>${s}</i>`).join('') : '';
+  const hero = $('resultStars'), next = o.passed && hasNext, lead = o.training ? 'resultMap' : next ? 'resultNext' : 'resultRetry';
+  hero.innerHTML = o.passed && !o.training
+    ? [...starText(o.stars)].map((s, i) => `<svg style="--n:${i}" viewBox="0 0 48 48"><use href="#i-star${s === '☆' ? '-off' : ''}"/></svg>`).join('')
+    : `<div class="seal${o.passed ? ' ok' : ''}"><svg class="ico"><use href="#i-${o.passed ? 'check' : 'close'}"/></svg></div>`;
+  hero.setAttribute('aria-label', o.passed && !o.training ? `${o.stars} of 3 stars` : '');
+  for (const id of ['resultMap', 'resultRetry']) $(id).className = id === lead ? 'go wide' : 'ghost round';
   $('resultWhy').textContent = o.training ? 'You are ready for Level 1' : o.passed ? `+$${o.tip}${o.beat ? ' · Rival beaten' : ''}` : o.cost ? `${o.why} · -$${o.cost}` : o.why;
-  $('resultNext').hidden = !o.passed || !hasNext;
+  $('resultNext').hidden = !next;
   card.hidden = false;
 }
 
