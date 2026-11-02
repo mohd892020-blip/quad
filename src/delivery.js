@@ -67,6 +67,13 @@ export function startMission(st, shop, item) {
   hud(st);
 }
 
+// A level opens with its first order already on the rope, so the first thing the player does is fly.
+export function loadFirstOrder(st) {
+  const { shop, item } = st.stop;
+  st.ready = PREP.flash;
+  startMission(st, shop, item);
+}
+
 function endMission(st) {
   st.has = false;
   st.order = null;
@@ -196,9 +203,10 @@ export function stepMission(st, dt) {
 
 // While the shop works, it may suggest an aircraft that suits the order better.
 export function hangarHint(st) {
-  const p = st.prep;
-  if (!p || st.level.training) return null;
-  const c = HANGAR, item = p.item, named = key => AIRCRAFT.find(a => a.key === key);
+  // the first order comes loaded, so its suggestion stands until the aircraft leaves the pad
+  const item = st.prep?.item ?? (st.has && st.onGround && !st.stopAt ? st.item : null);
+  if (!item || st.level.training) return null;
+  const c = HANGAR, named = key => AIRCRAFT.find(a => a.key === key);
   const pick = item.weight >= c.heavyFrom ? ['heavy', `Heavy load: try ${named('heavy').name}`]
     : item.fragile >= c.fragileFrom ? ['cage', `Fragile order: try ${named('cage').name}`]
     : item.urgent ? ['fpv', `Urgent: try ${named('fpv').name}`]
