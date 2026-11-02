@@ -3,7 +3,7 @@
 - اللعبة: ويب 2.5D، كواد كابتر يوصّل طلبات معلّقة بحبل في مدينة مفتوحة، للموبايل والكمبيوتر. النسخة النهائية لاحقًا بـ C# Unity.
 - التقنية: JavaScript (ES modules) مع Canvas 2D وVite. ممنوع محركات ألعاب أو React أو مكتبات فيزياء.
 - النشر: `npm run build` يطلّع `dist/flying-pizza.html` للـArtifact بنفس المسار عشان يضل الرابط نفسه، والموقع العام github.io بيعرض فرع master مباشرة، فأي رفع على master بيحدّثه.
-- الـAPK: `npm run apk` بيطلّع flying-pizza.apk في جذر المشروع، وما بيتحفظ بـgit. الأدوات ومفتاح التوقيع في ~/.flying-pizza.
+- الـAPK: `npm run apk` بيطلّع flying-pizza.apk في جذر المشروع، ورفعه على master بيحدّث رابط التحميل github.io/quad/flying-pizza.apk. الأدوات ومفتاح التوقيع في ~/.flying-pizza.
 - prototype.html مرجع فيزياء الدرون والحبل: البيتزا تضل بقيم النموذج بالضبط، وباقي الطلبات مضاعفات فوقها.
 - الملفات في src/: main، config، drone، rope، world، delivery، action، levels، challenge، training، seaside، desert، contrast، shop، league، ui، input، audio، storage. ملف لكل مسؤولية.
 - كل الأرقام القابلة للضبط في src/config.js فقط.
