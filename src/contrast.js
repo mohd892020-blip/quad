@@ -4,8 +4,8 @@ import { settings } from './storage.js';
 import { ctx, view, X, Y } from './ui.js';
 import { world } from './world.js';
 
-// An aircraft is small and the scene is busy, so it always wears a rim. A few times a second this reads what
-// stands behind it from the scene itself and picks the rim's ink; a paint close to the backdrop shifts a little too.
+// A few times a second this reads what stands behind the aircraft from the scene itself and picks the ink of its
+// faint rim. A paint close to that backdrop shifts a little and the rim comes up, so it never melts into the scene.
 const rgb = hex => [hex.slice(1, 3), hex.slice(3, 5), hex.slice(5, 7)].map(v => parseInt(v, 16));
 const lin = v => {
   const c = v / 255;
@@ -112,9 +112,10 @@ export function drawStandout(st, a, look, flat, live) {
   ctx.save();
   ctx.translate(sx, sy);
   ctx.rotate(a);
+  const strength = c.rimIdle + (c.rimNear - c.rimIdle) * p.k;
   for (const [ink, share] of [[c.dark, 1 - p.edge], [c.light, p.edge]]) {
     if (share < c.rest) continue;
-    ctx.globalAlpha = share;
+    ctx.globalAlpha = share * strength;
     ctx.drawImage(rimOf(look, ink, side, g => lay(g, 0, flat)), -size / 2, -size / 2, size, size);
   }
   ctx.globalAlpha = 1;
