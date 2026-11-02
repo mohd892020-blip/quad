@@ -204,6 +204,9 @@ export const BOX = {
   swingFree: .5,
 };
 
+// How much larger an order is drawn than the box it flies as, so its shape reads on a phone.
+export const CARGO = { drawScale: 1.3 };
+
 // Rope play over a customer. Zones are measured from the drone to the target.
 export const ROPE_CTL = {
   speed: 95,

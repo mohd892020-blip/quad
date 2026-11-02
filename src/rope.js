@@ -1,5 +1,5 @@
 import { sfx } from './audio.js';
-import { BOX, CITY, DOUBLE, G, ROPE, ROPE_CTL } from './config.js';
+import { BOX, CARGO, CITY, DOUBLE, G, ROPE, ROPE_CTL } from './config.js';
 import { ctx, kickDust, shade, view, X, Y } from './ui.js';
 import { nearby, world } from './world.js';
 
@@ -96,110 +96,206 @@ export function stepRope(st, dt) {
 
 const BOX_DRAW_GAP = DOUBLE.drawGap;
 
+// One filled shape, its path laid down by trace.
+function solid(col, trace) {
+  ctx.fillStyle = col;
+  ctx.beginPath();
+  trace();
+  ctx.fill();
+}
+
+const dot = (x, y, r) => () => ctx.arc(x, y, r, 0, 7);
+const oval = (x, y, rx, ry, turn = 0) => () => ctx.ellipse(x, y, rx, ry, turn, 0, 7);
+const rounded = (x, y, w, h, r) => () => ctx.roundRect(x, y, w, h, r);
+const shape = (...pts) => () => {
+  ctx.moveTo(pts[0], pts[1]);
+  for (let i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i], pts[i + 1]);
+  ctx.closePath();
+};
+
+function line(col, width, trace) {
+  ctx.strokeStyle = col;
+  ctx.lineWidth = width;
+  ctx.beginPath();
+  trace();
+  ctx.stroke();
+}
+
+function bloom(x, y, r, petal, heart) {
+  for (let i = 0; i < 5; i++) {
+    const a = i * 1.257 - 1.57;
+    solid(petal, dot(x + Math.cos(a) * r * .6, y + Math.sin(a) * r * .6, r * .55));
+  }
+  solid(heart, dot(x, y, r * .4));
+}
+
+function takeawayCup(x, worn) {
+  solid(worn('#f7f3ea'), shape(x - 5, -7, x + 5, -7, x + 3.6, 6, x - 3.6, 6));
+  solid(worn('#a8744a'), shape(x - 4.6, -3.2, x + 4.6, -3.2, x + 4, 2, x - 4, 2));
+  solid('#2b2233', rounded(x - 5.8, -9.6, 11.6, 3.2, 1.2));
+  solid('#3a3046', rounded(x - 3.8, -11.6, 7.6, 2.4, 1));
+}
+
+// Each order is drawn in its own units around (0,0), about 26 wide, so its shape says what it is before any label does.
+// worn darkens the goods as they take knocks.
 const DRAW = {
-  pizza(S, dmg) {
-    ctx.fillStyle = shade('#d9a86a', 1 - dmg * .35);
-    ctx.fillRect(-13 * S, -5 * S, 26 * S, 10 * S);
-    ctx.fillStyle = '#e8492c';
-    ctx.fillRect(-13 * S, -5 * S, 26 * S, 2.5 * S);
-    ctx.fillStyle = 'rgba(60,30,20,.6)';
+  // a flat delivery box with the pizza printed on its lid
+  pizza(worn) {
+    solid(worn('#b98a4e'), rounded(-14, -2, 28, 9, 1.5));
+    solid(worn('#e0b071'), shape(-11, -8.5, 11, -8.5, 14, -1, -14, -1));
+    solid('#f2c14e', oval(0, -4.8, 8.4, 3));
+    solid('#e8492c', oval(0, -4.8, 7, 2.3));
+    solid('#f2c14e', oval(.6, -5, 5.2, 1.6));
+    for (const [x, y] of [[-3.6, -5.2], [.2, -3.9], [3.6, -5.4], [-.4, -6]]) solid('#a92b1c', oval(x, y, 1.3, .7));
+    solid('#e8492c', () => ctx.rect(-14, .8, 28, 2.4));
+    solid('rgba(70,36,16,.55)', rounded(-4, 4.4, 8, 1.3, .6));
+  },
+  // a pita wrap in paper, with the falafel showing at the top
+  falafel(worn) {
+    solid(worn('#e8cb96'), oval(0, -3, 11, 7));
+    solid('#5fb36b', shape(-9, -3, -7, -7, -4, -4, -1, -8, 2, -4, 5, -8, 7, -4, 9, -3, 0, 2));
+    solid(worn('#8a5a2e'), dot(-4.8, -3.4, 3.8));
+    solid(worn('#9c6a36'), dot(3.8, -4, 4));
+    solid(worn('#7c4f27'), dot(-.4, -.8, 3.6));
+    solid(worn('#f4efe4'), shape(-10.5, -.4, -3, 2, 3, 2, 10.5, -.4, 7, 11, -7, 11));
+    solid('#4fa35f', shape(-9.3, 3, 9.3, 3, 8.6, 5.4, -8.6, 5.4));
+    line('rgba(70,50,30,.3)', .8, () => { ctx.moveTo(-4, 7); ctx.lineTo(2, 11); });
+  },
+  // a round tray of kunafa, gold threads on top and pistachio in the middle
+  kunafa(worn) {
+    solid('#7f8691', oval(0, 6, 15.5, 5));
+    solid('#c0c4cc', oval(0, 4.6, 15.5, 5));
+    solid(worn('#c96a1e'), () => { ctx.ellipse(0, 3.4, 12.8, 4, 0, 0, Math.PI); ctx.ellipse(0, -2.4, 12.8, 4, 0, Math.PI, 0); ctx.closePath(); });
+    solid(worn('#f0932f'), oval(0, -2.4, 12.8, 4));
+    line('#ffc06a', .9, () => {
+      for (const k of [-.75, -.3, .2, .65]) {
+        ctx.moveTo(-9 - k, -2.4 + k * 3.4);
+        ctx.quadraticCurveTo(0, -5 + k * 5, 9 + k, -2.4 + k * 3.4);
+      }
+    });
+    solid('#fff3df', oval(0, -2.4, 4.2, 1.5));
+    for (const [x, y] of [[-1.6, -2.6], [.3, -2], [1.7, -2.8], [-.4, -3.1]]) solid('#6fb97f', dot(x, y, .75));
+  },
+  // two takeaway cups in a card carrier
+  coffee(worn) {
+    takeawayCup(-6.6, worn);
+    takeawayCup(6.6, worn);
+    solid(worn('#b08458'), shape(-13.5, 2, 13.5, 2, 12, 9.5, -12, 9.5));
+    solid('rgba(70,36,16,.5)', rounded(-8, 4.6, 16, 1.5, .7));
+  },
+  // two tiers on a plate, iced, with a cherry on the top
+  cake(worn) {
+    solid('#e9e4dc', oval(0, 9.4, 15, 2.4));
+    solid(worn('#f7c9d6'), rounded(-12.5, -.5, 25, 10, 2));
+    solid(worn('#fbdfe7'), rounded(-8, -8, 16, 8, 2));
+    const icing = worn('#fffaf4');
+    solid(icing, shape(-12.5, -.5, 12.5, -.5, 12.5, 2, 9.6, 2, 8.6, 4.6, 7, 2, 2.6, 2, 1.4, 5.4, -.2, 2, -5.4, 2, -6.6, 4, -8, 2, -12.5, 2));
+    solid(icing, shape(-8, -8, 8, -8, 8, -6, 5.4, -6, 4.4, -3.8, 3.2, -6, -2.4, -6, -3.6, -3.4, -5, -6, -8, -6));
+    solid('#d97aa8', () => ctx.rect(-12.5, 6.2, 25, 1.8));
+    solid('#e8492c', dot(0, -10.4, 2.5));
+    solid('rgba(255,255,255,.75)', dot(-.8, -11.2, .7));
+  },
+  // a first aid case with a handle, read by its red cross
+  medicine(worn) {
+    line('#8b929d', 2.2, () => ctx.roundRect(-4.6, -11.4, 9.2, 6.4, 2.4));
+    solid(worn('#f7f7f4'), rounded(-13, -7.5, 26, 17, 3.2));
+    solid(worn('#d9dbd8'), rounded(-13, 6, 26, 3.5, 2));
+    solid('#e8492c', () => { ctx.rect(-2.3, -5.4, 4.6, 12); ctx.rect(-6, -1.7, 12, 4.6); });
+    solid('#8b929d', () => { ctx.rect(-11, -8.4, 3.4, 2); ctx.rect(7.6, -8.4, 3.4, 2); });
+  },
+  // a bouquet in a paper cone, tied with a ribbon
+  flowers(worn) {
+    solid('#3f8f50', oval(-9.5, -4, 5.4, 2.2, -.7));
+    solid('#3f8f50', oval(9.5, -4, 5.4, 2.2, .7));
+    solid('#3f8f50', oval(0, -13, 2.2, 4.6));
+    solid(worn('#f4e6d0'), shape(-10.5, -3.5, 10.5, -3.5, 2.6, 12, -2.6, 12));
+    solid(worn('#e3cfb1'), shape(1, -3.5, 10.5, -3.5, 2.6, 12, 1, 12));
+    bloom(-6, -6.4, 6, '#e8492c', '#ffc23d');
+    bloom(6.2, -6.8, 6, '#d97aa8', '#fff3df');
+    bloom(0, -10, 6.4, '#ffc23d', '#e8492c');
+    solid('#e8492c', () => ctx.rect(-3.6, 5.4, 7.2, 2.2));
+    solid('#e8492c', shape(0, 6.4, -5, 11, -2.6, 11));
+    solid('#e8492c', shape(0, 6.4, 5, 11, 2.6, 11));
+  },
+  // a whole melon, stripes and all, with a wedge cut out to show the red
+  watermelon(worn) {
+    solid(worn('#3f9a52'), oval(0, 0, 14.5, 10.5));
+    line('#215e35', 2, () => {
+      for (const k of [-.72, -.26, .2]) {
+        ctx.moveTo(k * 11, -9.8);
+        ctx.bezierCurveTo(k * 16, -4, k * 11, 3, k * 14, 9.6);
+      }
+    });
+    solid('#f4f1dc', () => { ctx.moveTo(1, 1); ctx.ellipse(0, 0, 14.5, 10.5, 0, -1.45, .28); ctx.closePath(); });
+    solid(worn('#e8493c'), () => { ctx.moveTo(1.6, .6); ctx.ellipse(0, 0, 12.8, 9, 0, -1.36, .2); ctx.closePath(); });
+    for (const [x, y] of [[4.4, -4.4], [8, -2.4], [6.2, .2], [9.8, -5]]) solid('#2b1b14', oval(x, y, .95, .6, .8));
+    solid('rgba(255,255,255,.3)', oval(-6.4, -4.6, 4, 1.8, -.5));
+  },
+  // the set in its shipping carton, LCD printed on the side
+  tv(worn) {
+    const ink = '#3a2415';
+    solid(worn('#c99a63'), rounded(-13.5, -9.5, 27, 19, 1.4));
+    solid(worn('#b5854f'), () => ctx.rect(-13.5, -9.5, 27, 3));
+    solid('#e8d6ac', () => ctx.rect(-2.4, -9.5, 4.8, 5));
+    solid('rgba(70,36,16,.16)', () => ctx.rect(9.6, -6.5, 3.9, 16));
+    line(ink, 1.1, () => ctx.roundRect(-10.5, -5.2, 21, 11.6, 1.2));
+    solid(ink, () => { ctx.rect(-2.2, 6.4, 4.4, 1); ctx.rect(-4.6, 7.4, 9.2, .9); });
+    ctx.fillStyle = ink;
+    ctx.font = '10px Lalezar,Tajawal,sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('LCD', 0, 1.2);
+  },
+  // blown glass, so most of what shows is light on its edges
+  vase(worn) {
+    const glass = () => {
+      ctx.moveTo(-5, -12);
+      ctx.lineTo(5, -12);
+      ctx.quadraticCurveTo(3, -5, 9, 2);
+      ctx.quadraticCurveTo(10.5, 11, 0, 11);
+      ctx.quadraticCurveTo(-10.5, 11, -9, 2);
+      ctx.quadraticCurveTo(-3, -5, -5, -12);
+    };
+    solid(worn('#a8e0ea'), glass);
+    solid('rgba(46,134,171,.5)', () => { ctx.moveTo(-9.4, 3); ctx.quadraticCurveTo(0, 6, 9.4, 3); ctx.quadraticCurveTo(10.5, 11, 0, 11); ctx.quadraticCurveTo(-10.5, 11, -9.4, 3); });
+    line('rgba(26,96,120,.8)', .9, glass);
+    solid('#e7fbff', oval(0, -12, 5.2, 1.5));
+    line('#ffc23d', 1.4, () => { ctx.moveTo(-5, -4.6); ctx.quadraticCurveTo(0, -3, 5, -4.6); });
+    solid('rgba(255,255,255,.85)', oval(-4.8, 3.4, 1.1, 4, .2));
+  },
+  // two scoops in a waffle cone
+  icecream(worn) {
+    const cone = shape(-7.8, -2, 7.8, -2, 0, 15);
+    solid(worn('#d9a86a'), cone);
+    ctx.save();
     ctx.beginPath();
-    ctx.arc(0, 1 * S, 3 * S, 0, 7);
-    ctx.fill();
-  },
-  falafel(S, dmg) {
-    ctx.fillStyle = shade('#c9a06a', 1 - dmg * .35);
-    ctx.fillRect(-9 * S, -7 * S, 18 * S, 14 * S);
-    ctx.fillStyle = '#4fa35f';
-    ctx.fillRect(-9 * S, -7 * S, 18 * S, 3 * S);
-  },
-  kunafa(S, dmg) {
-    ctx.fillStyle = '#c0c4cc';
-    ctx.fillRect(-14 * S, 1 * S, 28 * S, 4 * S);
-    ctx.fillStyle = shade('#e8872c', 1 - dmg * .35);
-    ctx.fillRect(-12 * S, -4 * S, 24 * S, 6 * S);
-    ctx.fillStyle = '#7cc28f';
-    ctx.fillRect(-6 * S, -5 * S, 3 * S, 2 * S);
-    ctx.fillRect(3 * S, -5 * S, 3 * S, 2 * S);
-  },
-  coffee(S, dmg) {
-    ctx.fillStyle = '#b08458';
-    ctx.fillRect(-9 * S, 2 * S, 18 * S, 4 * S);
-    ctx.fillStyle = shade('#f2efe6', 1 - dmg * .35);
-    ctx.fillRect(-7 * S, -6 * S, 5 * S, 8 * S);
-    ctx.fillRect(2 * S, -6 * S, 5 * S, 8 * S);
-  },
-  cake(S, dmg) {
-    ctx.fillStyle = shade('#f7d7e0', 1 - dmg * .35);
-    ctx.fillRect(-12 * S, -7 * S, 24 * S, 14 * S);
-    ctx.fillStyle = '#d97aa8';
-    ctx.fillRect(-2 * S, -7 * S, 4 * S, 14 * S);
-    ctx.fillRect(-12 * S, -2 * S, 24 * S, 4 * S);
-  },
-  medicine(S, dmg) {
-    ctx.fillStyle = shade('#f7f7f4', 1 - dmg * .35);
-    ctx.fillRect(-9 * S, -7 * S, 18 * S, 14 * S);
-    ctx.fillStyle = '#e8492c';
-    ctx.fillRect(-2 * S, -5 * S, 4 * S, 10 * S);
-    ctx.fillRect(-5 * S, -2 * S, 10 * S, 4 * S);
-  },
-  flowers(S, dmg) {
-    ctx.fillStyle = shade('#4fa35f', 1 - dmg * .35);
-    ctx.fillRect(-2 * S, -2 * S, 4 * S, 10 * S);
-    for (const [x, y, col] of [[-6, -5, '#e8492c'], [0, -8, '#ffc23d'], [6, -5, '#d97aa8']]) {
-      ctx.fillStyle = col;
-      ctx.beginPath();
-      ctx.arc(x * S, y * S, 4 * S, 0, 7);
-      ctx.fill();
-    }
-  },
-  watermelon(S, dmg) {
-    ctx.fillStyle = shade('#3f9a52', 1 - dmg * .35);
-    ctx.beginPath();
-    ctx.ellipse(0, 0, 13 * S, 9 * S, 0, 0, 7);
-    ctx.fill();
-    ctx.strokeStyle = '#2a6b39';
-    ctx.lineWidth = 1.5 * S;
-    ctx.beginPath();
-    for (const x of [-6, 0, 6]) { ctx.moveTo(x * S, -8 * S); ctx.lineTo(x * S, 8 * S); }
-    ctx.stroke();
-  },
-  tv(S, dmg) {
-    ctx.fillStyle = '#20202a';
-    ctx.fillRect(-13 * S, -8 * S, 26 * S, 16 * S);
-    ctx.fillStyle = shade('#4fa3c2', 1 - dmg * .5);
-    ctx.fillRect(-11 * S, -6 * S, 22 * S, 12 * S);
-  },
-  vase(S, dmg) {
-    ctx.fillStyle = shade('#a8e0ea', 1 - dmg * .35);
-    ctx.beginPath();
-    ctx.moveTo(-4 * S, -10 * S);
-    ctx.lineTo(4 * S, -10 * S);
-    ctx.quadraticCurveTo(3 * S, -4 * S, 8 * S, 2 * S);
-    ctx.quadraticCurveTo(9 * S, 10 * S, 0, 10 * S);
-    ctx.quadraticCurveTo(-9 * S, 10 * S, -8 * S, 2 * S);
-    ctx.quadraticCurveTo(-3 * S, -4 * S, -4 * S, -10 * S);
-    ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,.7)';
-    ctx.fillRect(-4.5 * S, -1 * S, 2 * S, 7 * S);
-  },
-  icecream(S, dmg) {
-    ctx.fillStyle = '#d9a86a';
-    ctx.beginPath();
-    ctx.moveTo(-7 * S, -1 * S);
-    ctx.lineTo(7 * S, -1 * S);
-    ctx.lineTo(0, 12 * S);
-    ctx.fill();
-    ctx.fillStyle = shade('#fbe7ef', 1 - dmg * .35);
-    ctx.beginPath();
-    ctx.arc(0, -5 * S, 7.5 * S, 0, 7);
-    ctx.fill();
-    ctx.fillStyle = '#e8492c';
-    ctx.beginPath();
-    ctx.arc(1 * S, -12 * S, 2.2 * S, 0, 7);
-    ctx.fill();
+    cone();
+    ctx.clip();
+    line('#a97a3c', .8, () => {
+      for (const k of [-12, -6, 0, 6, 12]) {
+        ctx.moveTo(k - 5, -2);
+        ctx.lineTo(k + 5, 15);
+        ctx.moveTo(k + 5, -2);
+        ctx.lineTo(k - 5, 15);
+      }
+    });
+    ctx.restore();
+    solid(worn('#f7d78f'), dot(3.8, -5, 5.2));
+    solid(worn('#fbe7ef'), dot(-3.4, -4.4, 5.4));
+    solid(worn('#f4a6c0'), dot(.2, -9.6, 5.2));
+    solid('rgba(255,255,255,.6)', oval(-1.6, -11.4, 1.8, 1, -.5));
+    solid('#e8492c', dot(.8, -15, 2.1));
   },
 };
+
+// A hanging order is drawn CARGO.drawScale times its box, so it reads on a phone. Its share of the box's size still sets how it flies.
+function paintOrder(key, size, dmg) {
+  const k = view.S * size * CARGO.drawScale;
+  ctx.save();
+  ctx.scale(k, k);
+  DRAW[key](hex => shade(hex, 1 - dmg * .35));
+  ctx.restore();
+}
 
 export function drawRope(st) {
   if (!st.has) return;
@@ -223,14 +319,14 @@ export function drawRope(st) {
   const dmg = 1 - st.integ / 100, s = S * item.size;
   // two tied orders hang one over the other, the next to come off at the bottom
   if (item.parts) {
-    const gap = BOX_DRAW_GAP * S;
+    const gap = BOX_DRAW_GAP * S * CARGO.drawScale;
     for (const [part, y] of [[item.parts[1], -gap], [item.parts[0], gap]]) {
       ctx.save();
       ctx.translate(0, y);
-      DRAW[part.key](S * part.size, dmg);
+      paintOrder(part.key, part.size, dmg);
       ctx.restore();
     }
-  } else DRAW[item.key](s, dmg);
+  } else paintOrder(item.key, item.size, dmg);
   if (dmg > .4) {
     ctx.strokeStyle = '#5a3a24';
     ctx.lineWidth = 1 * s;
