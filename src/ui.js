@@ -379,7 +379,7 @@ export const levelsOpen = () => !$('levels').hidden;
 /* ---------- levels ---------- */
 let levelList = [], acts = {}, picked = null, resultLevel = null;
 const starText = n => '★'.repeat(n) + '☆'.repeat(3 - n);
-const clockText = s => `${Math.floor(Math.ceil(s) / 60)}:${String(Math.ceil(s) % 60).padStart(2, '0')}`;
+export const clockText = s => `${Math.floor(Math.ceil(s) / 60)}:${String(Math.ceil(s) % 60).padStart(2, '0')}`;
 // The first level without a star is the furthest one open.
 function reachedLevel(stars) {
   let n = 1;

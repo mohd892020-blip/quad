@@ -284,6 +284,9 @@ export const PREP = {
 // all the missing charge back, and a trip that takes twice as long gets half.
 export const BATTERY = { lowSecs: 20, criticalSecs: 10, chargingBelow: 99, shopReach: 60, grace: 30, pace: 150 };
 
+// The order's time left, over the aircraft. Sizes are in pixels; lift scales with the view.
+export const ORDER_TIME = { lift: 30, gap: 12, clearCue: 52, w: 42, h: 18, text: 12, alpha: .82, fill: .3, pulse: 4 };
+
 export const BOOST = { force: 900, drain: 60, refill: 18, refillDelay: .6, batteryDrain: 2.5 };
 
 export const HAWKS = {

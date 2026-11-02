@@ -1,11 +1,11 @@
 import { clearAction, planMission, planTraffic } from './action.js';
 import { sfx } from './audio.js';
 import {
-  AIRCRAFT, BATTERY, CAMERA, DELIVERY, DEV, DRONE, FX, HANGAR, HEADING, HEALTH, LAND, LEVELS, MISSION, ORDERS, POINTER, PREP, RESTAURANT, RIVAL, ROPE, ROPE_CTL, WIND,
+  AIRCRAFT, BATTERY, CAMERA, DELIVERY, DEV, DRONE, FX, HANGAR, HEADING, HEALTH, LAND, LEVELS, MISSION, ORDER_TIME, ORDERS, POINTER, PREP, RESTAURANT, RIVAL, ROPE, ROPE_CTL, WIND,
 } from './config.js';
 import { currentModel } from './drone.js';
 import { loadProgress, owns, saveProgress, settings } from './storage.js';
-import { addMark, blast, ctx, glow, hud, pop, puff, showToast, view, X, Y } from './ui.js';
+import { addMark, blast, clockText, ctx, glow, hud, pop, puff, showToast, view, X, Y } from './ui.js';
 import { nearby, nearestShop, shopPad, world } from './world.js';
 
 let current = null;
@@ -474,6 +474,27 @@ export function drawBatteryCue(st) {
   ctx.strokeText(text, tx, y - 14);
   ctx.fillStyle = '#fff3df';
   ctx.fillText(text, tx, y - 14);
+  ctx.restore();
+}
+
+// The time left on the order, small and quiet over the aircraft, and clear of the battery cue.
+export function drawOrderTime(st) {
+  const c = ORDER_TIME, o = st.order;
+  if (!st.has || !o || o.limit === Infinity || st.wreck || st.outcome || st.done) return;
+  const left = Math.max(0, o.deadline - st.t), low = left < MISSION.lowTime, cue = st.batWarn > 0 || st.charging;
+  const x = Math.max(c.w / 2 + 4, Math.min(view.W - c.w / 2 - 4, X(st.d.x)));
+  const y = Math.max(view.top + c.h, Y(st.d.y) - c.lift * view.S - (cue ? c.clearCue : c.gap));
+  ctx.save();
+  ctx.globalAlpha = low ? c.alpha + (1 - c.alpha) * Math.sin(st.t * c.pulse) : c.alpha;
+  ctx.fillStyle = `rgba(20,15,40,${c.fill})`;
+  ctx.beginPath();
+  ctx.roundRect(x - c.w / 2, y - c.h / 2, c.w, c.h, c.h / 2);
+  ctx.fill();
+  ctx.font = `800 ${c.text}px Tajawal,sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = low ? '#ff9a84' : '#fff3df';
+  ctx.fillText(clockText(left), x, y + 1);
   ctx.restore();
 }
 
