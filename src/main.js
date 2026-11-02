@@ -1,5 +1,6 @@
 import { drawBoost, drawCars, drawHawks, drawRival, stepAction, stepTraffic } from './action.js';
 import { initAudio, sfx, updateRotor } from './audio.js';
+import { stepContrast } from './contrast.js';
 import { BEACH, CAMERA, CITY_SEED, DRONE, DUST, FIXED_DT, GROUND, HANGAR, HUD_INTERVAL, MAX_FRAME_DT, QUALITY } from './config.js';
 import { initLeague } from './league.js';
 import { buildLevels } from './levels.js';
@@ -60,6 +61,7 @@ function step(dt) {
   if (st.lesson) stepTraining(st, zone, dt);
   stepCamera(st, dt);
   stepFx(st, dt);
+  stepContrast(st, dt);
 }
 
 function rememberPose() {

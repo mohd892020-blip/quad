@@ -1,4 +1,5 @@
 import { sfx } from './audio.js';
+import { drawStandout } from './contrast.js';
 import { AIRCRAFT, AUDIO, BOOST, DRONE, EDGE, G, HEALTH, HOLD, LAND, LOAD, SHADOW, SHOP } from './config.js';
 import { garage, settings } from './storage.js';
 import { addMark, ctx, glow, kickDust, view, X, Y } from './ui.js';
@@ -190,8 +191,10 @@ function disc(g, x, y, r, phase, alpha = .55, tilt = 0) {
   g.fill();
 }
 
+let plain = false;
+
 function led(g, col, x, y, r) {
-  if (!view.lowQ) glow(g, col, x, y, r);
+  if (!view.lowQ && !plain) glow(g, col, x, y, r);
 }
 
 const RED = '#ff3b3b', GREEN = '#4dff8a', WARM = 'rgba(255,240,200,.8)';
@@ -583,18 +586,16 @@ export function drawAirframe(g, key, t, pose = FLAT) {
 
 export function drawDrone(st) {
   if (st.wreck) return;
-  const d = st.d;
-  ctx.save();
-  ctx.translate(X(d.x), Y(d.y));
-  ctx.rotate(d.a);
-  ctx.scale(view.S, view.S);
+  const d = st.d, blink = (st.t * 2 % 1) < .15;
   // retracting legs tuck up away from the ground; tilting rotors lean into the speed
-  const fold = Math.max(0, Math.min(1, (roofAt(d.x, 20) - d.y - 40) / 60));
-  drawAirframe(ctx, settings.plane, st.t, { fold, lean: Math.max(-1, Math.min(1, d.vx / 300)) });
-  const blink = (st.t * 2 % 1) < .15;
-  ctx.fillStyle = blink ? '#ff3b3b' : '#6b1d1d';
-  ctx.fillRect(-33, -3, 3, 3);
-  ctx.fillStyle = blink ? '#4dff8a' : '#1d5b33';
-  ctx.fillRect(30, -3, 3, 3);
-  ctx.restore();
+  const fold = Math.max(0, Math.min(1, (roofAt(d.x, 20) - d.y - 40) / 60)), pose = { fold, lean: Math.max(-1, Math.min(1, d.vx / 300)) };
+  drawStandout(st, d.a, (g, soft) => {
+    plain = soft;
+    drawAirframe(g, settings.plane, st.t, pose);
+    plain = false;
+    g.fillStyle = blink ? '#ff3b3b' : '#6b1d1d';
+    g.fillRect(-33, -3, 3, 3);
+    g.fillStyle = blink ? '#4dff8a' : '#1d5b33';
+    g.fillRect(30, -3, 3, 3);
+  });
 }

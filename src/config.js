@@ -228,19 +228,27 @@ export const DEV = { password: '930933', chargeTo: 100 };
 // Courier is the prototype's flight, every factor 1. thrust is climb and load strength,
 // speed scales horizontal thrust, battery is capacity, tough divides crash damage.
 // hz is the motor pitch at idle and full throttle. Real classes set the direction, game balance the size.
+// When an aircraft's paint comes close to what is behind it, it shifts toward ink and gains a rim. near is the colour
+// distance where that starts and far where it is full; every is how often the scene is read, in seconds. Darkening
+// stays light so the paint keeps its colour; a dark aircraft on a dark scene needs the stronger lift.
+export const CONTRAST = {
+  every: .2, near: .24, far: .08, rate: 2.5, rest: .02, tintLight: .45, tintDark: .22, rim: 1, rimPx: 1.3, box: 130, midLight: .62,
+  dark: '#141030', light: '#ffffff', groundGap: 18, skyline: 240,
+};
+
 export const AIRCRAFT = [
-  { key: 'courier', name: 'Courier', gear: 'arched', thrust: 1, speed: 1, battery: 1, tough: 1, hz: [92, 148], note: 'The all-rounder' },
-  { key: 'miniFold', name: 'Mini Fold', gear: 'stubs', thrust: 1.2, speed: .8, battery: 1.15, tough: .6, hz: [200, 310], note: 'Light and long-lived, but fragile' },
-  { key: 'hexa', name: 'Hexa H6', gear: 'tlegs', thrust: 1, speed: .9, battery: 1.25, tough: 1.3, hz: [105, 150], note: 'Steady, with six motors to spare' },
-  { key: 'x8', name: 'X8 Cargo', gear: 'skids', thrust: .85, speed: 1, battery: 1, tough: 1.6, hz: [64, 90], note: 'Takes a beating, climbs slowly' },
-  { key: 'fpv', name: 'FPV Racer', gear: 'belly', thrust: 1.6, speed: 1.5, battery: .45, tough: .8, hz: [240, 640], note: 'Wild speed, tiny battery' },
-  { key: 'heavy', name: 'Heavy Lifter', gear: 'tall', thrust: 1.1, speed: .6, battery: .6, tough: 1.9, hz: [50, 70], note: 'Slow and short-ranged, nearly unbreakable' },
-  { key: 'vtol', name: 'VTOL Wing', gear: 'retract', thrust: .8, speed: 1.7, battery: 1.4, tough: .7, hz: [130, 200], note: 'Fastest cruiser, weak climber' },
-  { key: 'whoop', name: 'Cinewhoop', gear: 'belly', thrust: 1.3, speed: 1.1, battery: .7, tough: 1.3, hz: [300, 600], note: 'Ducted props shrug off bumps' },
-  { key: 'cage', name: 'Cage Scout', gear: 'none', thrust: .95, speed: .7, battery: .8, tough: 1.5, hz: [180, 280], note: 'A roll cage for tight streets' },
-  { key: 'agri', name: 'Agri Tanker', gear: 'tall', thrust: 1, speed: .7, battery: .75, tough: 1.7, hz: [58, 80], note: 'Farm-built, deep rumble' },
-  { key: 'tandem', name: 'Twin Tandem', gear: 'skids', thrust: 1.15, speed: .85, battery: .9, tough: 1.2, hz: [70, 105], note: 'Two big rotors, strong lifter' },
-  { key: 'tilt', name: 'Tiltrotor', gear: 'retract', thrust: .9, speed: 1.45, battery: 1.2, tough: .8, hz: [150, 240], note: 'Rotors swing forward at speed' },
+  { key: 'courier', paint: '#e8492c', name: 'Courier', gear: 'arched', thrust: 1, speed: 1, battery: 1, tough: 1, hz: [92, 148], note: 'The all-rounder' },
+  { key: 'miniFold', paint: '#8c97a6', name: 'Mini Fold', gear: 'stubs', thrust: 1.2, speed: .8, battery: 1.15, tough: .6, hz: [200, 310], note: 'Light and long-lived, but fragile' },
+  { key: 'hexa', paint: '#2f8f8a', name: 'Hexa H6', gear: 'tlegs', thrust: 1, speed: .9, battery: 1.25, tough: 1.3, hz: [105, 150], note: 'Steady, with six motors to spare' },
+  { key: 'x8', paint: '#4f5d75', name: 'X8 Cargo', gear: 'skids', thrust: .85, speed: 1, battery: 1, tough: 1.6, hz: [64, 90], note: 'Takes a beating, climbs slowly' },
+  { key: 'fpv', paint: '#17171d', name: 'FPV Racer', gear: 'belly', thrust: 1.6, speed: 1.5, battery: .45, tough: .8, hz: [240, 640], note: 'Wild speed, tiny battery' },
+  { key: 'heavy', paint: '#d9a321', name: 'Heavy Lifter', gear: 'tall', thrust: 1.1, speed: .6, battery: .6, tough: 1.9, hz: [50, 70], note: 'Slow and short-ranged, nearly unbreakable' },
+  { key: 'vtol', paint: '#eef1f6', name: 'VTOL Wing', gear: 'retract', thrust: .8, speed: 1.7, battery: 1.4, tough: .7, hz: [130, 200], note: 'Fastest cruiser, weak climber' },
+  { key: 'whoop', paint: '#2f3540', name: 'Cinewhoop', gear: 'belly', thrust: 1.3, speed: 1.1, battery: .7, tough: 1.3, hz: [300, 600], note: 'Ducted props shrug off bumps' },
+  { key: 'cage', paint: '#8b95a3', name: 'Cage Scout', gear: 'none', thrust: .95, speed: .7, battery: .8, tough: 1.5, hz: [180, 280], note: 'A roll cage for tight streets' },
+  { key: 'agri', paint: '#e9eef2', name: 'Agri Tanker', gear: 'tall', thrust: 1, speed: .7, battery: .75, tough: 1.7, hz: [58, 80], note: 'Farm-built, deep rumble' },
+  { key: 'tandem', paint: '#5a7fa6', name: 'Twin Tandem', gear: 'skids', thrust: 1.15, speed: .85, battery: .9, tough: 1.2, hz: [70, 105], note: 'Two big rotors, strong lifter' },
+  { key: 'tilt', paint: '#d8dde6', name: 'Tiltrotor', gear: 'retract', thrust: .9, speed: 1.45, battery: 1.2, tough: .8, hz: [150, 240], note: 'Rotors swing forward at speed' },
 ];
 
 // Picker badge: of the stats a model ranks in the top topRank for, the one furthest above

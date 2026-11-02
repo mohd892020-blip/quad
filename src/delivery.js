@@ -1,5 +1,6 @@
 import { clearAction, planMission, planTraffic } from './action.js';
 import { sfx } from './audio.js';
+import { standout } from './contrast.js';
 import {
   AIRCRAFT, BATTERY, CAMERA, DELIVERY, DEV, DOUBLE, DRONE, FIXED_DT, FX, HANGAR, HEALTH, LAND, LEVELS, MISSION, ORDER_TIME, ORDERS, POINTER, PREP, RESTAURANT, RIVAL, ROPE, ROPE_CTL, WIND,
 } from './config.js';
@@ -23,7 +24,7 @@ export function newGame(level) {
     dust: [], dustN: 0, onGround: true, ropeLen: ROPE, anchor: null,
     boost: 100, boosting: false, boostDir: 1, boostWait: 0, hawks: [], rival: null, prep: null,
     hp: 100, wreck: 0, lastHit: null, smokeDue: 0, marks: [], smoke: [], blasts: [], batWarn: 0, charging: false, ready: 0,
-    leg: { t: 0, x: p.x }, charge: 0,
+    leg: { t: 0, x: p.x }, charge: 0, standout: standout(),
   };
   planTraffic(st);
   current = st;
