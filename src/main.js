@@ -7,7 +7,7 @@ import {
   autoDeliver, chargeDrone, drawBatteryCue, drawHalos, drawHeading, drawPointer, drawPrep, drawTarget, failMission, hangarHint, newGame, stepHealth, stepCargo, stepHeading, stepMission,
   stepShop, zones,
 } from './delivery.js';
-import { currentModel, drawAirframe, drawDrone, drawShadow, rotorLoad, stepBoost, stepDrone, stepHold } from './drone.js';
+import { currentModel, drawAirframe, drawDrone, drawShadow, rotorLoad, stepBoost, stepDrone, stepHold, stepLand } from './drone.js';
 import { beginTraining, drawLesson, stepTraining, trainingLevel } from './training.js';
 import { initInput, keys } from './input.js';
 import { drawRope, stepRope, stepRopeLength } from './rope.js';
@@ -36,6 +36,7 @@ function step(dt) {
   }
   const zone = zones(st);
   stepHold(st, keys, zone.hold);
+  stepLand(st, keys, zone.land);
   stepRopeLength(st, keys, zone, dt);
   stepBoost(st, keys, dt);
   const fall = st.d.vy;
@@ -157,7 +158,7 @@ function loop(now) {
     render();
     view.dirty = false;
   }
-  showActions(zones(st), !!st.anchor, st.boosting);
+  showActions(zones(st), !!st.anchor, !!st.landing, st.boosting);
   showHangarTip(paused ? null : hangarHint(st));
   updateRotor(!paused && !st.wreck && st.d.bat > 0, rotorLoad(st, keys), currentModel());
   requestAnimationFrame(loop);

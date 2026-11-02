@@ -1,8 +1,8 @@
 import { JOY } from './config.js';
 import { settings } from './storage.js';
 
-// l/r/u/rd/ru are held states, axis is the joystick in -1..1, holdTap is a one-shot press.
-export const keys = { l: 0, r: 0, u: 0, rd: 0, ru: 0, boost: 0, axis: 0, holdTap: 0 };
+// l/r/u/rd/ru are held states, axis is the joystick in -1..1, holdTap and landTap are one-shot presses.
+export const keys = { l: 0, r: 0, u: 0, rd: 0, ru: 0, boost: 0, axis: 0, holdTap: 0, landTap: 0 };
 
 const km = {
   ArrowLeft: 'l', KeyA: 'l', ArrowRight: 'r', KeyD: 'r', ArrowUp: 'u', KeyW: 'u', Space: 'u',
@@ -93,6 +93,7 @@ export function initInput() {
   addEventListener('keydown', e => {
     if (e.target?.tagName === 'INPUT') return;
     if (e.code === 'KeyH' && !e.repeat) keys.holdTap = 1;
+    if (e.code === 'KeyL' && !e.repeat) keys.landTap = 1;
     const k = km[e.code];
     if (k) { keys[k] = 1; e.preventDefault(); }
   });
@@ -103,11 +104,11 @@ export function initInput() {
 
   [['lt', 'l'], ['rt', 'r'], ['up', 'u'], ['boost', 'boost'], ['ropeDown', 'rd'], ['ropeUp', 'ru']].forEach(([id, k]) => bindHeld(id, k));
   bindJoystick();
-  // a second finger never produces a click, and this button is pressed while steering
-  $('hold').addEventListener('pointerdown', e => {
+  // a second finger never produces a click, and these buttons are pressed while steering
+  [['hold', 'holdTap'], ['land', 'landTap']].forEach(([id, k]) => $(id).addEventListener('pointerdown', e => {
     e.preventDefault();
-    keys.holdTap = 1;
-  });
+    keys[k] = 1;
+  }));
   lockPage();
 
   addEventListener('blur', releaseAll);

@@ -348,17 +348,23 @@ function show(id, on) {
   if (el.hidden === on) el.hidden = !on;
 }
 
-export function showActions(zone, anchored, boosting) {
+// A two-state button: its text changes with what it would do next.
+function flip(id, on, idle, active) {
+  const el = $(id), label = on ? active : idle;
+  if (el.textContent === label) return;
+  el.textContent = label;
+  el.classList.toggle('on', on);
+}
+
+export function showActions(zone, anchored, landing, boosting) {
   const boost = $('boost');
   if (boost.classList.contains('on') !== boosting) boost.classList.toggle('on', boosting);
   show('ropeDown', zone.rope);
   show('ropeUp', zone.rope);
   show('hold', zone.hold || anchored);
-  const hold = $('hold'), label = anchored ? 'Release' : 'Hold';
-  if (hold.textContent !== label) {
-    hold.textContent = label;
-    hold.classList.toggle('on', anchored);
-  }
+  show('land', !!zone.land || landing);
+  flip('hold', anchored, 'Hold', 'Release');
+  flip('land', landing, 'Land', 'Cancel');
 }
 
 /* ---------- settings ---------- */

@@ -1,5 +1,5 @@
 import { sfx } from './audio.js';
-import { AIRCRAFT, AUDIO, BOOST, DRONE, EDGE, G, HEALTH, HOLD, LOAD, SHADOW, SHOP } from './config.js';
+import { AIRCRAFT, AUDIO, BOOST, DRONE, EDGE, G, HEALTH, HOLD, LAND, LOAD, SHADOW, SHOP } from './config.js';
 import { garage, settings } from './storage.js';
 import { addMark, ctx, glow, kickDust, view, X, Y } from './ui.js';
 import { nearby, roofAt } from './world.js';
@@ -29,7 +29,7 @@ export function currentModel() {
 
 // How hard the motors are working, for the rotor sound.
 export function rotorLoad(st, keys) {
-  const base = st.anchor ? AUDIO.holdLoad : keys.u ? 1 : 0;
+  const base = st.anchor || st.landing ? AUDIO.holdLoad : keys.u ? 1 : 0;
   return base + Math.abs(st.d.a) * AUDIO.tiltLoad + (st.boosting ? AUDIO.boostLoad : 0);
 }
 
@@ -37,7 +37,7 @@ export function rotorLoad(st, keys) {
 export function stepBoost(st, keys, dt) {
   const c = BOOST, steer = keys.r - keys.l + keys.axis;
   const was = st.boosting;
-  st.boosting = !!keys.boost && st.boost > 0 && !st.anchor && st.d.bat > 0;
+  st.boosting = !!keys.boost && st.boost > 0 && !st.anchor && !st.landing && st.d.bat > 0;
   if (st.boosting) {
     st.boostDir = Math.sign(steer) || Math.sign(st.d.vx) || st.boostDir;
     st.boost = Math.max(0, st.boost - c.drain * dt);
@@ -57,6 +57,26 @@ export function stepHold(st, keys, canHold) {
     if (!flying) st.anchor.armed = true;
     if (tap || (flying && st.anchor.armed) || !st.has || st.d.bat <= 0) st.anchor = null;
   } else if (tap && canHold) st.anchor = { x: st.d.x, y: st.d.y, armed: false };
+}
+
+// Land works like Hold: any new flight input takes the drone back, and it ends on touching down.
+export function stepLand(st, keys, pad) {
+  const tap = keys.landTap, flying = keys.l || keys.r || keys.u || keys.axis;
+  keys.landTap = 0;
+  if (st.landing) {
+    if (!flying) st.landing.armed = true;
+    if (tap || (flying && st.landing.armed) || !pad) st.landing = null;
+  } else if (tap && pad) st.landing = { x: pad.x, y: pad.y - DRONE.radius, armed: false };
+}
+
+function flyLanding(st, dt) {
+  const d = st.d, c = DRONE, a = st.landing, sink = Math.abs(a.x - d.x) < LAND.lineUp ? Math.min(LAND.speed, LAND.touch + (a.y - d.y) * LAND.ease) : 0;
+  d.a += -d.a * Math.min(1, dt * c.tiltRate);
+  d.vx += ((a.x - d.x) * HOLD.spring - d.vx * HOLD.damp + st.wind * c.windForce) * dt;
+  d.vy += (sink - d.vy) * LAND.follow * dt;
+  d.x += d.vx * dt;
+  d.y += d.vy * dt;
+  d.bat = Math.max(0, d.bat - dt * (c.batDrain + HOLD.drain * c.batDrainLift) / currentModel().battery);
 }
 
 function flyHeld(st, dt, over) {
@@ -83,6 +103,7 @@ export function stepDrone(st, keys, dt) {
   // an empty drone flies like one carrying pizza, the weight every factor is measured from
   const over = st.has ? st.item.weight - 1 : 0;
   if (st.anchor) flyHeld(st, dt, over);
+  else if (st.landing) flyLanding(st, dt);
   else {
     const powered = d.bat > 0;
     const tgt = (keys.r - keys.l + keys.axis) * c.tiltMax;

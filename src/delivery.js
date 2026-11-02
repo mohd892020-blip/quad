@@ -1,7 +1,7 @@
 import { clearAction, planMission, planTraffic } from './action.js';
 import { sfx } from './audio.js';
 import {
-  AIRCRAFT, BATTERY, CAMERA, DELIVERY, DEV, DRONE, FX, HANGAR, HEADING, HEALTH, LEVELS, MISSION, ORDERS, POINTER, PREP, RESTAURANT, RIVAL, ROPE, ROPE_CTL, WIND,
+  AIRCRAFT, BATTERY, CAMERA, DELIVERY, DEV, DRONE, FX, HANGAR, HEADING, HEALTH, LAND, LEVELS, MISSION, ORDERS, POINTER, PREP, RESTAURANT, RIVAL, ROPE, ROPE_CTL, WIND,
 } from './config.js';
 import { currentModel } from './drone.js';
 import { loadProgress, owns, saveProgress, settings } from './storage.js';
@@ -188,15 +188,27 @@ export function hangarHint(st) {
   return next.key === settings.plane || !owns(next.key) ? null : `Try the ${next.name}`;
 }
 
-const NO_ZONE = { rope: false, hold: false };
+const NO_ZONE = { rope: false, hold: false, land: null };
+
+// The pad under the drone, if Land can take it there. An order on the rope has to be flown in by hand.
+function padBelow(st) {
+  const d = st.d;
+  if (st.has || st.onGround || st.wreck || st.outcome || st.done || d.bat <= 0) return null;
+  const p = shopPad(nearestShop(d.x)), drop = p.y - d.y;
+  return Math.abs(d.x - p.x) < LAND.zoneX && drop > 0 && drop < LAND.zoneY ? p : null;
+}
 
 // Where rope and hold controls apply: rope right above the customer, hold over a wider area.
 export function zones(st) {
-  if (!st.has || !st.order) return NO_ZONE;
+  if (!st.has || !st.order) {
+    const land = padBelow(st);
+    return land ? { ...NO_ZONE, land } : NO_ZONE;
+  }
   const c = ROPE_CTL, T = st.order.t, dx = Math.abs(T.x - st.d.x), dy = T.y - st.d.y;
   return {
     rope: dx < c.zoneX && dy > 0 && dy < c.zoneY,
     hold: dx < c.holdX && dy > -c.holdAbove && dy < c.holdY,
+    land: null,
   };
 }
 
@@ -255,7 +267,7 @@ function carryToShop(st, shop, rebuilt) {
   d.vx = d.vy = d.a = 0;
   d.bat = 100;
   if (rebuilt) st.hp = 100;
-  st.anchor = null;
+  st.anchor = st.landing = null;
   st.prev = null;
   st.cam.x = d.x - view.viewW * CAMERA.leadX;
   showToast('Back at the shop', `${shop.shop.name} patched you up`, true);
