@@ -9,6 +9,23 @@ export function stepRopeLength(st, keys, zone, dt) {
   st.ropeLen = Math.max(ROPE, Math.min(ROPE_CTL.max, st.ropeLen + dir * ROPE_CTL.speed * dt));
 }
 
+// Past the limit the load is walked back toward it and loses the speed carrying it higher, measured against the drone.
+function limitSwing(st, dt) {
+  const c = BOX, bx = st.box, d = st.d, ax = d.x, ay = d.y + c.anchorY, rx = bx.x - ax, ry = bx.y - ay, r = Math.hypot(rx, ry), ang = Math.atan2(rx, ry), over = Math.abs(ang) - c.swingLimit;
+  if (over <= 0 || r < st.ropeLen * c.swingFree) return;
+  const side = Math.sign(ang), back = ang - side * Math.min(over, c.swingBack * dt), tx = side * Math.cos(back), ty = -side * Math.sin(back);
+  let vx = bx.x - bx.px, vy = bx.y - bx.py;
+  const rising = (vx - d.vx * dt) * tx + (vy - d.vy * dt) * ty;
+  if (rising > 0) {
+    vx -= tx * rising;
+    vy -= ty * rising;
+  }
+  bx.x = ax + Math.sin(back) * r;
+  bx.y = ay + Math.cos(back) * r;
+  bx.px = bx.x - vx;
+  bx.py = bx.y - vy;
+}
+
 // The load is a single verlet point hanging from the drone. Pizza is the baseline:
 // its item factors are all 1, which leaves the prototype's numbers untouched.
 export function stepRope(st, dt) {
@@ -34,6 +51,7 @@ export function stepRope(st, dt) {
     d.x += dx * k * pullDrone;
     d.y += dy * k * pullDrone;
   }
+  limitSwing(st, dt);
 
   const padX = c.padX * item.size, padY = c.padY * item.size;
   for (const R of nearby(bx.x)) {

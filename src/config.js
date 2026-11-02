@@ -169,6 +169,9 @@ export const HEALTH = {
 export const ROPE = 62;
 // snagFragile: from this fragility up, the rope's own pull counts as a knock, as in the prototype,
 // so a delicate order that snags on something is gone in moments.
+// swingLimit: radians out from straight down that the load may reach, so it never goes up and over the aircraft.
+// A hard swing stops there and comes back at swingBack radians a second. Under swingFree of the rope's length the
+// load is left alone: that close in it is resting on the pad beside the aircraft, not swinging.
 export const BOX = {
   snagFragile: 1,
   anchorY: 8,
@@ -189,6 +192,9 @@ export const BOX = {
   lineDrag: .15,
   swingSpeed: 360,
   swingDamage: .09,
+  swingLimit: 1.45,
+  swingBack: 12,
+  swingFree: .5,
 };
 
 // Rope play over a customer. Zones are measured from the drone to the target.
