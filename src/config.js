@@ -123,6 +123,7 @@ export const DRONE = {
   tiltRate: 7,
   thrustLift: 1.72,
   thrustIdle: .78,
+  thrustDown: .5,
   windForce: .45,
   dragX: .25,
   dragY: .32,

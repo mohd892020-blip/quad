@@ -52,7 +52,7 @@ export function stepBoost(st, keys, dt) {
 // Hold pins the drone where it was pressed; any new flight input hands control back.
 // Controls already held when Hold was pressed count only once they have been let go.
 export function stepHold(st, keys, canHold) {
-  const tap = keys.holdTap, flying = keys.l || keys.r || keys.u || keys.axis;
+  const tap = keys.holdTap, flying = keys.l || keys.r || keys.u || keys.sink || keys.axis;
   keys.holdTap = 0;
   if (st.anchor) {
     if (!flying) st.anchor.armed = true;
@@ -62,7 +62,7 @@ export function stepHold(st, keys, canHold) {
 
 // Land works like Hold: any new flight input takes the drone back, and it ends on touching down.
 export function stepLand(st, keys, pad) {
-  const tap = keys.landTap, flying = keys.l || keys.r || keys.u || keys.axis;
+  const tap = keys.landTap, flying = keys.l || keys.r || keys.u || keys.sink || keys.axis;
   keys.landTap = 0;
   if (st.landing) {
     if (!flying) st.landing.armed = true;
@@ -113,7 +113,7 @@ export function stepDrone(st, keys, dt) {
     const powered = d.bat > 0;
     const tgt = (keys.r - keys.l + keys.axis) * c.tiltMax;
     d.a += (tgt - d.a) * Math.min(1, dt * c.tiltRate);
-    const thr = powered ? (keys.u ? c.thrustLift * m.thrust : c.thrustIdle) * G * (1 - over * LOAD.thrustLoss / m.thrust) : 0;
+    const thr = powered ? (keys.u ? c.thrustLift * m.thrust : keys.sink ? c.thrustDown : c.thrustIdle) * G * (1 - over * LOAD.thrustLoss / m.thrust) : 0;
     // a parked drone sits on its gear, so wind cannot slide it off a pad
     const wind = st.onGround && !st.has ? 0 : st.wind * c.windForce;
     d.vx += (Math.sin(d.a) * thr * m.speed + wind) * dt;

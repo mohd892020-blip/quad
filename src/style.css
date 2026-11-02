@@ -114,7 +114,8 @@ kbd{display:inline-grid;place-items:center;min-width:24px;height:24px;box-sizing
   #dev{gap:4px}
   #dev .act{min-height:34px;padding:0 8px;font-size:12px}
 }
-.desk #joy,.desk #arrows,.desk #up{display:none!important}
+.desk #joy,.desk #arrows,.desk #up,.desk #down{display:none!important}
+body:not(.dev) .devOnly{display:none!important}
 .desk #controls{justify-content:flex-end;padding-bottom:calc(52px + env(safe-area-inset-bottom,0px))}
 .desk #boost{width:78px;height:78px;font-size:17px;cursor:pointer;line-height:1.1}
 .desk #actions{bottom:calc(142px + env(safe-area-inset-bottom,0px))}
@@ -240,14 +241,18 @@ kbd{display:inline-grid;place-items:center;min-width:24px;height:24px;box-sizing
 #boost{width:calc(58px*var(--stick));height:calc(58px*var(--stick));font-size:13px}
 #joy{width:calc(150px*var(--stick));height:calc(60px*var(--stick));border-radius:calc(30px*var(--stick))}
 #knob{width:calc(46px*var(--stick));height:calc(46px*var(--stick));margin:calc(-23px*var(--stick)) 0 0 calc(-23px*var(--stick))}
-#actions{bottom:calc(104px + env(safe-area-inset-bottom,0px))}
+#actions{bottom:calc(158px*var(--stick) + env(safe-area-inset-bottom,0px))}
+#liftPair{display:flex;flex-direction:column;gap:8px;align-items:center}
+#down{width:calc(84px*var(--stick));height:calc(46px*var(--stick));border-radius:calc(23px*var(--stick));font-size:16px}
 @media (max-height:480px){
   .btn{width:calc(56px*var(--stick));height:calc(56px*var(--stick));font-size:18px}
   #up{width:calc(70px*var(--stick));height:calc(70px*var(--stick));font-size:16px}
   #boost{width:calc(52px*var(--stick));height:calc(52px*var(--stick));font-size:12px}
   #joy{width:calc(130px*var(--stick));height:calc(54px*var(--stick));border-radius:calc(27px*var(--stick))}
   #knob{width:calc(42px*var(--stick));height:calc(42px*var(--stick));margin:calc(-21px*var(--stick)) 0 0 calc(-21px*var(--stick))}
-  #actions{bottom:calc(16px + env(safe-area-inset-bottom,0px));right:calc(140px + max(16px,env(safe-area-inset-right,0px)))}
+  #actions{bottom:calc(16px + env(safe-area-inset-bottom,0px));right:calc(208px*var(--stick) + max(16px,env(safe-area-inset-right,0px)))}
+  #liftPair{flex-direction:row-reverse;align-items:flex-end}
+  #down{width:calc(56px*var(--stick));height:calc(56px*var(--stick));border-radius:50%;font-size:13px}
 }
 #pauseStats{font-size:16px;color:var(--soft)}
 #pauseWhy:empty{display:none}
@@ -257,7 +262,7 @@ kbd{display:inline-grid;place-items:center;min-width:24px;height:24px;box-sizing
 .ghost.off{opacity:.5;text-decoration:line-through}
 .lefty #controls,.lefty .grp{flex-direction:row-reverse}
 .lefty #actions{right:auto;left:max(16px,env(safe-area-inset-left,0px));align-items:flex-start}
-@media (max-height:480px){.lefty #actions{right:auto;left:calc(140px + max(16px,env(safe-area-inset-left,0px)))}}
+@media (max-height:480px){.lefty #actions{right:auto;left:calc(208px*var(--stick) + max(16px,env(safe-area-inset-left,0px)))}.lefty #liftPair{flex-direction:row}}
 .desk #touchSection{display:none}
 #stickOptions{display:grid;gap:6px;margin-top:8px}
 .stickRow{display:grid;grid-template-columns:44px 1fr;align-items:center;gap:8px;font-size:13px;font-weight:700}

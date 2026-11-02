@@ -613,6 +613,7 @@ function setControls(mode) {
 }
 
 function showDev() {
+  document.body.classList.toggle('dev', settings.dev);
   $('dev').hidden = !settings.dev;
   $('devForm').hidden = settings.dev;
   $('devMsg').textContent = settings.dev ? 'Developer mode is on.' : '';

@@ -37,6 +37,7 @@ function step(dt) {
     return;
   }
   const zone = zones(st);
+  keys.sink = keys.dn || (keys.rd && !zone.rope) ? 1 : 0;
   stepHold(st, keys, zone.hold);
   stepLand(st, keys, zone.land);
   stepRopeLength(st, keys, zone, dt);

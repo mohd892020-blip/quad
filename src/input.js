@@ -1,8 +1,9 @@
 import { JOY } from './config.js';
 import { settings } from './storage.js';
 
-// l/r/u/rd/ru are held states, axis is the joystick in -1..1, holdTap and landTap are one-shot presses.
-export const keys = { l: 0, r: 0, u: 0, rd: 0, ru: 0, boost: 0, axis: 0, holdTap: 0, landTap: 0 };
+// l/r/u/dn/rd/ru are held states, axis is the joystick in -1..1, holdTap and landTap are one-shot presses.
+// sink is worked out each step: the DOWN button, or the rope key anywhere the rope has nothing to do.
+export const keys = { l: 0, r: 0, u: 0, dn: 0, sink: 0, rd: 0, ru: 0, boost: 0, axis: 0, holdTap: 0, landTap: 0 };
 
 const km = {
   ArrowLeft: 'l', KeyA: 'l', ArrowRight: 'r', KeyD: 'r', ArrowUp: 'u', KeyW: 'u', Space: 'u',
@@ -10,7 +11,7 @@ const km = {
   ShiftLeft: 'boost', ShiftRight: 'boost', KeyB: 'boost',
 };
 
-const HELD = ['lt', 'rt', 'up', 'boost', 'ropeDown', 'ropeUp'];
+const HELD = ['lt', 'rt', 'up', 'down', 'boost', 'ropeDown', 'ropeUp'];
 const coarse = () => matchMedia('(pointer:coarse)').matches;
 const $ = id => document.getElementById(id);
 
@@ -42,7 +43,7 @@ let finger = null;
 
 // Nothing stays pressed once the game loses the keyboard or the screen.
 function releaseAll() {
-  keys.l = keys.r = keys.u = keys.rd = keys.ru = keys.boost = keys.axis = 0;
+  keys.l = keys.r = keys.u = keys.dn = keys.sink = keys.rd = keys.ru = keys.boost = keys.axis = 0;
   finger = null;
   $('knob').style.transform = '';
   for (const id of HELD) $(id).classList.remove('on');
@@ -102,7 +103,7 @@ export function initInput() {
     if (k) { keys[k] = 0; e.preventDefault(); }
   });
 
-  [['lt', 'l'], ['rt', 'r'], ['up', 'u'], ['boost', 'boost'], ['ropeDown', 'rd'], ['ropeUp', 'ru']].forEach(([id, k]) => bindHeld(id, k));
+  [['lt', 'l'], ['rt', 'r'], ['up', 'u'], ['down', 'dn'], ['boost', 'boost'], ['ropeDown', 'rd'], ['ropeUp', 'ru']].forEach(([id, k]) => bindHeld(id, k));
   bindJoystick();
   // a second finger never produces a click, and these buttons are pressed while steering
   [['hold', 'holdTap'], ['land', 'landTap']].forEach(([id, k]) => $(id).addEventListener('pointerdown', e => {

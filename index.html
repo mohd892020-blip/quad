@@ -47,7 +47,7 @@
   <div id="controls" hidden>
     <div class="grp" id="arrows" hidden><button class="btn" id="lt" aria-label="Left">◀</button><button class="btn" id="rt" aria-label="Right">▶</button></div>
     <div id="joy" hidden aria-label="Steer left or right"><i id="knob"></i></div>
-    <div class="grp"><button class="btn" id="boost" aria-label="Boost, Shift or B"><i id="boostFill"></i><svg class="ico" aria-hidden="true"><use href="#i-boost"/></svg></button><button class="btn" id="up" aria-label="Lift">LIFT</button></div>
+    <div class="grp"><button class="btn" id="boost" aria-label="Boost, Shift or B"><i id="boostFill"></i><svg class="ico" aria-hidden="true"><use href="#i-boost"/></svg></button><div id="liftPair"><button class="btn" id="up" aria-label="Lift">LIFT</button><button class="btn" id="down" aria-label="Descend">DOWN</button></div></div>
   </div>
   <div id="actions">
     <button class="act" id="ropeUp" hidden>Rope ▲</button>
@@ -62,9 +62,9 @@
   <div id="keys" hidden>
     <span><kbd>←</kbd><kbd>→</kbd>Steer</span>
     <span><kbd>↑</kbd>Lift</span>
-    <span><kbd>↓</kbd>Lower rope</span>
+    <span><kbd>↓</kbd>Descend</span>
     <span><kbd>H</kbd>Hold</span>
-    <span><kbd>L</kbd>Land</span>
+    <span class="devOnly"><kbd>L</kbd>Land</span>
   </div>
   <div id="shiftHint" hidden><kbd>Shift</kbd></div>
   <div id="overlay">
@@ -115,7 +115,7 @@
         <button class="ghost tool" id="gear"><svg class="ico"><use href="#i-gear"/></svg>Settings</button>
         <button class="ghost tool" id="mute"><svg class="ico"><use href="#i-sound"/></svg>Sound</button>
       </div>
-      <p id="pauseKeys">← → tilt · ↑ or Space lift · Shift boost · ↓ lower rope · Q raise · H hold · L land · M mute</p>
+      <p id="pauseKeys">← → tilt · ↑ or Space lift · ↓ descend · Shift boost · Over a customer ↓ lowers the rope, Q raises it · H hold<span class="devOnly"> · L land</span> · M mute</p>
     </div>
   </div>
   <div id="shop" class="modal" hidden>

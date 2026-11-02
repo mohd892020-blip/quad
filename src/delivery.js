@@ -220,10 +220,10 @@ export function hangarHint(st) {
 
 const NO_ZONE = { rope: false, hold: false, land: null };
 
-// The pad Land can take the drone to, from close by and at a sensible speed.
+// The pad Land can take the drone to, from close by and at a sensible speed. For now only a developer has it.
 function padBelow(st) {
   const d = st.d;
-  if (st.onGround || st.wreck || st.outcome || st.done || d.bat <= 0 || (!st.landing && Math.hypot(d.vx, d.vy) > LAND.maxSpeed)) return null;
+  if (!settings.dev || st.onGround || st.wreck || st.outcome || st.done || d.bat <= 0 || (!st.landing && Math.hypot(d.vx, d.vy) > LAND.maxSpeed)) return null;
   const p = shopPad(nearestShop(d.x)), drop = p.y - d.y;
   return Math.abs(d.x - p.x) < LAND.zoneX && drop > 0 && drop < LAND.zoneY ? p : null;
 }

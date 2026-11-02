@@ -32,7 +32,7 @@ const STEPS = [
     done: st => st.lesson.boosted > c.boostFor,
   },
   {
-    title: 'Land', touch: 'Fly back over the green pad, then let go of LIFT and settle on it, or tap Land.', keys: 'Fly back over the green pad, then let go of ↑ and settle on it, or press L.', teach: ['land'], goal: pad,
+    title: 'Land', touch: 'Fly back over the green pad, then hold DOWN and settle on it.', keys: 'Fly back over the green pad, then hold ↓ and settle on it.', teach: ['down'], goal: pad,
     done: st => !!st.prep,
   },
   { title: 'Pick up', touch: 'Stay on the pad while the shop makes the order.', keys: 'Stay on the pad while the shop makes the order.', done: st => st.has },
