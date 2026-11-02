@@ -29,7 +29,6 @@ body{background:var(--night);color:var(--ink);font-family:var(--body);overflow:h
 .btn{width:72px;height:72px;border-radius:50%;border:2px solid rgba(255,243,223,.35);background:rgba(26,20,48,.55);color:var(--ink);
   font-family:var(--display);font-size:26px;display:grid;place-items:center;touch-action:none}
 .btn.on{background:rgba(255,194,61,.35);border-color:var(--cheese)}
-#up{width:96px;height:96px;font-size:22px}
 #keys{position:absolute;bottom:calc(14px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);display:flex;gap:16px;align-items:center;font-size:13px;font-weight:700;color:#fff;background:rgba(20,15,40,.55);padding:7px 14px;border-radius:14px;white-space:nowrap;pointer-events:none}
 #keys span{display:inline-flex;align-items:center;gap:5px}
 kbd{display:inline-grid;place-items:center;min-width:24px;height:24px;box-sizing:border-box;padding:0 6px;border-radius:7px;background:rgba(255,255,255,.94);color:#1c1840;font:800 13px var(--body);box-shadow:0 2px 0 rgba(20,15,40,.6)}
@@ -103,7 +102,6 @@ kbd{display:inline-grid;place-items:center;min-width:24px;height:24px;box-sizing
 @media (max-height:480px){
   .icon{width:36px;height:36px;font-size:17px}
   .btn{width:60px;height:60px;font-size:20px}
-  #up{width:76px;height:76px;font-size:18px}
   #boost{width:56px;height:56px;font-size:13px}
   #joy{height:60px}
   #knob{width:46px;height:46px;margin:-23px 0 0 -23px}
@@ -116,7 +114,7 @@ kbd{display:inline-grid;place-items:center;min-width:24px;height:24px;box-sizing
   #dev{gap:4px}
   #dev .act{min-height:34px;padding:0 8px;font-size:12px}
 }
-.desk #joy,.desk #arrows,.desk #up,.desk #down{display:none!important}
+.desk #joy,.desk #arrows,.desk #liftPair{display:none!important}
 body:not(.dev) .devOnly{display:none!important}
 /* The stamp on anything only a developer has: a player never sees one. */
 .devMark{position:relative}
@@ -245,22 +243,28 @@ body:not(.dev) .devOnly{display:none!important}
 #boost.back .ico{transform:scaleX(-1)}
 :root{--stick:1}
 .btn{width:calc(64px*var(--stick));height:calc(64px*var(--stick));font-size:22px}
-#up{width:calc(84px*var(--stick));height:calc(84px*var(--stick));font-size:20px}
 #boost{width:calc(58px*var(--stick));height:calc(58px*var(--stick));font-size:13px}
 #joy{width:calc(150px*var(--stick));height:calc(60px*var(--stick));border-radius:calc(30px*var(--stick))}
 #knob{width:calc(46px*var(--stick));height:calc(46px*var(--stick));margin:calc(-23px*var(--stick)) 0 0 calc(-23px*var(--stick))}
 #actions{bottom:calc(158px*var(--stick) + env(safe-area-inset-bottom,0px))}
-#liftPair{display:flex;flex-direction:column;gap:8px;align-items:center}
-#down{width:calc(84px*var(--stick));height:calc(46px*var(--stick));border-radius:calc(23px*var(--stick));font-size:16px}
+/* LIFT and DOWN are two halves of one rocker: the thumb rolls between them without letting go. */
+#liftPair{--pair:calc(78px*var(--stick));display:flex;flex-direction:column;box-sizing:border-box;width:var(--pair);height:calc(136px*var(--stick));border-radius:calc(var(--pair)/2);border:2px solid rgba(255,243,223,.35);background:rgba(26,20,48,.55);pointer-events:auto;touch-action:none}
+#liftPair .btn{width:100%;height:auto;min-height:0;box-sizing:border-box;padding:0;border:0;background:none;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1}
+#liftPair .btn.on{background:rgba(255,194,61,.42)}
+#liftPair .ico{width:22px;height:13px;stroke-width:3}
+#up{flex:58;font-size:21px;border-radius:calc(var(--pair)/2) calc(var(--pair)/2) 0 0}
+#liftPair #down{flex:42;font-size:15px;border-top:1.5px solid rgba(255,243,223,.3);border-radius:0 0 calc(var(--pair)/2) calc(var(--pair)/2)}
+#down .ico{transform:rotate(180deg)}
 @media (max-height:480px){
   .btn{width:calc(56px*var(--stick));height:calc(56px*var(--stick));font-size:18px}
-  #up{width:calc(70px*var(--stick));height:calc(70px*var(--stick));font-size:16px}
   #boost{width:calc(52px*var(--stick));height:calc(52px*var(--stick));font-size:12px}
   #joy{width:calc(130px*var(--stick));height:calc(54px*var(--stick));border-radius:calc(27px*var(--stick))}
   #knob{width:calc(42px*var(--stick));height:calc(42px*var(--stick));margin:calc(-21px*var(--stick)) 0 0 calc(-21px*var(--stick))}
-  #actions{bottom:calc(16px + env(safe-area-inset-bottom,0px));right:calc(208px*var(--stick) + max(16px,env(safe-area-inset-right,0px)))}
-  #liftPair{flex-direction:row-reverse;align-items:flex-end}
-  #down{width:calc(56px*var(--stick));height:calc(56px*var(--stick));border-radius:50%;font-size:13px}
+  #actions{bottom:calc(16px + env(safe-area-inset-bottom,0px));right:calc(144px*var(--stick) + max(16px,env(safe-area-inset-right,0px)))}
+  #liftPair{--pair:calc(66px*var(--stick));height:calc(112px*var(--stick))}
+  #up{font-size:17px}
+  #liftPair #down{font-size:13px}
+  #liftPair .ico{width:18px;height:11px}
 }
 #pauseStats{font-size:16px;color:var(--soft)}
 #pauseWhy:empty{display:none}
@@ -270,7 +274,7 @@ body:not(.dev) .devOnly{display:none!important}
 .ghost.off{opacity:.5;text-decoration:line-through}
 .lefty #controls,.lefty .grp{flex-direction:row-reverse}
 .lefty #actions{right:auto;left:max(16px,env(safe-area-inset-left,0px));align-items:flex-start}
-@media (max-height:480px){.lefty #actions{right:auto;left:calc(208px*var(--stick) + max(16px,env(safe-area-inset-left,0px)))}.lefty #liftPair{flex-direction:row}}
+@media (max-height:480px){.lefty #actions{right:auto;left:calc(144px*var(--stick) + max(16px,env(safe-area-inset-left,0px)))}}
 .desk #touchSection{display:none}
 #stickOptions{display:grid;gap:6px;margin-top:8px}
 .stickRow{display:grid;grid-template-columns:44px 1fr;align-items:center;gap:8px;font-size:13px;font-weight:700}

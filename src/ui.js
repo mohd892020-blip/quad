@@ -36,9 +36,10 @@ function resize() {
 // Asking for layout is costly, so this runs when the HUD changes size, never on the HUD tick.
 export function measureHud() {
   view.top = $('hud').getBoundingClientRect().bottom || view.top;
-  const tops = [$('boost'), $('up')].map(e => e.getBoundingClientRect().top).filter(Boolean);
+  const boost = $('boost').getBoundingClientRect().top, tops = [boost, $('up').getBoundingClientRect().top].filter(Boolean);
   view.bottom = tops.length ? Math.min(...tops) - 8 : view.H - POINTER.bottomGap;
-  view.floorGap = coarse() ? (view.H - view.bottom) / view.S : 0;
+  // on a short screen the rocker stands in the corner, so the street stops above the lower controls
+  view.floorGap = coarse() ? (view.H - (view.W > view.H && boost ? boost - 8 : view.bottom)) / view.S : 0;
   view.mapW = $('map').clientWidth || view.mapW;
   view.mapH = $('map').clientHeight || view.mapH;
   $('toast').style.top = view.top + 12 + 'px';

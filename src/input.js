@@ -39,12 +39,43 @@ function bindHeld(id, k) {
   el.addEventListener('contextmenu', e => e.preventDefault());
 }
 
-let finger = null;
+let finger = null, thumb = null;
+
+// LIFT and DOWN are two halves of one rocker, so the thumb rolls between them without letting go.
+function bindRocker() {
+  const pair = $('liftPair'), up = $('up'), down = $('down');
+  let split = 0;
+  const aim = e => {
+    const lift = e.clientY < split;
+    keys.u = lift ? 1 : 0;
+    keys.dn = lift ? 0 : 1;
+    up.classList.toggle('on', lift);
+    down.classList.toggle('on', !lift);
+  };
+  const end = e => {
+    if (e.pointerId !== thumb) return;
+    thumb = null;
+    keys.u = keys.dn = 0;
+    up.classList.remove('on');
+    down.classList.remove('on');
+  };
+  pair.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    if (thumb !== null) return;
+    thumb = e.pointerId;
+    split = down.getBoundingClientRect().top;
+    try { pair.setPointerCapture(thumb); } catch (_) {}
+    aim(e);
+  });
+  pair.addEventListener('pointermove', e => { if (e.pointerId === thumb) aim(e); });
+  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(n => pair.addEventListener(n, end));
+  pair.addEventListener('contextmenu', e => e.preventDefault());
+}
 
 // Nothing stays pressed once the game loses the keyboard or the screen.
 function releaseAll() {
   keys.l = keys.r = keys.u = keys.dn = keys.sink = keys.rd = keys.ru = keys.boost = keys.axis = 0;
-  finger = null;
+  finger = thumb = null;
   $('knob').style.transform = '';
   for (const id of HELD) $(id).classList.remove('on');
 }
@@ -103,8 +134,9 @@ export function initInput() {
     if (k) { keys[k] = 0; e.preventDefault(); }
   });
 
-  [['lt', 'l'], ['rt', 'r'], ['up', 'u'], ['down', 'dn'], ['boost', 'boost'], ['ropeDown', 'rd'], ['ropeUp', 'ru']].forEach(([id, k]) => bindHeld(id, k));
+  [['lt', 'l'], ['rt', 'r'], ['boost', 'boost'], ['ropeDown', 'rd'], ['ropeUp', 'ru']].forEach(([id, k]) => bindHeld(id, k));
   bindJoystick();
+  bindRocker();
   // a second finger never produces a click, and these buttons are pressed while steering
   [['hold', 'holdTap'], ['land', 'landTap']].forEach(([id, k]) => $(id).addEventListener('pointerdown', e => {
     e.preventDefault();
