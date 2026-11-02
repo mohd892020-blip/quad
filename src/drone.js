@@ -98,7 +98,7 @@ export function stepDrone(st, keys, dt) {
     d.vy *= Math.pow(c.dragY, dt);
     d.x += d.vx * dt;
     d.y += d.vy * dt;
-    if (powered) d.bat = Math.max(0, d.bat - dt * (c.batDrain + keys.u * c.batDrainLift) * (1 + over * LOAD.drainGain) / m.battery);
+    if (powered && !st.docked) d.bat = Math.max(0, d.bat - dt * (c.batDrain + keys.u * c.batDrainLift) * (1 + over * LOAD.drainGain) / m.battery);
   }
   if (d.y < c.ceiling) { d.y = c.ceiling; d.vy = Math.max(0, d.vy); }
   if (d.x < EDGE.left) { d.x = EDGE.left; d.vx = Math.max(0, d.vx); }

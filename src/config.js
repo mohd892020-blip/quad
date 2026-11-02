@@ -275,7 +275,9 @@ export const PREP = {
 };
 
 // Warnings count seconds of full lift left, so a small battery warns earlier than a big one.
-export const BATTERY = { lowSecs: 20, criticalSecs: 10, chargingBelow: 99, shopReach: 60 };
+// Each order earns one charge. Fair time is grace seconds plus the route at pace: a trip inside it gets
+// all the missing charge back, and a trip that takes twice as long gets half.
+export const BATTERY = { lowSecs: 20, criticalSecs: 10, chargingBelow: 99, shopReach: 60, grace: 30, pace: 150 };
 
 export const BOOST = { force: 900, drain: 60, refill: 18, refillDelay: .6, batteryDrain: 2.5 };
 

@@ -23,6 +23,7 @@ export function newGame(level) {
     dust: [], dustN: 0, onGround: true, ropeLen: ROPE, anchor: null, wrong: 0,
     boost: 100, boosting: false, boostDir: 1, boostWait: 0, hawks: [], rival: null, prep: null,
     hp: 100, wreck: 0, lastHit: null, smokeDue: 0, marks: [], smoke: [], blasts: [], batWarn: 0, charging: false, ready: 0,
+    leg: { t: 0, x: p.x }, charge: 0,
   };
   planTraffic(st);
   current = st;
@@ -55,6 +56,7 @@ export function startMission(st, shop, item) {
   st.heat = 100;
   st.integ = 100;
   st.has = true;
+  st.leg = { t: st.t, x: st.d.x };
   st.ropeLen = ROPE;
   st.box.x = st.box.px = st.d.x + RESTAURANT.boxOffsetX;
   st.box.y = st.box.py = p.y - RESTAURANT.boxLift;
@@ -120,6 +122,7 @@ function passMission(st) {
   made.beat += beat;
   st.money += tip;
   st.del++;
+  if (st.leg) st.leg.via = o.t.x;
   endMission(st);
   pop(st, o.t.x, o.t.y - c.popLift, `+$${tip}`, '#ffc23d');
   sfx('deliver');
@@ -303,19 +306,32 @@ function stepBattery(st) {
   st.batWarn = warn;
 }
 
-// Any shop roof charges and repairs. A dead drone on the ground with no job is carried to the closest shop.
+// The first pad after an order pays out its charge, measured against the fair time for the route flown.
+function earnCharge(st) {
+  const c = BATTERY, { d, leg } = st, via = leg.via ?? d.x;
+  const fair = c.grace + (Math.abs(via - leg.x) + Math.abs(d.x - via)) / c.pace;
+  const share = st.level.training ? 1 : Math.min(1, fair / (st.t - leg.t));
+  st.charge = (100 - d.bat) * share;
+  st.leg = null;
+  if (share < 1) showToast('Slow trip', `This charge stops at ${Math.floor(d.bat + st.charge)}%`, false);
+}
+
+// Any shop roof repairs, and charges while there is charge to collect; parked on one, the motors rest.
+// Out of power on the ground with no order ends the level; in training the closest shop fetches the drone.
 export function stepShop(st, grounded, dt) {
   const d = st.d, c = RESTAURANT, shop = nearestShop(d.x);
   stepBattery(st);
-  st.charging = grounded && Math.abs(d.x - (shop.x + shop.w / 2)) < shop.w / 2 && d.y < shop.top && d.y > shop.top - c.padHeight;
-  if (st.charging) {
-    d.bat = Math.min(100, d.bat + dt * c.chargeRate);
-    st.hp = Math.min(100, st.hp + dt * HEALTH.repairRate);
-    return;
-  }
-  if (d.bat <= 0 && grounded && !st.has) {
-    carryToShop(st, shop);
-  }
+  const onPad = grounded && Math.abs(d.x - (shop.x + shop.w / 2)) < shop.w / 2 && d.y < shop.top && d.y > shop.top - c.padHeight;
+  st.docked = onPad;
+  if (onPad && st.leg && d.bat < BATTERY.chargingBelow) earnCharge(st);
+  const gain = onPad ? Math.min(st.charge, dt * c.chargeRate, 100 - d.bat) : 0;
+  st.charging = gain > 0;
+  d.bat += gain;
+  st.charge -= gain;
+  if (onPad) st.hp = Math.min(100, st.hp + dt * HEALTH.repairRate);
+  if (d.bat > 0 || !grounded || st.has || st.outcome || st.done) return;
+  if (st.level.training) carryToShop(st, shop);
+  else failMission(st, 'Battery dead');
 }
 
 /* ---------- render ---------- */
@@ -420,11 +436,11 @@ export function drawHeading(st) {
 // A small battery over the aircraft while it runs low, with the way to the closest shop.
 // Green while it charges. Sizes are in pixels, so it stays readable on a phone.
 export function drawBatteryCue(st) {
-  const c = BATTERY, d = st.d, low = st.batWarn > 0, charging = st.charging && d.bat < c.chargingBelow;
+  const c = BATTERY, d = st.d, low = st.batWarn > 0, charging = st.charging;
   if (st.wreck || st.outcome || st.done || st.prep || !(low || charging)) return;
   const shop = nearestShop(d.x), gap = shop.x + shop.w / 2 - d.x, dist = Math.round(Math.abs(gap) / 10);
   const col = charging ? '#4fc27c' : st.batWarn > 1 ? '#ff7a5c' : '#ffc23d';
-  const text = charging ? 'Charging' : Math.abs(gap) < c.shopReach ? 'Land here to charge' : gap > 0 ? `Charge at shop ${dist} m ▶` : `◀ Charge at shop ${dist} m`;
+  const text = charging ? `Charging ${Math.ceil(d.bat)}%` : !st.leg && st.charge <= 0 ? 'Battery low' : Math.abs(gap) < c.shopReach ? 'Land here to charge' : gap > 0 ? `Charge at shop ${dist} m ▶` : `◀ Charge at shop ${dist} m`;
   const x = X(d.x), y = Math.max(view.top + 34, Y(d.y) - 30 * view.S - 10), w = 26, h = 12;
   ctx.save();
   ctx.globalAlpha = charging ? 1 : .8 + .2 * Math.sin(st.t * 4);
