@@ -421,8 +421,8 @@ export function showActions(zone, anchored, landing, boosting) {
   show('ropeUp', zone.rope);
   show('hold', zone.hold || anchored);
   show('land', !!zone.land || landing);
-  flip('hold', anchored, 'Hold', 'Release');
-  flip('land', landing, 'Land', 'Cancel');
+  flip('hold', anchored, 'HOLD', 'RELEASE');
+  flip('land', landing, 'LAND', 'CANCEL');
 }
 
 /* ---------- settings ---------- */

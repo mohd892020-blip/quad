@@ -378,3 +378,11 @@ body:not(.dev) .devOnly{display:none!important}
 .go:active,.ghost:active{transform:scale(.97)}
 @media (hover:hover){.go:hover:enabled,.ghost:hover{filter:brightness(1.08)}}
 @media (prefers-reduced-motion:reduce){.card,#resultCard *{animation:none!important}.card::after{display:none}}
+/* A tap leaves no highlight or focus box behind; the keyboard still gets its ring. */
+*{-webkit-tap-highlight-color:transparent}
+button:focus:not(:focus-visible),[tabindex]:focus:not(:focus-visible){outline:none}
+/* the stick sits a little above the bottom edge */
+#joy{margin-bottom:calc(14px*var(--stick))}
+/* Hold and Release are one button: same size and shape, only the word and the tint change */
+#hold{min-width:128px;justify-content:center;letter-spacing:.04em;border-width:2px}
+@media (max-height:480px){#hold{min-width:112px}}
