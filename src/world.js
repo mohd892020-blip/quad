@@ -477,9 +477,11 @@ function paintBuilding(g, b) {
   }
 }
 
+const spriteK = () => view.S * Math.min(view.DPR, SPRITE.maxDensity);
+
 // Each visible building is kept as a ready image, so a frame only blits it.
 function paintSprite(b) {
-  const k = view.S * view.DPR, p = SPRITE, reuse = b.sprite && b.spriteK === k;
+  const k = spriteK(), p = SPRITE, reuse = b.sprite && b.spriteK === k;
   const s = reuse ? b.sprite : document.createElement('canvas');
   if (!reuse) {
     s.width = Math.ceil((b.w + p.padX * 2) * k);
@@ -498,12 +500,12 @@ function paintSprite(b) {
 }
 
 // A sprite from an older fade step still draws fine; only a missing or wrong-sized one must be painted now.
-const spriteOf = b => (b.sprite && b.spriteK === view.S * view.DPR ? b.sprite : paintSprite(b));
+const spriteOf = b => (b.sprite && b.spriteK === spriteK() ? b.sprite : paintSprite(b));
 
 // One repaint a frame, nearest first: this keeps buildings ready before they scroll in
 // and spreads a fade step over several frames, so neither lands as one long frame.
 function refreshSprite(vpx) {
-  const k = view.S * view.DPR;
+  const k = spriteK();
   let next = null, best = view.viewW / 2 + SPRITE.ahead;
   for (const b of world.B) {
     const gap = Math.abs(b.x + b.w / 2 - vpx);
@@ -516,7 +518,7 @@ function refreshSprite(vpx) {
 }
 
 function drawBuildings() {
-  const { W, S, DPR, viewW, viewH } = view, p = SPRITE, light = world.pal.light;
+  const { W, S, viewW, viewH } = view, p = SPRITE, light = world.pal.light;
   const vpx = view.cam.x + viewW / 2, vpy = view.cam.y + viewH * PERSPECTIVE.eyeY, f = PERSPECTIVE.depth;
   const back = (x, y) => [X(vpx + (x - vpx) * f), Y(vpy + (y - vpy) * f)];
   refreshSprite(vpx);
@@ -544,7 +546,7 @@ function drawBuildings() {
       ctx.fill();
     }
     const s = spriteOf(b);
-    ctx.drawImage(s, X(L - p.padX), Y(T - p.padTop), s.width / DPR, s.height / DPR);
+    ctx.drawImage(s, X(L - p.padX), Y(T - p.padTop), s.width * S / b.spriteK, s.height * S / b.spriteK);
   }
   for (const b of world.live) {
     if (Math.abs(b.x - vpx) > viewW + p.evictMargin) { b.sprite = null; world.live.delete(b); }

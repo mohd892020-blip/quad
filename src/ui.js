@@ -1,5 +1,5 @@
 import { sfx, toggleMute } from './audio.js';
-import { AIRCRAFT, BADGE, BOOST, DEV, DUST, FROST, FX, G, HANGAR, HEALTH, JOY, KEY_HINT, LEVELS, MISSION, POINTER, QUALITY, RESULT, SHAKE, SHOP, VIEW, WIND } from './config.js';
+import { AIRCRAFT, BADGE, BOOST, DEV, DUST, FROST, FX, G, HANGAR, HEALTH, JOY, KEY_HINT, LEVELS, MISSION, PICTURE, POINTER, QUALITY, RESULT, SHAKE, SHOP, VIEW, WIND } from './config.js';
 import { applyControls, touchUI } from './input.js';
 import { bought, loadProgress, owns, saveSettings, settings } from './storage.js';
 
@@ -23,9 +23,16 @@ if (!CanvasRenderingContext2D.prototype.roundRect) {
 }
 
 /* ---------- view ---------- */
+// Where the picture starts: sharp at the top tier, saver at its own, auto where this phone last settled.
+function firstTier() {
+  if (settings.picture === 'saver') return PICTURE.saverTier;
+  if (settings.picture !== 'auto') return 0;
+  return Number.isInteger(settings.tier) ? Math.min(QUALITY.tiers.length - 1, Math.max(0, settings.tier)) : QUALITY.start;
+}
+
 export const view = {
   W: 0, H: 0, DPR: 1, S: 1, viewW: 0, viewH: 0, cam: null, lowQ: false, top: 140, bottom: 600, floorGap: 0, mapW: 300, mapH: 18,
-  tier: Number.isInteger(settings.tier) ? Math.min(QUALITY.tiers.length - 1, Math.max(0, settings.tier)) : QUALITY.start, dirty: true,
+  tier: firstTier(), dirty: true,
 };
 
 function resize() {
@@ -71,9 +78,9 @@ function moveTier(by) {
   const c = QUALITY.tiers, look = i => `${Math.min(c[i].dpr, window.devicePixelRatio || 1)}${!!c[i].low}`, from = look(view.tier);
   let at = view.tier;
   while (c[at + by] && look(at) === from) at += by;
-  if (look(at) === from) return false;
+  if (look(at) === from || settings.picture === 'saver' || (settings.picture === 'sharp' && c[at].dpr < PICTURE.sharpFloor)) return false;
   view.tier = at;
-  if (touchUI()) {
+  if (touchUI() && settings.picture === 'auto') {
     settings.tier = at;
     saveSettings();
   }
@@ -600,6 +607,27 @@ export function initLevels(levels, handlers) {
 }
 export const previewCanvas = () => $('preview');
 
+function markPicture() {
+  for (const b of $('pictureModes').children) b.setAttribute('aria-pressed', settings.picture === b.dataset.value);
+}
+
+function buildPicture() {
+  for (const [value, label] of PICTURE.modes) {
+    const b = document.createElement('button');
+    b.textContent = label;
+    b.dataset.value = value;
+    b.addEventListener('click', () => {
+      settings.picture = value;
+      saveSettings();
+      view.tier = firstTier();
+      resize();
+      markPicture();
+    });
+    $('pictureModes').appendChild(b);
+  }
+  markPicture();
+}
+
 function markControls() {
   $('ctlJoy').setAttribute('aria-pressed', settings.controls === 'joystick');
   $('ctlArrows').setAttribute('aria-pressed', settings.controls === 'arrows');
@@ -709,6 +737,7 @@ export function initSheet() {
   markPlanes();
   buildStickOptions();
   markControls();
+  buildPicture();
   showDev();
   const openSheet = () => { $('sheet').hidden = false; };
   $('gear').addEventListener('click', openSheet);

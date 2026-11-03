@@ -15,11 +15,15 @@ export const PERSPECTIVE = { depth: .93, eyeY: .38 };
 // being away, not slow. A session that never stepped down tries one tier up after calm windows under easyFrame, and
 // steps back if that turns slow. A phone remembers its tier, so the next launch starts where this one settled.
 export const QUALITY = {
-  window: 2, slowFrame: .021, awfulFrame: .045, capFrame: .036, evenGap: .003, evenShare: .85, easyFrame: .0178, calm: 3, maxFrameGap: 1, start: 1,
-  tiers: [{ dpr: 2 }, { dpr: 1.5 }, { dpr: 1.25 }, { dpr: 1, low: true }, { dpr: .75, low: true }],
+  window: 2, slowFrame: .021, awfulFrame: .045, capFrame: .036, evenGap: .003, evenShare: .85, easyFrame: .0178, calm: 3, maxFrameGap: 1, start: 3,
+  tiers: [{ dpr: 3 }, { dpr: 2.5 }, { dpr: 2 }, { dpr: 1.5 }, { dpr: 1.25 }, { dpr: 1, low: true }, { dpr: .75, low: true }],
 };
-// ahead is how far past the screen edge a building's image is prepared before it is needed.
-export const SPRITE = { padX: 44, padTop: 50, evictMargin: 900, ahead: 420 };
+// The player's choice of picture. Sharp draws at the screen's own density and gives way, never below sharpFloor, only
+// when frames are awful. Auto finds the sharpest the device keeps up with. Saver stays on the low tier.
+export const PICTURE = { modes: [['sharp', 'Sharp'], ['auto', 'Auto'], ['saver', 'Saver']], sharpFloor: 2, saverTier: 5 };
+// ahead is how far past the screen edge a building's image is prepared before it is needed. Building images stop at
+// maxDensity: past twice the pixels they look the same and cost four times the memory.
+export const SPRITE = { padX: 44, padTop: 50, evictMargin: 900, ahead: 420, maxDensity: 2 };
 export const CELL = { size: 256, base: -2400, margin: 48 };
 
 export const G = 700;

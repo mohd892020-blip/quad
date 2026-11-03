@@ -3,6 +3,7 @@ import { initAudio, sfx, updateRotor } from './audio.js';
 import { beginChallenge, drawChallenge, drawWeather, stepChallenge } from './challenge.js';
 import { stepContrast } from './contrast.js';
 import { BEACH, CAMERA, CITY_SEED, DRONE, DUST, FIXED_DT, GROUND, HANGAR, HUD_INTERVAL, MAX_FRAME_DT, QUALITY } from './config.js';
+import { settings as picked } from './storage.js';
 import { initLeague } from './league.js';
 import { buildLevels } from './levels.js';
 import {
@@ -138,13 +139,14 @@ function drawPreview(time) {
 // Finds the sharpest picture the device keeps up with, and moves further the further off it is.
 function watchPace(frame) {
   const c = QUALITY;
-  if (frame > c.maxFrameGap) return;
+  if (frame > c.maxFrameGap || picked.picture === 'saver') return;
   if (Math.abs(frame - pace.last) < c.evenGap) pace.even++;
   pace.last = frame;
   pace.t += frame;
   pace.n++;
   if (pace.t < c.window) return;
-  const avg = pace.t / pace.n, capped = avg < c.capFrame && pace.even / pace.n > c.evenShare, slow = avg > c.slowFrame && !capped, { raised } = pace;
+  // a sharp picture only gives way when the game is close to unplayable
+  const avg = pace.t / pace.n, capped = avg < c.capFrame && pace.even / pace.n > c.evenShare, slow = avg > (picked.picture === 'sharp' ? c.awfulFrame : c.slowFrame) && !capped, { raised } = pace;
   pace.t = pace.n = pace.even = 0;
   pace.raised = false;
   if (slow) {
