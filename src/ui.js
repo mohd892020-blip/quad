@@ -1,6 +1,6 @@
 import { sfx, toggleMute } from './audio.js';
 import { musicCue } from './music.js';
-import { AIRCRAFT, BADGE, BOOST, DEV, DUST, FROST, FX, G, GATES, HANGAR, HEALTH, JOY, KEY_HINT, LEVELS, MISSION, PICTURE, POINTER, QUALITY, RESULT, SHAKE, SHOP, SKIP, VIEW, WIND } from './config.js';
+import { AIRCRAFT, BADGE, BOOST, DEV, DUST, FROST, FX, G, GATES, HANGAR, HEALTH, JOY, KEY_HINT, LEVELS, MISSION, PICTURE, POINTER, QUALITY, RESULT, SHAKE, SHOP, SHOTS, SKIP, VIEW, WIND } from './config.js';
 import { applyControls, touchUI } from './input.js';
 import { bought, loadProgress, owns, saveSettings, saveSkips, settings, skips } from './storage.js';
 
@@ -32,7 +32,7 @@ function firstTier() {
 }
 
 export const view = {
-  W: 0, H: 0, DPR: 1, S: 1, viewW: 0, viewH: 0, cam: null, lowQ: false, top: 140, bottom: 600, floorGap: 0, mapW: 300, mapH: 18,
+  W: 0, H: 0, DPR: 1, S: 1, viewW: 0, viewH: 0, cam: null, lowQ: false, top: 140, bottom: 600, floorPx: 0, base: 1, sharp: 1, mapW: 300, mapH: 18,
   tier: firstTier(), dirty: true,
 };
 
@@ -46,12 +46,20 @@ function resize() {
   view.H = innerHeight;
   cv.width = Math.round(view.W * view.DPR);
   cv.height = Math.round(view.H * view.DPR);
-  view.S = Math.min(view.H / VIEW.refH, view.W / VIEW.refW);
-  view.viewW = view.W / view.S;
-  view.viewH = view.H / view.S;
+  view.base = Math.min(view.H / VIEW.refH, view.W / VIEW.refW);
+  setZoom(1, 1);
   view.dirty = true;
   applyControls();
   measureHud();
+}
+
+// The camera's zoom scales the whole picture. Cached images are painted at the settled zoom of the shot, so a glide
+// between shots only scales them and never repaints them.
+export function setZoom(z, settled) {
+  view.S = view.base * z;
+  view.sharp = view.base * settled;
+  view.viewW = view.W / view.S;
+  view.viewH = view.H / view.S;
 }
 
 // Asking for layout is costly, so this runs when the HUD changes size, never on the HUD tick.
@@ -60,7 +68,7 @@ export function measureHud() {
   const boost = $('boost').getBoundingClientRect().top, tops = [boost, $('up').getBoundingClientRect().top].filter(Boolean);
   view.bottom = tops.length ? Math.min(...tops) - 8 : view.H - POINTER.bottomGap;
   // on a short screen the rocker stands in the corner, so the street stops above the lower controls
-  view.floorGap = touchUI() ? (view.H - (view.W > view.H && boost ? boost - 8 : view.bottom)) / view.S : 0;
+  view.floorPx = touchUI() ? view.H - (view.W > view.H && boost ? boost - 8 : view.bottom) : 0;
   view.mapW = $('map').clientWidth || view.mapW;
   view.mapH = $('map').clientHeight || view.mapH;
   $('toast').style.top = view.top + 12 + 'px';
@@ -687,6 +695,50 @@ function markPicture() {
   for (const b of $('pictureModes').children) b.setAttribute('aria-pressed', settings.picture === b.dataset.value);
 }
 
+// The camera button and the C key step through the shots, and the choice is kept for the next mission.
+function markCamera() {
+  for (const b of $('camModes').children) b.setAttribute('aria-pressed', String(b.dataset.value === (SHOTS[settings.camera]?.name ? settings.camera : SHOTS.start)));
+}
+
+function showShot(name) {
+  const chip = $('camChip');
+  chip.textContent = SHOTS[name].name.toUpperCase();
+  chip.style.setProperty('--hint', `${SHOTS.chip}s`);
+  chip.hidden = false;
+  chip.classList.remove('brief');
+  void chip.offsetWidth;
+  chip.classList.add('brief');
+  clearTimeout(showShot.timer);
+  showShot.timer = setTimeout(() => { chip.hidden = true; }, SHOTS.chip * 1000);
+}
+
+export function cycleShot() {
+  const order = SHOTS.order, next = order[(order.indexOf(settings.camera) + 1) % order.length];
+  settings.camera = next;
+  saveSettings();
+  markCamera();
+  showShot(next);
+}
+
+function buildCamera() {
+  for (const value of SHOTS.order) {
+    const b = document.createElement('button');
+    b.textContent = SHOTS[value].name;
+    b.dataset.value = value;
+    b.addEventListener('click', () => {
+      settings.camera = value;
+      saveSettings();
+      markCamera();
+    });
+    $('camModes').appendChild(b);
+  }
+  markCamera();
+  $('camBtn').addEventListener('click', cycleShot);
+  addEventListener('keydown', e => {
+    if (e.code === 'KeyC' && !e.repeat && e.target?.tagName !== 'INPUT' && $('overlay').hidden && !modalOpen()) cycleShot();
+  });
+}
+
 function markMusic() {
   for (const b of $('musicModes').children) b.setAttribute('aria-pressed', String(settings.music !== false) === b.dataset.value);
 }
@@ -833,6 +885,7 @@ export function initSheet() {
   buildStickOptions();
   markControls();
   buildPicture();
+  buildCamera();
   buildMusic();
   showDev();
   const openSheet = () => { $('sheet').hidden = false; };

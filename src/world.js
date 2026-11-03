@@ -1,4 +1,4 @@
-import { BEACH, BIRDS, CAMERA, CELL, CITY, CLOCK, DESERT, FOREST, GROUND, MOUNTAIN, SNOW, GROUND_BOX, ORDERS, PEOPLE, PERSPECTIVE, SHOPS, SPRITE, TIMES, WIND, ZONES } from './config.js';
+import { BEACH, BIRDS, CELL, CITY, CLOCK, DESERT, FOREST, GROUND, MOUNTAIN, SNOW, GROUND_BOX, ORDERS, PEOPLE, PERSPECTIVE, SHOPS, SPRITE, TIMES, WIND, ZONES } from './config.js';
 import { buildDesert, drawDesert, drawDunes } from './desert.js';
 import { buildForest, drawWoods, drawWoodsBehind } from './forest.js';
 import { buildAlpine, drawHigh, drawHighBehind } from './alpine.js';
@@ -288,19 +288,6 @@ export function stepWind(st, dt) {
   st.wind += (st.windT - st.wind) * Math.min(1, dt * WIND.follow);
 }
 
-export function stepCamera(st, dt) {
-  const { viewW, viewH } = view, d = st.d;
-  const cx = d.x - viewW * CAMERA.leadX + d.vx * CAMERA.lookAhead;
-  st.cam.x += (cx - st.cam.x) * Math.min(1, dt * CAMERA.follow);
-  // on touch screens the street stops above the thumb controls instead of sliding under them
-  const baseY = GROUND + Math.max(CAMERA.floorBelow, view.floorGap) - viewH;
-  // keep the drone clear of the HUD, which fills much of a short screen
-  const lead = Math.max(CAMERA.leadY, (view.top + CAMERA.hudGap) / view.H);
-  const cy = Math.min(baseY, d.y - viewH * lead);
-  st.cam.y += (cy - st.cam.y) * Math.min(1, dt * CAMERA.follow);
-  st.shake = Math.max(0, st.shake - dt * CAMERA.shakeDecay);
-}
-
 /* ---------- render ---------- */
 export function drawSky(st) {
   const { W, H, S } = view, time = world.pal;
@@ -532,7 +519,8 @@ function paintBuilding(g, b) {
   }
 }
 
-const spriteK = () => view.S * Math.min(view.DPR, SPRITE.maxDensity);
+// painted at the camera's settled zoom, so a glide between shots never repaints them
+const spriteK = () => view.sharp * Math.min(view.DPR, SPRITE.maxDensity);
 
 // Each visible building is kept as a ready image, so a frame only blits it.
 function paintSprite(b) {
@@ -554,8 +542,9 @@ function paintSprite(b) {
   return s;
 }
 
-// A sprite from an older fade step still draws fine; only a missing or wrong-sized one must be painted now.
-const spriteOf = b => (b.sprite && b.spriteK === spriteK() ? b.sprite : paintSprite(b));
+// Any sprite draws true to size, scaled to the zoom, so only a missing one must be painted now; one from an older fade
+// step or another zoom is brought up to date by refreshSprite, nearest first.
+const spriteOf = b => b.sprite ?? paintSprite(b);
 
 // One repaint a frame, nearest first: this keeps buildings ready before they scroll in
 // and spreads a fade step over several frames, so neither lands as one long frame.

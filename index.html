@@ -18,6 +18,7 @@
     <symbol id="i-star-off" viewBox="0 0 48 48"><path fill="rgba(255,255,255,.12)" stroke="rgba(255,255,255,.5)" stroke-width="3" stroke-linejoin="round" d="M24 6l5.6 11.8 13 1.7-9.5 9 2.5 12.9L24 35.2l-11.6 6.2 2.5-12.9-9.5-9 13-1.7z"/></symbol>
     <symbol id="i-boost" viewBox="0 3 44 22"><path opacity=".8" stroke-width="2.6" d="M3 8h11M0 14h15M4 20h10"/><g transform="rotate(14 31 14)"><path stroke-width="2.4" d="M21 11h20M23 11v-3M39 11v-3M18 7.5h9M35 7.5h9"/><rect x="25" y="11" width="12" height="7" rx="3.5" fill="currentColor" stroke="none"/></g></symbol>
     <symbol id="i-chev" viewBox="0 0 24 14"><path d="M4 11l8-8 8 8"/></symbol>
+    <symbol id="i-cam" viewBox="0 0 24 24"><path d="M3.5 8.5h3.2l1.8-2.6h7l1.8 2.6h3.2v10H3.5z"/><circle cx="12" cy="13.2" r="3.3"/></symbol>
     <symbol id="i-land" viewBox="0 0 24 24"><path d="M12 3v12M7 10.5l5 5 5-5M5 20.5h14"/></symbol>
     <symbol id="i-grid" viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="2"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="2"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="2"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="2"/></symbol>
     <symbol id="i-retry" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 3v5h-5"/></symbol>
@@ -65,7 +66,9 @@
     </div>
     <p id="oTitle"></p>
     <div id="wind" aria-label="Wind"><div id="windTrack"><i id="windNeedle"></i></div></div>
+    <button class="pill icon" id="camBtn" aria-label="Camera shot, C"><svg class="ico" aria-hidden="true"><use href="#i-cam"/></svg></button>
     <canvas id="map" aria-label="City map"></canvas>
+    <span id="camChip" hidden role="status"></span>
   </div>
   <button id="hangarTip" hidden></button>
   <div id="toast" hidden role="status"><b id="toastTitle"></b><span id="toastWhy"></span></div>
@@ -90,6 +93,7 @@
     <span><kbd>↑</kbd>Lift</span>
     <span><kbd>↓</kbd>Descend</span>
     <span><kbd>H</kbd>Hold</span>
+    <span><kbd>C</kbd>Camera</span>
     <span class="devOnly devMark"><kbd>L</kbd>Land</span>
   </div>
   <div id="shiftHint" hidden><kbd>Shift</kbd></div>
@@ -193,6 +197,10 @@
         <h3>Touch controls</h3>
         <div class="seg"><button id="ctlJoy">Joystick</button><button id="ctlArrows">Arrows</button></div>
         <div id="stickOptions"></div>
+      </section>
+      <section>
+        <h3>Camera</h3>
+        <div class="seg" id="camModes"></div>
       </section>
       <section>
         <h3>Music</h3>

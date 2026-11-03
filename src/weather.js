@@ -76,7 +76,7 @@ function puffSprite(color) {
 // A cloud is painted whole into its own image, shade first and light on top, so overlapping puffs read as one body
 // instead of a pile of discs. The image is only repainted when the puffs move, the sky changes tint, or the zoom does.
 function cloudImage(cl, front) {
-  const c = CLOUDS, k = view.S * Math.min(view.DPR, c.density), tint = world.pal.cloud, key = front ? 'front' : 'back';
+  const c = CLOUDS, k = view.sharp * Math.min(view.DPR, c.density), tint = world.pal.cloud, key = front ? 'front' : 'back';
   const halfW = c.spread + c.puffR[1] + c.margin, halfH = c.spread * c.flat + c.puffR[1] + c.margin;
   let pose = 0;
   for (const p of cl.puffs) if (p.front === front) pose += Math.round((Math.abs(p.dx) + Math.abs(p.dy)) * 4);

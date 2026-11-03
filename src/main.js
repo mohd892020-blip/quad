@@ -20,13 +20,14 @@ import { initShop } from './shop.js';
 import { drawSandstorm, touchesSink } from './desert.js';
 import { touchesRiver } from './forest.js';
 import { stepDraft, touchesIce } from './alpine.js';
+import { drawShotBars, stepCamera } from './camera.js';
 import { touchesSea } from './seaside.js';
 import { loadProgress, settings } from './storage.js';
 import {
   ctx, drawFx, drawMarks, frost, hideModals, hideOverlay, hud, initLevels, initSheet, kickDust, levelsOpen, lowerQuality, measureHud, modalOpen, onDevActions, onStart,
-  previewCanvas, raiseQuality, shakeOffset, sheetOpen, showActions, showHangarTip, showKeyHints, showLesson, showLevels, showResult, stepFx, view,
+  previewCanvas, raiseQuality, setZoom, shakeOffset, sheetOpen, showActions, showHangarTip, showKeyHints, showLesson, showLevels, showResult, stepFx, view,
 } from './ui.js';
-import { world, drawCity, drawMap, drawSky, dropSprites, genWorld, stepCamera, stepClock, stepWind } from './world.js';
+import { world, drawCity, drawMap, drawSky, dropSprites, genWorld, stepClock, stepWind } from './world.js';
 
 let st = null, hudT = 0, last = performance.now(), levels = [];
 const pace = { t: 0, n: 0, even: 0, last: 0, easy: 0, raised: false, tried: false };
@@ -81,7 +82,7 @@ export function step(dt) {
 
 function rememberPose() {
   const { t, cam, d, box, has } = st;
-  st.prev = { t, camX: cam.x, camY: cam.y, x: d.x, y: d.y, a: d.a, boxX: box.x, boxY: box.y, has };
+  st.prev = { t, camX: cam.x, camY: cam.y, camZ: cam.z, x: d.x, y: d.y, a: d.a, boxX: box.x, boxY: box.y, has };
 }
 
 // A display faster than the physics gets frames with no new step, which would
@@ -94,7 +95,7 @@ function blended() {
     ...st,
     blend: t,
     t: mix(p.t, st.t),
-    cam: { x: mix(p.camX, st.cam.x), y: mix(p.camY, st.cam.y) },
+    cam: { ...st.cam, x: mix(p.camX, st.cam.x), y: mix(p.camY, st.cam.y), z: mix(p.camZ ?? st.cam.z, st.cam.z) },
     d: { ...st.d, x: mix(p.x, st.d.x), y: mix(p.y, st.d.y), a: mix(p.a, st.d.a) },
     // a box picked up this step teleported to the drone, so it has nothing to blend from
     box: p.has ? { ...st.box, x: mix(p.boxX, st.box.x), y: mix(p.boxY, st.box.y) } : st.box,
@@ -104,6 +105,7 @@ function blended() {
 function render() {
   const s = blended();
   ctx.setTransform(view.DPR, 0, 0, view.DPR, 0, 0);
+  setZoom(s.cam.z || 1, st.cam.sharp || 1);
   view.cam = s.cam;
   drawSky(s);
   drawHighClouds(s);
@@ -130,6 +132,7 @@ function render() {
   drawSandstorm(s);
   drawWeather(s);
   ctx.restore();
+  drawShotBars(s);
   drawPointer(s);
   drawBatteryCue(s);
   drawOrderTime(s);
@@ -250,6 +253,7 @@ function idle(now = demo.at) {
   if (!levelsOpen()) {
     watchPace(frame);
     ctx.setTransform(view.DPR, 0, 0, view.DPR, 0, 0);
+    setZoom(1, 1);
     demo.x += CAMERA.idleSpeed * dt;
     const fake = {
       cam: { x: demo.x - CAMERA.idleLead, y: GROUND + CAMERA.floorBelow - view.viewH },

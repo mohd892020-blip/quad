@@ -725,6 +725,23 @@ export const CAMERA = {
   idleTimeDiv: 60,
 };
 
+// The camera's shots. zoom scales the picture, leadX and leadY place the aircraft across and down the screen, ahead
+// leads the shot by that many seconds of flight, follow is how fast it catches up, and breathe drifts the zoom by that
+// share at breatheRate. The player steps through order; intro holds while a mission's first order is made, outro
+// pushes in on a delivery. A change of shot glides over blend seconds while bars of that share of the screen close in
+// and open again. Auto cuts to close within near of the shop or customer, to wide above fast px/s, and holds a shot
+// at least hold seconds. chip is how long the shot's name shows after a change.
+export const SHOTS = {
+  order: ['chase', 'wide', 'close', 'cinema', 'auto'], start: 'chase', blend: 1.1, bars: .06, barColor: 'rgba(8,6,18,.85)', chip: 1.6,
+  chase: { name: 'Chase', zoom: 1, leadX: .45, ahead: .35, leadY: .42, follow: 3 },
+  wide: { name: 'Wide', zoom: .72, leadX: .5, ahead: .55, leadY: .46, follow: 2.4 },
+  close: { name: 'Close', zoom: 1.3, leadX: .46, ahead: .2, leadY: .38, follow: 4 },
+  cinema: { name: 'Cinema', zoom: .88, leadX: .36, ahead: .8, leadY: .32, follow: 1.4, breathe: .025, breatheRate: .45 },
+  auto: { name: 'Auto', near: 380, fast: 250, hold: 2.2 },
+  intro: { zoom: .74, leadX: .42, ahead: 0, leadY: .5, follow: 2 },
+  outro: { zoom: 1.2, leadX: .5, ahead: 0, leadY: .45, follow: 1.6 },
+};
+
 // popSize is the words that pop up, before the screen's scale, and popRise how fast they climb.
 export const FX = {
   popLife: 1.8,
