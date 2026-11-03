@@ -44,7 +44,7 @@ export function stepBoost(st, keys, dt) {
     st.boostDir = Math.sign(steer) || Math.sign(st.d.vx) || st.boostDir;
     st.boost = Math.max(0, st.boost - c.drain * dt);
     st.boostWait = c.refillDelay;
-    st.d.bat = Math.max(0, st.d.bat - c.batteryDrain / currentModel().battery * dt);
+    st.d.bat = Math.max(0, st.d.bat - c.batteryDrain / currentModel().battery * (st.level.cold || 1) * dt);
     if (!was) sfx('whoosh');
   } else if (st.boostWait > 0) st.boostWait -= dt;
   else st.boost = Math.min(100, st.boost + c.refill * dt);
@@ -82,7 +82,7 @@ function flyLanding(st, dt, over) {
   d.vy += (sink - d.vy) * L.follow * dt;
   d.x += d.vx * dt;
   d.y += d.vy * dt;
-  d.bat = Math.max(0, d.bat - dt * (c.batDrain + HOLD.drain * c.batDrainLift) * (1 + over * LOAD.drainGain) / currentModel().battery);
+  d.bat = Math.max(0, d.bat - dt * (c.batDrain + HOLD.drain * c.batDrainLift) * (1 + over * LOAD.drainGain) / currentModel().battery * (st.level.cold || 1));
 }
 
 function flyHeld(st, dt, over) {
@@ -92,7 +92,7 @@ function flyHeld(st, dt, over) {
   d.vy += ((a.y - d.y) * HOLD.spring - d.vy * HOLD.damp) * dt;
   d.x += d.vx * dt;
   d.y += d.vy * dt;
-  d.bat = Math.max(0, d.bat - dt * (c.batDrain + HOLD.drain * c.batDrainLift) * (1 + over * LOAD.drainGain) / currentModel().battery);
+  d.bat = Math.max(0, d.bat - dt * (c.batDrain + HOLD.drain * c.batDrainLift) * (1 + over * LOAD.drainGain) / currentModel().battery * (st.level.cold || 1));
 }
 
 // A hard impact costs health by speed and by what was hit, and scars the spot.
@@ -118,14 +118,15 @@ export function stepDrone(st, keys, dt) {
     // a parked drone sits on its gear, so wind cannot slide it off a pad
     const wind = st.onGround && !st.has ? 0 : st.wind * c.windForce;
     d.vx += (Math.sin(d.a) * thr * m.speed + wind) * dt;
-    d.vy += (G - Math.cos(d.a) * thr) * dt;
+    // beside a cliff the air itself lifts or sinks the aircraft
+    d.vy += (G - Math.cos(d.a) * thr + (st.draft || 0)) * dt;
     if (st.boosting) d.vx += st.boostDir * BOOST.force * dt;
     const drag = Math.pow(c.dragX, dt);
     d.vx *= drag;
     d.vy *= Math.pow(c.dragY, dt);
     d.x += d.vx * dt;
     d.y += d.vy * dt;
-    if (powered && !st.docked) d.bat = Math.max(0, d.bat - dt * (c.batDrain + keys.u * c.batDrainLift) * (1 + over * LOAD.drainGain) / m.battery);
+    if (powered && !st.docked) d.bat = Math.max(0, d.bat - dt * (c.batDrain + keys.u * c.batDrainLift) * (1 + over * LOAD.drainGain) / m.battery * (st.level.cold || 1));
   }
   if (d.y < c.ceiling) { d.y = c.ceiling; d.vy = Math.max(0, d.vy); }
   if (d.x < EDGE.left) { d.x = EDGE.left; d.vx = Math.max(0, d.vx); }

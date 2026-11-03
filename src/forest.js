@@ -31,6 +31,18 @@ function tiers(t) {
   return out;
 }
 
+// Pines grow from a seed every pineGap to pineGap + pineGapRange inside a region, clear of the stretches in keep.
+export function growPines(c, keep) {
+  const r = rng(c.seed), pines = [];
+  for (let x = c.from + c.edge; x < c.to - c.edge; x += c.pineGap + r() * c.pineGapRange) {
+    const t = { x, h: c.pineH[0] + r() * (c.pineH[1] - c.pineH[0]), w: c.pineW[0] + r() * (c.pineW[1] - c.pineW[0]), phase: r() * 7 };
+    if (keep.some(([a, b]) => x + t.w / 2 > a && x - t.w / 2 < b)) continue;
+    t.solids = pineSolids(t);
+    pines.push(t);
+  }
+  return pines;
+}
+
 export function buildForest(firstIdx) {
   const c = FOREST, kiosks = c.kiosks.map((s, i) => kiosk(s, firstIdx + i, c)), cabins = [], solids = [], targets = [], pines = [];
   const spot = (x, y, kind) => targets.push({ x, y: y - c.targetLift, kind });
@@ -56,15 +68,11 @@ export function buildForest(firstIdx) {
   }
   for (const x of c.clearings) spot(x, GROUND, 'clearing');
   // the pines grow where nothing else stands and no customer needs a clear way down
-  const r = rng(c.seed), keep = [...c.kiosks.map(k => [k.x - c.clear, k.x + 240 + c.clear]), ...c.cabins.map(k => [k.x - c.clear, k.x + k.w + c.clear]),
+  const keep = [...c.kiosks.map(k => [k.x - c.clear, k.x + 240 + c.clear]), ...c.cabins.map(k => [k.x - c.clear, k.x + k.w + c.clear]),
     ...c.treehouses.map(h => [h.x - c.crownW, h.x + c.deckOut + c.clear]), ...c.lookouts.map(x => [x - c.clear, x + c.clear]), ...c.clearings.map(x => [x - c.clear, x + c.clear]),
     ...c.rivers.map(([a, b]) => [a - c.clear / 2, b + c.clear / 2])];
-  for (let x = c.from + c.edge; x < c.to - c.edge; x += c.pineGap + r() * c.pineGapRange) {
-    const t = { x, h: c.pineH[0] + r() * (c.pineH[1] - c.pineH[0]), w: c.pineW[0] + r() * (c.pineW[1] - c.pineW[0]), phase: r() * 7 };
-    if (keep.some(([a, b]) => x + t.w / 2 > a && x - t.w / 2 < b)) continue;
-    pines.push(t);
-    solids.push(...pineSolids(t));
-  }
+  pines.push(...growPines(c, keep));
+  for (const t of pines) solids.push(...t.solids);
   return { kiosks, cabins, solids, targets, pines };
 }
 
@@ -95,7 +103,8 @@ export function drawWoodsBehind() {
   if (!view.lowQ) ridge(c.nearDrift, c.nearH, c.nearSwell, time.pineNear, c.nearTeeth);
 }
 
-function drawPine(t, st, time) {
+// snow: each tier wears a white cap
+export function drawPine(t, st, time, snow = false) {
   const c = FOREST, S = view.S, sway = Math.sin(st.t * c.swayRate + t.phase) * c.sway + st.wind * c.windSway;
   ctx.fillStyle = lit(c.barkColor, time);
   ctx.fillRect(X(t.x - c.trunkW / 2), Y(GROUND - t.h * c.trunkShare), c.trunkW * S, t.h * c.trunkShare * S);
@@ -106,6 +115,14 @@ function drawPine(t, st, time) {
     ctx.moveTo(X(t.x - half + lean * .3), Y(base));
     ctx.lineTo(X(t.x + half + lean * .3), Y(base));
     ctx.lineTo(X(t.x + lean), Y(top));
+    ctx.fill();
+    if (!snow) return;
+    const cap = top + (base - top) * c.snowCap;
+    ctx.fillStyle = shade('#f4f8fc', time.light);
+    ctx.beginPath();
+    ctx.moveTo(X(t.x + lean), Y(top));
+    ctx.lineTo(X(t.x - half * c.snowCap + lean * .6), Y(cap));
+    ctx.lineTo(X(t.x + half * c.snowCap + lean * .6), Y(cap));
     ctx.fill();
   });
 }

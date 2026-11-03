@@ -50,9 +50,9 @@ export const CELL = { size: 256, base: -2400, margin: 48 };
 
 export const G = 700;
 export const GROUND = 560;
-export const GROUND_BOX = { x: -2000, w: 36000, h: 200 };
+export const GROUND_BOX = { x: -2000, w: 49000, h: 200 };
 // The drone stops at these, well inside the ground, so it can never fly off the end of the world.
-export const EDGE = { left: -1000, right: 33300 };
+export const EDGE = { left: -1000, right: 46800 };
 export const CITY_SEED = 7;
 
 // A job: its clock, when harder customers appear, and the pad that starts it.
@@ -102,7 +102,45 @@ export const ZONES = [
   { name: 'Seaside', from: 14300, style: 'beach', map: '#3fb0c8', stones: ['#c99a5e'], winW: 12, winH: 16 },
   { name: 'Desert', from: 20000, style: 'desert', map: '#d9a441', stones: ['#c9a06a'], winW: 12, winH: 16 },
   { name: 'Forest', from: 26450, style: 'forest', map: '#3f8f5a', stones: ['#8a5a3a'], winW: 12, winH: 16 },
+  { name: 'Mountains', from: 33250, style: 'alpine', map: '#8a8f9a', stones: ['#8a8078'], winW: 12, winH: 16 },
+  { name: 'Snowfield', from: 39950, style: 'snow', map: '#cfe3f2', stones: ['#9c6b44'], winW: 12, winH: 16 },
 ];
+
+// The mountains past the forest. Crags are rock to deliver onto, huts are stone, and a cable car hangs between two
+// pylons. Each draft is a column of air w wide pushing at v (negative lifts, positive sinks), fading toward its edges.
+export const MOUNTAIN = {
+  from: 33400, to: 39800, missions: [21, 31], every: 10, minDist: 1500, windBoost: 1.3, trafficGap: 2, targetLift: 11, seen: 360, idxGap: 400,
+  kioskH: 130, kioskColor: '#8a8078', wallColor: '#8a8078', rockColor: '#7d7470', rockCap: '#b9b2a8',
+  kiosks: [
+    { x: 33700, shop: { name: 'Summit Cafe', items: ['coffee', 'kunafa'], glow: '#ffc23d' } },
+    { x: 36550, shop: { name: 'Alpine Pizza', items: ['pizza', 'falafel'], glow: '#ff5a3c' } },
+    { x: 39350, shop: { name: 'Mountain Aid', items: ['medicine', 'watermelon'], glow: '#4fc27c' } },
+  ],
+  crags: [{ x: 34300, w: 150, h: 300 }, { x: 35350, w: 200, h: 220 }, { x: 37400, w: 170, h: 340 }, { x: 38500, w: 220, h: 260 }],
+  huts: [{ x: 34800, w: 160, h: 110 }, { x: 37950, w: 150, h: 100 }],
+  cables: [{ a: 35750, b: 36400, ha: 260, hb: 180 }], camps: [36150, 39100],
+  drafts: [{ x: 35100, w: 220, v: -260 }, { x: 37000, w: 200, v: 240 }, { x: 39000, w: 200, v: -220 }], draftTall: 300,
+  pylonW: 8, pylonTop: 30, stationW: 70, sag: 40, riderRate: .25, hang: 18,
+  rise: 600, ridgeStep: 22, ridgeLong: 260, snowLine: .72, capDepth: 90, haze: .45, farDrift: .18, farH: 380, farSwell: 70, farTeeth: 70, nearDrift: .4, nearH: 210, nearSwell: 40, nearTeeth: 34,
+};
+
+// The snowfield past the mountains: snowy pines from seed, chalets, a ski lift, igloos and frozen lakes. cold scales how
+// fast the battery drains here.
+export const SNOW = {
+  from: 40100, to: 46500, missions: [24, 34], every: 10, minDist: 1500, windBoost: 1.2, cold: 1.3, trafficGap: 2, targetLift: 11, seen: 360,
+  kioskH: 120, kioskColor: '#9c6b44', wallColor: '#9c6b44',
+  kiosks: [
+    { x: 40400, shop: { name: 'Cocoa Hut', items: ['coffee', 'cake'], glow: '#c89a6a' } },
+    { x: 43250, shop: { name: 'Chalet Grill', items: ['pizza', 'falafel'], glow: '#ff5a3c' } },
+    { x: 46050, shop: { name: 'Snow Clinic', items: ['medicine', 'flowers'], glow: '#4fc27c' } },
+  ],
+  chalets: [{ x: 41050, w: 160, h: 110 }, { x: 42400, w: 150, h: 120 }, { x: 44700, w: 170, h: 100 }],
+  igloos: [42050, 45900], snowmen: [40850, 43050, 44350], lakes: [[41500, 41850], [45150, 45450]],
+  lift: { a: 43750, b: 44500, ha: 150, hb: 250 },
+  seed: 97, edge: 60, clear: 110, pineGap: 80, pineGapRange: 110, pineH: [150, 290], pineW: [60, 90],
+  pylonW: 8, pylonTop: 30, stationW: 70, sag: 36, riderRate: .3, hang: 14,
+  rise: 600, ridgeStep: 22, ridgeLong: 230, snowLine: .55, capDepth: 120, haze: .4, farDrift: .2, farH: 340, farSwell: 60, farTeeth: 60, nearDrift: .45, nearH: 170, nearSwell: 30, nearTeeth: 26,
+};
 
 // The forest past the desert, flown in the missions listed. Pines grow from seed every pineGap to pineGap + pineGapRange,
 // clear of the landmarks by clear; each is a trunk and tiers of needles whose solid core is narrower than the drawing.
@@ -125,7 +163,7 @@ export const FOREST = {
   crownPuffs: [[-30, 0, 38], [10, -18, 42], [36, 8, 30], [-6, 22, 34]],
   lookoutH: 180, lookoutW: 70, legW: 6, plankH: 8, bridgeY: 7, bridgeH: 8, flow: 40,
   rise: 500, ridgeStep: 22, ridgeLong: 170, hillDrift: .2, hillH: 220, hillSwell: 60, farDrift: .35, farH: 130, farSwell: 26, farTeeth: 16,
-  nearDrift: .55, nearH: 80, nearSwell: 18, nearTeeth: 22, mistH: 90, mistAlpha: .3,
+  nearDrift: .55, nearH: 80, nearSwell: 18, nearTeeth: 22, mistH: 90, mistAlpha: .3, snowCap: .45,
 };
 
 // The open coast past the city. Sea spans are water to fall into; sand and the island are safe.
@@ -502,7 +540,7 @@ export const CARS = {
   spacing: 1000, spacingRange: 300, speedMin: 150, speedPerLevel: 2, speedMax: 230, boatSpeed: .85,
   shapes: {
     car: { length: 62, height: 28 }, van: { length: 70, height: 32 }, bike: { length: 36, height: 24 }, boat: { length: 66, height: 16 },
-    buggy: { length: 56, height: 28 }, camel: { length: 58, height: 42, lane: 15 }, jeep: { length: 58, height: 30 }, deer: { length: 46, height: 38, lane: 15 },
+    buggy: { length: 56, height: 28 }, camel: { length: 58, height: 42, lane: 15 }, jeep: { length: 58, height: 30 }, deer: { length: 46, height: 38, lane: 15 }, goat: { length: 40, height: 32, lane: 15 }, sled: { length: 60, height: 28 },
   },
   lane: 8, buggySpeed: .9, camelSpeed: .3, brake: 500, shake: 8, dust: 220, flashRate: 7,
   paint: ['#d9483b', '#3f6fb0', '#f2efe6', '#3a8f6b', '#e0a52c'], bikeEvery: 3, vanEvery: 5, taxiEvery: 7,
@@ -558,17 +596,17 @@ export const CLOCK = { hold: 120, fade: 20, steps: 16, startAt: 2 };
 export const TIMES = [
   {
     name: 'Sunset', sky: [[0, '#140f2a'], [.45, '#3b2452'], [.8, '#b4505a'], [1, '#f0a259']],
-    stars: .7, cloud: '#ffd2c2', cloudShade: '#b9788c', cloudAlpha: .85, disc: '#fff1d0', discShade: '#3b2452', discCut: 1, far1: '#3d2849', far2: '#2c1d40', sea: '#7a4a6e', sand: '#b98a6a', moss: '#4a5a3a', hill: '#5e4a6e', pineFar: '#40384f', pineNear: '#2e3040', mistTone: '255,214,200', dune: '#c08a5e', duneNear: '#a56c58', duneFar: '#8a585e',
+    stars: .7, cloud: '#ffd2c2', cloudShade: '#b9788c', cloudAlpha: .85, disc: '#fff1d0', discShade: '#3b2452', discCut: 1, far1: '#3d2849', far2: '#2c1d40', sea: '#7a4a6e', sand: '#b98a6a', moss: '#4a5a3a', peakFar: '#6a5070', peakNear: '#5a4a58', snowCap: '#f0d0d8', scree: '#6e5f63', snowFar: '#c9a9c0', snowNear: '#e8c8d4', snowGround: '#f3dfe4', ice: '#9fa8d0', hill: '#5e4a6e', pineFar: '#40384f', pineNear: '#2e3040', mistTone: '255,214,200', dune: '#c08a5e', duneNear: '#a56c58', duneFar: '#8a585e',
     ground: '#2a1d2c', walk: '#3a2c33', light: 1, lit: ['#4a3a52', '#f2a65a', '#ffd27a'], extraLit: 0, windowGlow: 0, signGlow: .5,
   },
   {
     name: 'Night', sky: [[0, '#05060f'], [.45, '#0b0f28'], [.8, '#171d40'], [1, '#232a52']],
-    stars: 1, cloud: '#6f7aa6', cloudShade: '#383f68', cloudAlpha: .55, disc: '#e8ecff', discShade: '#0a0e26', discCut: 1, far1: '#141a38', far2: '#0e1228', sea: '#141c3e', sand: '#45424f', moss: '#1d2a26', hill: '#1b2140', pineFar: '#141a2e', pineNear: '#0e1422', mistTone: '150,165,210', dune: '#4a4552', duneNear: '#2f2e4a', duneFar: '#20233f',
+    stars: 1, cloud: '#6f7aa6', cloudShade: '#383f68', cloudAlpha: .55, disc: '#e8ecff', discShade: '#0a0e26', discCut: 1, far1: '#141a38', far2: '#0e1228', sea: '#141c3e', sand: '#45424f', moss: '#1d2a26', peakFar: '#232845', peakNear: '#1a1e33', snowCap: '#9aa4c8', scree: '#2a2a36', snowFar: '#4a5478', snowNear: '#6c78a0', snowGround: '#8a94b8', ice: '#3c4c78', hill: '#1b2140', pineFar: '#141a2e', pineNear: '#0e1422', mistTone: '150,165,210', dune: '#4a4552', duneNear: '#2f2e4a', duneFar: '#20233f',
     ground: '#10131f', walk: '#1a1c2a', light: .48, lit: ['#1f2233', '#e8a24f', '#ffd884'], extraLit: .22, windowGlow: 1, signGlow: .75,
   },
   {
     name: 'Day', sky: [[0, '#3f8fd6'], [.45, '#7db8e8'], [.8, '#b9dcef'], [1, '#eaf4f2']],
-    stars: 0, cloud: '#ffffff', cloudShade: '#b4c3da', cloudAlpha: 1, disc: '#fff3c4', discShade: '#7db8e8', discCut: 0, far1: '#9db8cc', far2: '#b7cddd', sea: '#3f9fc8', sand: '#e8d6a8', moss: '#5f7f45', hill: '#9cb4bc', pineFar: '#6a927a', pineNear: '#467556', mistTone: '255,255,255', dune: '#e9c98c', duneNear: '#ddb274', duneFar: '#e6c693',
+    stars: 0, cloud: '#ffffff', cloudShade: '#b4c3da', cloudAlpha: 1, disc: '#fff3c4', discShade: '#7db8e8', discCut: 0, far1: '#9db8cc', far2: '#b7cddd', sea: '#3f9fc8', sand: '#e8d6a8', moss: '#5f7f45', peakFar: '#8fa3b8', peakNear: '#6f8092', snowCap: '#ffffff', scree: '#8a8478', snowFar: '#dce8f2', snowNear: '#f2f7fc', snowGround: '#f4f8fc', ice: '#a8d4ec', hill: '#9cb4bc', pineFar: '#6a927a', pineNear: '#467556', mistTone: '255,255,255', dune: '#e9c98c', duneNear: '#ddb274', duneFar: '#e6c693',
     ground: '#6f6a62', walk: '#8c867b', light: 1.08, lit: ['#5f7f95', '#7c9bb0', '#a8c4d6'], extraLit: 0, windowGlow: 0, signGlow: .2,
   },
 ];

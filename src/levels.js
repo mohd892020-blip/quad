@@ -1,10 +1,10 @@
 import { carSpeed, eagleCount, hawkCount, rivalSpeed } from './action.js';
-import { BEACH, BOX, CHALLENGES, DESERT, FOREST, DOUBLE, DRONE, FERRY, GROUND, ITEMS, LEVELS, RADAR, RIVAL, ROPE, ROPE_CTL, STOPS, WIND } from './config.js';
+import { BEACH, BOX, CHALLENGES, DESERT, FOREST, MOUNTAIN, SNOW, DOUBLE, DRONE, FERRY, GROUND, ITEMS, LEVELS, RADAR, RIVAL, ROPE, ROPE_CTL, STOPS, WIND } from './config.js';
 import { targetsFor, timeLimit } from './delivery.js';
 import { nearby, rng, world } from './world.js';
 
 // Customers at the level of the wheels, where a drop has to be timed between the traffic.
-const ON_THE_ROAD = ['street', 'camp', 'oasis', 'clearing'];
+const ON_THE_ROAD = ['street', 'camp', 'oasis', 'clearing', 'basecamp', 'igloo'];
 const stopCount = n => (n >= STOPS.threeFrom ? 3 : n >= STOPS.twoFrom ? 2 : 1);
 
 // The route carries on from the shop closest to the last customer.
@@ -89,10 +89,11 @@ function challengeLevel(c, n) {
 export function buildLevels() {
   const r = rng(LEVELS.seed), levels = [];
   for (let n = 1; n <= LEVELS.count; n++) {
-    const tier = n - 1, count = stopCount(n), beach = n % BEACH.every === 0, desert = n >= DESERT.first && n % DESERT.every === DESERT.at, forest = FOREST.missions.includes(n);
+    const tier = n - 1, count = stopCount(n), beach = n % BEACH.every === 0, desert = n >= DESERT.first && n % DESERT.every === DESERT.at, forest = FOREST.missions.includes(n), mountain = MOUNTAIN.missions.includes(n), snow = SNOW.missions.includes(n);
     // an open map has its own stalls and customers, and nothing tall to shelter from the wind
-    const open = beach ? BEACH : desert ? DESERT : forest ? FOREST : null;
-    const shops = beach ? world.kiosks : desert ? world.camps : forest ? world.lodges : world.shops, spots = beach ? world.seaTargets : forest ? world.forestTargets : world.sandTargets;
+    const open = beach ? BEACH : desert ? DESERT : forest ? FOREST : mountain ? MOUNTAIN : snow ? SNOW : null;
+    const shops = beach ? world.kiosks : desert ? world.camps : forest ? world.lodges : mountain ? world.mountShops : snow ? world.snowShops : world.shops;
+    const spots = beach ? world.seaTargets : forest ? world.forestTargets : mountain ? world.mountTargets : snow ? world.snowTargets : world.sandTargets;
     const start = shops[Math.floor(tier / (open ? open.every : 1)) % shops.length], stops = [];
     // a route shares out the flying of one long order, so its stops ask for the reach of an earlier tier
     const reach = Math.floor(tier / count), visit = Math.floor(tier / world.shops.length);
@@ -112,7 +113,7 @@ export function buildLevels() {
     const rival = race && !street && !run;
     stops[count - 1].rival = rival;
     levels.push({
-      n, tier, shop: run ? run.shop : start, stops: run ? [run] : stops, beach, desert, forest,
+      n, tier, shop: run ? run.shop : start, stops: run ? [run] : stops, beach, desert, forest, mountain, snow, cold: snow ? SNOW.cold : 1,
       hawks: hawkCount(reach),
       eagles: eagleCount(n),
       rival,

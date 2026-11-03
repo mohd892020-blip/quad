@@ -1,6 +1,7 @@
-import { BEACH, BIRDS, CAMERA, CELL, CITY, CLOCK, DESERT, FOREST, GROUND, GROUND_BOX, ORDERS, PEOPLE, PERSPECTIVE, SHOPS, SPRITE, TIMES, WIND, ZONES } from './config.js';
+import { BEACH, BIRDS, CAMERA, CELL, CITY, CLOCK, DESERT, FOREST, GROUND, MOUNTAIN, SNOW, GROUND_BOX, ORDERS, PEOPLE, PERSPECTIVE, SHOPS, SPRITE, TIMES, WIND, ZONES } from './config.js';
 import { buildDesert, drawDesert, drawDunes } from './desert.js';
 import { buildForest, drawWoods, drawWoodsBehind } from './forest.js';
+import { buildAlpine, drawHigh, drawHighBehind } from './alpine.js';
 import { buildSeaside, drawSeaBehind, drawShore } from './seaside.js';
 import { ctx, glow, shade, view, X, Y } from './ui.js';
 
@@ -220,13 +221,18 @@ export function genWorld(seed) {
   const woods = buildForest(B.length);
   B.push(...woods.kiosks, ...woods.cabins);
   solids.push(...woods.solids);
+  const high = buildAlpine(B.length);
+  B.push(...high.mountKiosks, ...high.snowKiosks, ...high.B);
+  solids.push(...high.solids);
+  lines.push(...high.lines);
 
   dropSprites();
   indexColliders(solids);
   Object.assign(world, {
     B, solids, lines, targets: reachable, shops, rigs, far1, far2, people, flocks, span, kiosks: coast.kiosks, seaTargets: coast.targets,
     camps: sand.kiosks, sandTargets: sand.targets, lodges: woods.kiosks, forestTargets: woods.targets, pines: woods.pines,
-    pads: [...shops, ...coast.kiosks, ...sand.kiosks, ...woods.kiosks],
+    mountShops: high.mountKiosks, mountTargets: high.mountTargets, snowShops: high.snowKiosks, snowTargets: high.snowTargets, snowPines: high.snowPines,
+    pads: [...shops, ...coast.kiosks, ...sand.kiosks, ...woods.kiosks, ...high.mountKiosks, ...high.snowKiosks],
   });
 }
 
@@ -249,6 +255,7 @@ function blendTimes(a, b, t) {
     stars: num('stars'), discCut: num('discCut'), light: num('light'), extraLit: num('extraLit'), windowGlow: num('windowGlow'), signGlow: num('signGlow'),
     cloud: col('cloud'), cloudShade: col('cloudShade'), cloudAlpha: num('cloudAlpha'), disc: col('disc'), discShade: col('discShade'), far1: col('far1'), far2: col('far2'), ground: col('ground'), walk: col('walk'), sea: col('sea'), sand: col('sand'),
     dune: col('dune'), duneNear: col('duneNear'), duneFar: col('duneFar'),
+    peakFar: col('peakFar'), peakNear: col('peakNear'), snowCap: col('snowCap'), scree: col('scree'), snowFar: col('snowFar'), snowNear: col('snowNear'), snowGround: col('snowGround'), ice: col('ice'),
     moss: col('moss'), hill: col('hill'), pineFar: col('pineFar'), pineNear: col('pineNear'), mistTone: t < .5 ? a.mistTone : b.mistTone,
   };
 }
@@ -395,10 +402,37 @@ function paintBuilding(g, b) {
   }
   if (b.rock) {
     // worn bands of rock, and a paler cap where the sun lands
-    g.fillStyle = shade(DESERT.rockCap, time.light);
+    g.fillStyle = shade(b.cap ?? DESERT.rockCap, time.light);
     g.fillRect(L, T, b.w, 7);
     g.fillStyle = 'rgba(60,25,10,.14)';
     for (let y = T + 26, i = 1; y < GROUND; y += 20 + hash(b.idx + i) * 28, i++) g.fillRect(L, y, b.w, 3 + hash(b.idx * 3 + i) * 6);
+  } else if (style === 'alpine') {
+    // a stone base under timber, and a slate roof
+    g.fillStyle = 'rgba(30,25,25,.18)';
+    for (let y = GROUND - 12; y > GROUND - b.h * .45; y -= 12) for (let x = L + ((y / 12) % 2) * 9; x < L + b.w; x += 18) g.fillRect(x, y, 16, 1.5);
+    g.fillStyle = shade('#9c6b44', time.light);
+    g.fillRect(L, T + 8, b.w, b.h * .5);
+    g.fillStyle = 'rgba(40,20,10,.22)';
+    for (let y = T + 18; y < T + 8 + b.h * .5; y += 10) g.fillRect(L, y, b.w, 2);
+    g.fillStyle = shade('#5f6470', time.light);
+    g.fillRect(L - 6, T - 4, b.w + 12, 12);
+    if (b.hut) {
+      g.fillStyle = time.lit[1];
+      g.fillRect(L + b.w * .2, T + 20, 22, 18);
+    }
+  } else if (style === 'snow') {
+    // timber walls and a deep load of snow on the roof
+    g.fillStyle = 'rgba(40,20,10,.22)';
+    for (let y = T + 14; y < GROUND; y += 11) g.fillRect(L, y, b.w, 2);
+    g.fillStyle = shade('#f4f8fc', time.light);
+    g.fillRect(L - 6, T - 8, b.w + 12, 14);
+    for (let x = L; x < L + b.w; x += 14) g.fillRect(x, T + 6, 5, 6 + (x * 7 % 9));
+    if (b.chalet) {
+      g.fillStyle = shade('#3a2618', time.light);
+      g.fillRect(L + b.w * .62, GROUND - 46, 24, 46);
+      g.fillStyle = time.lit[1];
+      g.fillRect(L + b.w * .18, GROUND - b.h * .62, 26, 20);
+    }
   } else if (style === 'forest') {
     // log walls and a roof of turf
     g.fillStyle = 'rgba(40,20,10,.22)';
@@ -740,7 +774,7 @@ function drawBirds(st) {
 export function drawMap(st) {
   const c = document.getElementById('map'), w = view.mapW, h = view.mapH;
   // the strip covers the stretch of world the mission is flown in
-  const level = st.level, [left, right] = level.forest ? [FOREST.from, FOREST.to] : level.desert ? [DESERT.from, DESERT.to] : level.beach ? [BEACH.from, BEACH.to] : [CITY.leftBuilding.x, BEACH.from];
+  const level = st.level, [left, right] = level.snow ? [SNOW.from, SNOW.to] : level.mountain ? [MOUNTAIN.from, MOUNTAIN.to] : level.forest ? [FOREST.from, FOREST.to] : level.desert ? [DESERT.from, DESERT.to] : level.beach ? [BEACH.from, BEACH.to] : [CITY.leftBuilding.x, BEACH.from];
   const k = view.DPR, span = right - left;
   if (c.width !== Math.round(w * k)) {
     c.width = Math.round(w * k);
@@ -788,6 +822,7 @@ export function drawCity(st) {
   drawSeaBehind();
   drawDunes();
   drawWoodsBehind();
+  drawHighBehind();
   ctx.fillStyle = time.ground;
   ctx.fillRect(0, Y(GROUND), W, H);
   drawBuildings();
@@ -797,6 +832,7 @@ export function drawCity(st) {
   drawShore(st);
   drawDesert(st);
   drawWoods(st);
+  drawHigh(st);
   drawLines(st);
   drawPeople(st);
   drawBirds(st);

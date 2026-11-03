@@ -1,4 +1,4 @@
-import { AIRCRAFT, BEACH, CONTRAST, DESERT, DRONE, FOREST, GROUND } from './config.js';
+import { AIRCRAFT, BEACH, CONTRAST, DESERT, DRONE, FOREST, GROUND, MOUNTAIN, SNOW } from './config.js';
 import { seaAt } from './seaside.js';
 import { settings } from './storage.js';
 import { ctx, view, X, Y } from './ui.js';
@@ -29,8 +29,14 @@ function skyAt(y) {
 export function behind(x, y) {
   const c = CONTRAST, time = world.pal, wall = world.B.find(b => x >= b.x && x <= b.x + b.w && y >= b.top);
   if (wall) return rgb(wall.col).map(v => v * time.light);
-  if (y >= GROUND - c.groundGap) return rgb(x >= FOREST.from ? time.moss : x >= DESERT.from ? time.dune : x < BEACH.from ? time.ground : seaAt(x) ? time.sea : time.sand);
-  if (x >= FOREST.from) {
+  if (y >= GROUND - c.groundGap) return rgb(x >= SNOW.from ? time.snowGround : x >= MOUNTAIN.from ? time.scree : x >= FOREST.from ? time.moss : x >= DESERT.from ? time.dune : x < BEACH.from ? time.ground : seaAt(x) ? time.sea : time.sand);
+  if (x >= SNOW.from) {
+    if (y >= GROUND - SNOW.nearH) return rgb(time.snowNear);
+    if (y >= GROUND - SNOW.farH) return rgb(time.snowFar);
+  } else if (x >= MOUNTAIN.from) {
+    if (y >= GROUND - MOUNTAIN.nearH) return rgb(time.peakNear);
+    if (y >= GROUND - MOUNTAIN.farH) return rgb(time.peakFar);
+  } else if (x >= FOREST.from) {
     if (y >= GROUND - FOREST.nearH) return rgb(time.pineNear);
     if (y >= GROUND - FOREST.farH) return rgb(time.pineFar);
     if (y >= GROUND - FOREST.hillH) return rgb(time.hill);

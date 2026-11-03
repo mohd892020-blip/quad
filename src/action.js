@@ -1,5 +1,5 @@
 import { sfx } from './audio.js';
-import { BEACH, BOX, CARS, CONTRAST, DESERT, FOREST, DRONE, EAGLES, EDGE, G, GROUND, HAWKS, HEALTH, RIVAL } from './config.js';
+import { BEACH, BOX, CARS, CONTRAST, DESERT, FOREST, MOUNTAIN, SNOW, DRONE, EAGLES, EDGE, G, GROUND, HAWKS, HEALTH, RIVAL } from './config.js';
 import { currentModel, drawAirframe } from './drone.js';
 import { ctx, glow, kickDust, pop, shade, showToast, view, X, Y } from './ui.js';
 import { roofAt, world } from './world.js';
@@ -30,6 +30,12 @@ export function planTraffic(st) {
   else if (level.desert) {
     fill(DESERT.from, DESERT.to, speed * c.buggySpeed, () => 'buggy', DESERT.trafficGap);
     fill(DESERT.from, DESERT.to, speed * c.camelSpeed, () => 'camel', DESERT.trafficGap);
+  } else if (level.mountain) {
+    fill(MOUNTAIN.from, MOUNTAIN.to, speed * c.buggySpeed, () => 'jeep', MOUNTAIN.trafficGap);
+    fill(MOUNTAIN.from, MOUNTAIN.to, speed * c.camelSpeed, () => 'goat', MOUNTAIN.trafficGap);
+  } else if (level.snow) {
+    fill(SNOW.from, SNOW.to, speed * c.buggySpeed, () => 'sled', SNOW.trafficGap);
+    fill(SNOW.from, SNOW.to, speed * c.camelSpeed * 1.4, () => 'deer', SNOW.trafficGap);
   } else if (level.forest) {
     fill(FOREST.from, FOREST.to, speed * c.buggySpeed, () => 'jeep', FOREST.trafficGap);
     fill(FOREST.from, FOREST.to, speed * c.camelSpeed * 1.4, () => 'deer', FOREST.trafficGap);
@@ -299,6 +305,30 @@ function paintBuggy(car, light, L, H) {
   ctx.stroke();
 }
 
+// A snowmobile: a ski up front curling at the tip, a track under the seat, a cowl and a small windscreen.
+function paintSled(car, light, L, H) {
+  ctx.strokeStyle = shade('#2b2233', Math.max(.7, light));
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(-L * .05, -1.5); ctx.lineTo(L * .4, -1.5); ctx.quadraticCurveTo(L * .5, -1.5, L * .5, -7);
+  ctx.moveTo(L * .2, -1.5); ctx.lineTo(L * .2, -9);
+  ctx.stroke();
+  ctx.fillStyle = '#16121c';
+  ctx.beginPath();
+  ctx.roundRect(-L * .46, -9, L * .5, 8, 4);
+  ctx.fill();
+  ctx.fillStyle = shade('#c94a3a', light);
+  ctx.beginPath();
+  ctx.moveTo(-L * .44, -9); ctx.lineTo(-L * .4, -H * .45); ctx.lineTo(L * .05, -H * .5); ctx.lineTo(L * .36, -H * .36); ctx.lineTo(L * .44, -10); ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = shade('#2b2233', light);
+  ctx.fillRect(-L * .38, -H * .62, L * .3, H * .14);
+  ctx.fillStyle = shade('#bfe0f2', light);
+  ctx.beginPath();
+  ctx.moveTo(L * .02, -H * .5); ctx.lineTo(L * .1, -H * .82); ctx.lineTo(L * .16, -H * .47); ctx.closePath();
+  ctx.fill();
+}
+
 function paintCamel(car, light, L, H) {
   const body = shade('#c99a5e', light), step = Math.sin(car.x * .06) * 4;
   ctx.strokeStyle = body;
@@ -328,8 +358,9 @@ function paintCamel(car, light, L, H) {
   ctx.fill();
 }
 
-function paintDeer(car, light, L, H) {
-  const body = shade('#9c6b44', light), step = Math.sin(car.x * .09) * 5;
+// goat: a pale coat and short horns in place of antlers
+function paintDeer(car, light, L, H, coat = '#9c6b44', goat = false) {
+  const body = shade(coat, light), step = Math.sin(car.x * .09) * 5;
   ctx.strokeStyle = body;
   ctx.lineWidth = 3;
   ctx.beginPath();
@@ -355,6 +386,12 @@ function paintDeer(car, light, L, H) {
   ctx.strokeStyle = shade('#5a3a26', light);
   ctx.lineWidth = 1.6;
   ctx.beginPath();
+  if (goat) {
+    ctx.moveTo(L * .42, -H);
+    ctx.quadraticCurveTo(L * .36, -H * 1.12, L * .3, -H * 1.04);
+    ctx.stroke();
+    return;
+  }
   ctx.moveTo(L * .4, -H);
   ctx.lineTo(L * .34, -H * 1.18);
   ctx.moveTo(L * .37, -H * 1.08);
@@ -373,6 +410,8 @@ function paintCar(car, light) {
   if (car.kind === 'camel') { paintCamel(car, light, L, H); return; }
   if (car.kind === 'jeep') { paintBuggy({ ...car, paint: '#3f6e4e' }, light, L, H); return; }
   if (car.kind === 'deer') { paintDeer(car, light, L, H); return; }
+  if (car.kind === 'goat') { paintDeer(car, light, L, H, '#ece6da', true); return; }
+  if (car.kind === 'sled') { paintSled(car, light, L, H); return; }
   ctx.fillStyle = shade(body, light);
   ctx.beginPath();
   if (van) {
@@ -418,7 +457,7 @@ export function drawCars(st) {
       ctx.fillRect(s.length / 2 - 4, -s.height * .32, 4, 4);
     }
     ctx.restore();
-    if (pal.windowGlow > .5 && !view.lowQ && car.kind !== 'boat' && car.kind !== 'camel' && car.kind !== 'deer') glow(ctx, 'rgba(255,233,168,.55)', sx + st.carDir * (s.length / 2 + 12) * S, y - s.height * .4 * S, 26 * S);
+    if (pal.windowGlow > .5 && !view.lowQ && car.kind !== 'boat' && car.kind !== 'camel' && car.kind !== 'deer' && car.kind !== 'goat') glow(ctx, 'rgba(255,233,168,.55)', sx + st.carDir * (s.length / 2 + 12) * S, y - s.height * .4 * S, 26 * S);
   }
 }
 
