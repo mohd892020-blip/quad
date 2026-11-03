@@ -267,8 +267,9 @@ export function stepClock(dt) {
 
 export function stepWind(st, dt) {
   if (st.t > st.windNext) {
-    st.windT = Math.random() < WIND.calmChance ? 0
-      : (Math.random() - .5) * 2 * st.level.wind;
+    let pick = Math.random();
+    const kind = WIND.kinds.find(k => (pick -= k.chance) < 0) ?? WIND.kinds[WIND.kinds.length - 1];
+    st.windT = (Math.random() < .5 ? -1 : 1) * (kind.from + Math.random() * (kind.to - kind.from)) * st.level.wind;
     st.windNext = st.t + WIND.gapMin + Math.random() * WIND.gapRange;
   }
   st.wind += (st.windT - st.wind) * Math.min(1, dt * WIND.follow);

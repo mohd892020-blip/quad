@@ -461,15 +461,17 @@ export const CARS = {
   paint: ['#d9483b', '#3f6fb0', '#f2efe6', '#3a8f6b', '#e0a52c'], bikeEvery: 3, vanEvery: 5, taxiEvery: 7,
 };
 
+// Wind starts soon after take-off and changes every gapMin to gapMin + gapRange seconds. Each change draws one kind:
+// a lull, a medium wind or a strong one, as a share (from to to) of the mission's top wind, blowing either way.
 export const WIND = {
-  firstAt: 22,
-  calmChance: .25,
-  base: 80,
-  perDelivery: 14,
+  firstAt: 4,
+  base: 100,
+  perDelivery: 12,
   maxDeliveries: 10,
   follow: .8,
   gapMin: 5,
   gapRange: 6,
+  kinds: [{ chance: .15, from: 0, to: 0 }, { chance: .5, from: .3, to: .55 }, { chance: .35, from: .65, to: .9 }],
 };
 
 // Pizza is the prototype's baseline: every factor is 1, so its flight matches prototype.html.
