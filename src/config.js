@@ -28,6 +28,18 @@ export const SKIP = {
   blockSize: 10, perBlock: 2, challengeFrom: 41, challengePerBlock: 1, open: 3, adSecs: 5,
 };
 
+// Clouds at flying height. amount is the share of slots that hold a cloud (a level may set its own); each is a cluster of
+// puffs that the aircraft pushes (push, within reach of a puff's edge, with wash pressing down and carry dragging along)
+// and that springs back. A pushed puff thins and swells; frontShare of the puffs are drawn over the aircraft.
+export const CLOUDS = {
+  seed: 31, amount: .6, spacing: 1100, spacingRange: 800, settled: .5, heightMin: -360, heightMax: 140, puffs: [7, 12], spread: 95, flat: .42, puffR: [28, 50],
+  drift: 7, windDrift: .05, awake: 500, reach: 46, push: 1500, wash: .35, carry: .25, spring: 2.6, damp: 2.4, inside: .9,
+  alpha: .9, frontShare: .4, frontAlpha: .72, thin: 1.6, thinMin: .25, swell: .5, margin: 70, density: 2, shadeDrop: .22, lightLift: .1,
+  falloff: [[0, 1], [.45, .96], [.72, .55], [.9, .14], [1, 0]],
+  mist: { rate: 24, max: 40, minSpeed: 40, life: 1, size: 18, grow: 26, alpha: .5, sink: 10 },
+  high: { seed: 57, count: 6, width: 340, flat: .3, pad: .2, parts: 6, alpha: .55, drift: .06, speed: 4, top: .06, bottom: .3 },
+};
+
 // The player's choice of picture. Sharp draws at the screen's own density and gives way, never below sharpFloor, only
 // when frames are awful. Auto finds the sharpest the device keeps up with. Saver stays on the low tier.
 export const PICTURE = { modes: [['sharp', 'Sharp'], ['auto', 'Auto'], ['saver', 'Saver']], sharpFloor: 2, saverTier: 5 };
@@ -521,17 +533,17 @@ export const CLOCK = { hold: 120, fade: 20, steps: 16, startAt: 2 };
 export const TIMES = [
   {
     name: 'Sunset', sky: [[0, '#140f2a'], [.45, '#3b2452'], [.8, '#b4505a'], [1, '#f0a259']],
-    stars: .7, disc: '#fff1d0', discShade: '#3b2452', discCut: 1, far1: '#3d2849', far2: '#2c1d40', sea: '#7a4a6e', sand: '#b98a6a', dune: '#c08a5e', duneNear: '#a56c58', duneFar: '#8a585e',
+    stars: .7, cloud: '#ffd2c2', cloudShade: '#b9788c', cloudAlpha: .85, disc: '#fff1d0', discShade: '#3b2452', discCut: 1, far1: '#3d2849', far2: '#2c1d40', sea: '#7a4a6e', sand: '#b98a6a', dune: '#c08a5e', duneNear: '#a56c58', duneFar: '#8a585e',
     ground: '#2a1d2c', walk: '#3a2c33', light: 1, lit: ['#4a3a52', '#f2a65a', '#ffd27a'], extraLit: 0, windowGlow: 0, signGlow: .5,
   },
   {
     name: 'Night', sky: [[0, '#05060f'], [.45, '#0b0f28'], [.8, '#171d40'], [1, '#232a52']],
-    stars: 1, disc: '#e8ecff', discShade: '#0a0e26', discCut: 1, far1: '#141a38', far2: '#0e1228', sea: '#141c3e', sand: '#45424f', dune: '#4a4552', duneNear: '#2f2e4a', duneFar: '#20233f',
+    stars: 1, cloud: '#6f7aa6', cloudShade: '#383f68', cloudAlpha: .55, disc: '#e8ecff', discShade: '#0a0e26', discCut: 1, far1: '#141a38', far2: '#0e1228', sea: '#141c3e', sand: '#45424f', dune: '#4a4552', duneNear: '#2f2e4a', duneFar: '#20233f',
     ground: '#10131f', walk: '#1a1c2a', light: .48, lit: ['#1f2233', '#e8a24f', '#ffd884'], extraLit: .22, windowGlow: 1, signGlow: .75,
   },
   {
     name: 'Day', sky: [[0, '#3f8fd6'], [.45, '#7db8e8'], [.8, '#b9dcef'], [1, '#eaf4f2']],
-    stars: 0, disc: '#fff3c4', discShade: '#7db8e8', discCut: 0, far1: '#9db8cc', far2: '#b7cddd', sea: '#3f9fc8', sand: '#e8d6a8', dune: '#e9c98c', duneNear: '#ddb274', duneFar: '#e6c693',
+    stars: 0, cloud: '#ffffff', cloudShade: '#b4c3da', cloudAlpha: 1, disc: '#fff3c4', discShade: '#7db8e8', discCut: 0, far1: '#9db8cc', far2: '#b7cddd', sea: '#3f9fc8', sand: '#e8d6a8', dune: '#e9c98c', duneNear: '#ddb274', duneFar: '#e6c693',
     ground: '#6f6a62', walk: '#8c867b', light: 1.08, lit: ['#5f7f95', '#7c9bb0', '#a8c4d6'], extraLit: 0, windowGlow: 0, signGlow: .2,
   },
 ];

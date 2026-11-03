@@ -2,6 +2,7 @@ import { drawBoost, drawCars, drawEagles, drawHawks, drawRival, stepAction, step
 import { initAudio, sfx, updateRotor } from './audio.js';
 import { beginChallenge, drawChallenge, drawWeather, stepChallenge } from './challenge.js';
 import { stepContrast } from './contrast.js';
+import { drawCloudsBack, drawCloudsFront, drawHighClouds, stepClouds } from './weather.js';
 import { BEACH, CAMERA, CITY_SEED, DRONE, DUST, FIXED_DT, GROUND, HANGAR, HUD_INTERVAL, MAX_FRAME_DT, QUALITY } from './config.js';
 import { settings as picked } from './storage.js';
 import { initLeague } from './league.js';
@@ -71,6 +72,7 @@ export function step(dt) {
   stepCamera(st, dt);
   stepFx(st, dt);
   stepContrast(st, dt);
+  stepClouds(st, dt);
 }
 
 function rememberPose() {
@@ -100,6 +102,7 @@ function render() {
   ctx.setTransform(view.DPR, 0, 0, view.DPR, 0, 0);
   view.cam = s.cam;
   drawSky(s);
+  drawHighClouds(s);
   ctx.save();
   if (s.shake) ctx.translate(...shakeOffset(s));
   drawCity(s);
@@ -111,9 +114,11 @@ function render() {
   drawTarget(s);
   drawLesson(s);
   drawRival(s);
+  drawCloudsBack(s);
   drawRope(s);
   drawBoost(s);
   drawDrone(s);
+  drawCloudsFront(s);
   drawPrep(s);
   drawHawks(s);
   drawEagles(s);

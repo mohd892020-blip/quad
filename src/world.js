@@ -242,7 +242,7 @@ function blendTimes(a, b, t) {
     sky: a.sky.map(([at, c], i) => [at, mixHex(c, b.sky[i][1], t)]),
     lit: a.lit.map((c, i) => mixHex(c, b.lit[i], t)),
     stars: num('stars'), discCut: num('discCut'), light: num('light'), extraLit: num('extraLit'), windowGlow: num('windowGlow'), signGlow: num('signGlow'),
-    disc: col('disc'), discShade: col('discShade'), far1: col('far1'), far2: col('far2'), ground: col('ground'), walk: col('walk'), sea: col('sea'), sand: col('sand'),
+    cloud: col('cloud'), cloudShade: col('cloudShade'), cloudAlpha: num('cloudAlpha'), disc: col('disc'), discShade: col('discShade'), far1: col('far1'), far2: col('far2'), ground: col('ground'), walk: col('walk'), sea: col('sea'), sand: col('sand'),
     dune: col('dune'), duneNear: col('duneNear'), duneFar: col('duneFar'),
   };
 }

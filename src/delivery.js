@@ -1,6 +1,7 @@
 import { clearAction, planMission, planTraffic } from './action.js';
 import { sfx } from './audio.js';
 import { standout } from './contrast.js';
+import { planClouds } from './weather.js';
 import {
   AIRCRAFT, BATTERY, BOX, CAMERA, CARGO, CONTRAST, DELIVERY, DEV, DOUBLE, DRONE, FIXED_DT, FX, HANGAR, HEALTH, LAND, LEVELS, MISSION, ORDER_TIME, ORDERS, POINTER, PREP, RESTAURANT, RIVAL, ROPE, SKIP, ROPE_CTL, WIND,
 } from './config.js';
@@ -27,6 +28,7 @@ export function newGame(level) {
     leg: { t: 0, x: p.x }, charge: 0, standout: standout(),
   };
   planTraffic(st);
+  planClouds(st);
   current = st;
   return st;
 }
