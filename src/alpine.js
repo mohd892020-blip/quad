@@ -219,7 +219,8 @@ function drawIgloo(x, time) {
 }
 
 function ground(c, col, st) {
-  const { W, H, S } = view, x0 = X(c.from), x1 = X(c.to);
+  // the snowfield lies on past the end of the world, so a wide shot never finds bare ground beyond it
+  const { W, H, S } = view, x0 = X(c.from), x1 = X(c.groundTo ?? c.to);
   if (x0 >= W || x1 <= 0) return null;
   const left = Math.max(0, x0), right = Math.min(W, x1), y = Y(GROUND);
   ctx.fillStyle = col;

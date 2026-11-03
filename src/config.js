@@ -40,6 +40,30 @@ export const CLOUDS = {
   high: { seed: 57, count: 6, width: 340, flat: .3, pad: .2, parts: 6, alpha: .55, drift: .06, speed: 4, top: .06, bottom: .3 },
 };
 
+// The weather some missions fly in; the snowfield always has snow, and kinds is the order a mission is looked up in.
+// count is how many flakes or drops share three layers at depth (the third passes in front of the aircraft), size
+// their size, fall their speed in px/s give or take spread, sway how far a flake swings at swayRate, windShare how much
+// of the wind carries them, lean the slant the wind gives the rain, pad how far past the screen they wrap, lowShare
+// what is left of them on the low picture. overcast veils the sky in dim, darkened by the time of day's light. Fog clears to near within
+// clear of the aircraft (fully inside core of that) and closes to thick past it, lies low up to lowH, and drifts in
+// banks bankW wide at bankDepth of the camera's motion; sprite is the size its gradients are painted at. Low cloud fills amount of the cloud slots.
+export const WEATHER = {
+  kinds: ['rain', 'fog', 'clouds', 'snow'], dim: '150,156,170',
+  snow: {
+    name: 'Snowfall', missions: [21, 31], count: 140, depth: [.45, .8, 1.35], size: [1.3, 1.8, 2.4], fall: 48, spread: .6, sway: 14, swayRate: .9, windShare: .35, lean: 0,
+    pad: 30, lowShare: .5, color: '255,255,255', alpha: [.5, .75, .9], overcast: .2,
+  },
+  rain: {
+    name: 'Rain', missions: [7, 14, 19, 29, 39], count: 120, depth: [.5, .8, 1.3], size: [1, 1.1, 1.3], fall: 900, spread: .3, windShare: .5, lean: .0025, long: 18,
+    pad: 40, lowShare: .5, color: '205,220,255', alpha: [.22, .32, .45], overcast: .42, splashes: 28, splashRate: 1.6, splashSize: 7, splashAlpha: .5,
+  },
+  fog: {
+    name: 'Fog. Follow the arrow', missions: [11, 16, 26, 36], sprite: 128, clear: 240, core: .35, near: .06, thick: .82, low: .45, lowH: 170, banks: 7, bankW: 520, bankFlat: .32,
+    bankAlpha: .35, drift: 14, bankDepth: .8, bankLow: 30, bankHigh: 320, overcast: .3,
+  },
+  clouds: { name: 'Low cloud', missions: [4, 9, 22, 35], amount: .97, overcast: .22 },
+};
+
 // The player's choice of picture. Sharp draws at the screen's own density and gives way, never below sharpFloor, only
 // when frames are awful. Auto finds the sharpest the device keeps up with. Saver stays on the low tier.
 export const PICTURE = { modes: [['sharp', 'Sharp'], ['auto', 'Auto'], ['saver', 'Saver']], sharpFloor: 2, saverTier: 5 };
@@ -125,9 +149,9 @@ export const MOUNTAIN = {
 };
 
 // The snowfield past the mountains: snowy pines from seed, chalets, a ski lift, igloos and frozen lakes. cold scales how
-// fast the battery drains here.
+// fast the battery drains here. Its ground runs on to groundTo, past the end of the world.
 export const SNOW = {
-  from: 40100, to: 46500, missions: [24, 34], every: 10, minDist: 1500, windBoost: 1.2, cold: 1.3, trafficGap: 2, targetLift: 11, seen: 360,
+  from: 40100, to: 46500, groundTo: 49000, missions: [24, 34], every: 10, minDist: 1500, windBoost: 1.2, cold: 1.3, trafficGap: 2, targetLift: 11, seen: 360,
   kioskH: 120, kioskColor: '#9c6b44', wallColor: '#9c6b44',
   kiosks: [
     { x: 40400, shop: { name: 'Cocoa Hut', items: ['coffee', 'cake'], glow: '#c89a6a' } },

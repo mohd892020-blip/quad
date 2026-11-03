@@ -1,4 +1,4 @@
-import { CLOUDS, EDGE } from './config.js';
+import { CLOUDS, EDGE, GROUND, WEATHER } from './config.js';
 import { ctx, view, X, Y } from './ui.js';
 import { rng, world } from './world.js';
 
@@ -156,6 +156,133 @@ export function drawHighClouds(st) {
     const x = ((i * span / c.count - st.cam.x * c.drift - st.t * c.speed) % span + span) % span - c.width * S;
     const y = H * (c.top + (c.bottom - c.top) * ((i * .37) % 1));
     ctx.drawImage(im.canvas, x, y, im.w * scale, im.h * scale);
+  }
+  ctx.globalAlpha = 1;
+}
+
+/* ---------- the mission's weather ---------- */
+// A mission keeps its weather: snow on the snowfield and on chosen missions, rain, fog, or low cloud, which planClouds
+// packs through level.clouds. Snow and rain fall in screen space in three layers, each sliding against the camera at
+// its own depth, so the near ones rush past the lens and the far ones barely drift. Fog closes in to a clearing around
+// the aircraft, lies thickest on the ground, and drifts through in banks.
+export function weatherFor(n, l) {
+  return WEATHER.kinds.find(k => WEATHER[k].missions.includes(n)) ?? (l.snow ? 'snow' : null);
+}
+
+const fract = v => v - Math.floor(v), hash = i => fract(Math.sin(i * 127.1 + 311.7) * 43758.5453), wrap = (v, span) => ((v % span) + span) % span;
+
+// The sky goes grey before anything falls: a veil of grey, darker as the light goes. A plain fill, since blend modes
+// over the whole screen cost a slow phone a frame.
+export function drawOvercast(st) {
+  const a = WEATHER[st.level.weather]?.overcast;
+  if (!a) return;
+  const k = Math.min(1, world.pal.light), [r, g, b] = WEATHER.dim.split(',').map(v => Math.round(v * k));
+  ctx.fillStyle = `rgba(${r},${g},${b},${a})`;
+  ctx.fillRect(0, 0, view.W, view.H);
+}
+
+// near draws the layer that passes in front of the aircraft; otherwise the two behind it.
+function drawFall(st, near) {
+  const kind = st.level.weather;
+  if (kind !== 'snow' && kind !== 'rain') return;
+  const c = WEATHER[kind], { W, H, S, cam } = view, pad = c.pad * S, spanW = W + pad * 2, spanH = H + pad * 2, t = st.t, snow = kind === 'snow';
+  const n = Math.round(c.count * (view.lowQ ? c.lowShare : 1)), lean = st.wind * c.lean;
+  for (const L of near ? [2] : [0, 1]) {
+    const depth = c.depth[L], size = c.size[L] * S * depth;
+    ctx.beginPath();
+    for (let i = L; i < n; i += 3) {
+      const fall = c.fall * (1 - c.spread / 2 + hash(i) * c.spread) * depth;
+      let x = wrap(hash(i + .5) * spanW + t * st.wind * c.windShare * depth * S - cam.x * S * depth, spanW) - pad;
+      const y = wrap(hash(i + .25) * spanH + t * fall * S - cam.y * S * depth, spanH) - pad;
+      if (snow) {
+        x += Math.sin(t * c.swayRate + i) * c.sway * depth * S;
+        ctx.moveTo(x + size, y);
+        ctx.arc(x, y, size, 0, 7);
+      } else {
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + lean * c.long * depth * S, y + c.long * depth * S);
+      }
+    }
+    if (snow) {
+      ctx.fillStyle = `rgba(${c.color},${c.alpha[L]})`;
+      ctx.fill();
+    } else {
+      ctx.strokeStyle = `rgba(${c.color},${c.alpha[L]})`;
+      ctx.lineWidth = size;
+      ctx.stroke();
+    }
+  }
+  if (!near || snow) return;
+  // rain lands: small rings open on the ground, fixed to it as the camera passes
+  const gy = Y(GROUND);
+  if (gy > H + 4 || gy < 0) return;
+  ctx.strokeStyle = `rgba(${c.color},${c.splashAlpha})`;
+  ctx.lineWidth = S;
+  for (let k = 0; k < c.splashes; k++) {
+    const ph = fract(t * c.splashRate * (.7 + hash(k + 7) * .6) + hash(k + 9)), x = wrap(hash(k + 3) * W * 4 - cam.x * S, W);
+    ctx.globalAlpha = 1 - ph;
+    ctx.beginPath();
+    ctx.ellipse(x, gy, (1.5 + ph * c.splashSize) * S, (.6 + ph * c.splashSize * .3) * S, 0, 0, 7);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+}
+
+export const drawFallBehind = st => drawFall(st, false);
+export const drawFallFront = st => drawFall(st, true);
+
+const hexOf = tone => `#${tone.split(',').map(v => (+v).toString(16).padStart(2, '0')).join('')}`;
+
+// The fog's clearing and its low band are gradients painted once for each tint into small images, then stretched into
+// place: a gradient filled across the whole screen every frame costs a slow phone its frame rate.
+const fogParts = { tone: null, hole: null, band: null };
+function fogImages(tone) {
+  if (fogParts.tone === tone) return fogParts;
+  const f = WEATHER.fog, n = f.sprite, hole = fogParts.hole ?? document.createElement('canvas'), band = fogParts.band ?? document.createElement('canvas');
+  hole.width = hole.height = n;
+  let g = hole.getContext('2d');
+  const veil = g.createRadialGradient(n / 2, n / 2, n / 2 * f.core, n / 2, n / 2, n / 2);
+  veil.addColorStop(0, `rgba(${tone},${f.near})`);
+  veil.addColorStop(1, `rgba(${tone},${f.thick})`);
+  g.clearRect(0, 0, n, n);
+  g.fillStyle = veil;
+  g.fillRect(0, 0, n, n);
+  band.width = 1;
+  band.height = n;
+  g = band.getContext('2d');
+  const low = g.createLinearGradient(0, 0, 0, n);
+  low.addColorStop(0, `rgba(${tone},0)`);
+  low.addColorStop(1, `rgba(${tone},${f.low})`);
+  g.clearRect(0, 0, 1, n);
+  g.fillStyle = low;
+  g.fillRect(0, 0, 1, n);
+  return Object.assign(fogParts, { tone, hole, band });
+}
+
+// Over the world and under everything the player steers by: the aircraft, its order, the pads and the markers.
+export function drawFog(st) {
+  if (st.level.weather !== 'fog') return;
+  const f = WEATHER.fog, { W, H, S, cam } = view, tone = world.pal.mistTone, x = X(st.d.x), y = Y(st.d.y), r = f.clear * S, { hole, band } = fogImages(tone);
+  // thick everywhere but the square around the aircraft, where the clearing fades in. The square sits on whole pixels
+  // and the image is read from inside its border, so no seam shows where the two meet.
+  ctx.fillStyle = `rgba(${tone},${f.thick})`;
+  const L = Math.round(x - r), T = Math.round(y - r), side = Math.round(r * 2), R = L + side, B = T + side;
+  ctx.fillRect(-20, -20, W + 40, Math.max(0, T + 20));
+  ctx.fillRect(-20, B, W + 40, Math.max(0, H + 20 - B));
+  ctx.fillRect(-20, T, Math.max(0, L + 20), side);
+  ctx.fillRect(R, T, Math.max(0, W + 20 - R), side);
+  ctx.drawImage(hole, 1, 1, f.sprite - 2, f.sprite - 2, L, T, side, side);
+  const gy = Y(GROUND), top = Y(GROUND - f.lowH);
+  if (top < H) {
+    ctx.drawImage(band, -20, top, W + 40, gy - top);
+    ctx.fillStyle = `rgba(${tone},${f.low})`;
+    ctx.fillRect(-20, gy, W + 40, Math.max(0, H - gy + 20));
+  }
+  const sprite = puffSprite(hexOf(tone)), bw = f.bankW * S, bh = bw * f.bankFlat;
+  ctx.globalAlpha = f.bankAlpha;
+  for (let i = 0; i < f.banks; i++) {
+    const bx = wrap(hash(i) * (W + bw) * 3 + st.t * f.drift * (1 + hash(i + 2)) * S - cam.x * S * f.bankDepth, W + bw) - bw;
+    ctx.drawImage(sprite, bx, Y(GROUND - f.bankLow - hash(i + 5) * f.bankHigh) - bh / 2, bw, bh);
   }
   ctx.globalAlpha = 1;
 }

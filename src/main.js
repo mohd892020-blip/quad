@@ -2,7 +2,7 @@ import { drawBoost, drawCars, drawEagles, drawHawks, drawRival, stepAction, step
 import { initAudio, sfx, updateRotor } from './audio.js';
 import { beginChallenge, drawChallenge, drawWeather, stepChallenge } from './challenge.js';
 import { stepContrast } from './contrast.js';
-import { drawCloudsBack, drawCloudsFront, drawHighClouds, stepClouds } from './weather.js';
+import { drawCloudsBack, drawCloudsFront, drawFallBehind, drawFallFront, drawFog, drawHighClouds, drawOvercast, stepClouds } from './weather.js';
 import { updateMusic } from './music.js';
 import { BEACH, CAMERA, CITY_SEED, DRONE, DUST, FIXED_DT, GROUND, HANGAR, HUD_INTERVAL, MAX_FRAME_DT, MUSIC, QUALITY } from './config.js';
 import { settings as picked } from './storage.js';
@@ -109,10 +109,13 @@ function render() {
   view.cam = s.cam;
   drawSky(s);
   drawHighClouds(s);
+  drawOvercast(s);
   ctx.save();
   if (s.shake) ctx.translate(...shakeOffset(s));
   drawCity(s);
   drawCars(s);
+  drawFog(s);
+  drawFallBehind(s);
   drawChallenge(s);
   drawMarks(s);
   drawHalos(s);
@@ -125,6 +128,7 @@ function render() {
   drawBoost(s);
   drawDrone(s);
   drawCloudsFront(s);
+  drawFallFront(s);
   drawPrep(s);
   drawHawks(s);
   drawEagles(s);

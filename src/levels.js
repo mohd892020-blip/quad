@@ -1,6 +1,7 @@
 import { carSpeed, eagleCount, hawkCount, rivalSpeed } from './action.js';
-import { BEACH, BOX, CHALLENGES, DESERT, FOREST, MOUNTAIN, SNOW, DOUBLE, DRONE, FERRY, GATES, GROUND, ITEMS, JET, LEVELS, RADAR, RIVAL, ROPE, ROPE_CTL, STOPS, THIN_ICE, WIND } from './config.js';
+import { BEACH, BOX, CHALLENGES, DESERT, FOREST, MOUNTAIN, SNOW, DOUBLE, DRONE, FERRY, GATES, GROUND, ITEMS, JET, LEVELS, RADAR, RIVAL, ROPE, ROPE_CTL, STOPS, THIN_ICE, WEATHER, WIND } from './config.js';
 import { targetsFor, timeLimit } from './delivery.js';
+import { weatherFor } from './weather.js';
 import { nearby, rng, roofAt, world } from './world.js';
 
 // Customers at the level of the wheels, where a drop has to be timed between the traffic.
@@ -158,5 +159,10 @@ export function buildLevels() {
     });
   }
   CHALLENGES.forEach((c, i) => levels.push(challengeLevel(c, LEVELS.count + i + 1)));
+  // the weather only dresses a mission; where it goes and what it asks stay the same
+  for (const l of levels) {
+    l.weather = weatherFor(l.n, l);
+    if (l.weather === 'clouds') l.clouds = WEATHER.clouds.amount;
+  }
   return levels;
 }
