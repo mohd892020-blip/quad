@@ -678,6 +678,33 @@ export const SHADOW = {
   lift: 3,
 };
 
+// The music: tempo in beats a minute, played in eighth steps, scheduled ahead seconds early. level is the game's
+// loudness, menuLevel the maps', pausedShare what is left under a pause. Each place has a root note and a voice and
+// may own the mode; otherwise times (sunset, night, day) pick it. Arpeggio notes play on the steps in pattern, as
+// often as base plus speed times how fast the aircraft goes, a little less while held, and climb an octave with height.
+export const MUSIC = {
+  tempo: 84, steps: 8, ahead: .3, fade: .8, altSpan: 900, fastSpeed: 400, lateSecs: 10, level: .16, menuLevel: .1, pausedShare: .45, bass: .32, pulse: .4, cueLevel: .3,
+  times: ['mixolydian', 'dorian', 'ionian'],
+  progressions: { bright: [0, 5, 3, 4], dark: [0, 5, 3, 6] },
+  places: {
+    city: { root: 62, voice: 'kalimba' }, beach: { root: 65, voice: 'marimba' },
+    desert: { root: 64, voice: 'oud', mode: 'hijaz' }, forest: { root: 67, voice: 'flute' },
+  },
+  arp: { pattern: [1, 0, 1, 1, 0, 1, 1, 0], base: .45, speed: .5, holdCut: .25, menu: .3, climb: 1, walk: 3, level: .22 },
+  pad: { level: .09, attack: 1.2, release: .9, detune: 7, cut: [520, 1500], windRate: 1.7, windWobble: 260, boostLift: 500 },
+  voices: {
+    kalimba: { wave: 'triangle', attack: .005, decay: 1, overtone: 4, overtoneLevel: .25, overtoneDecay: .25 },
+    marimba: { wave: 'sine', attack: .004, decay: .7, overtone: 4, overtoneLevel: .4, overtoneDecay: .15 },
+    oud: { wave: 'sawtooth', attack: .006, decay: .55, overtone: 2, overtoneLevel: .15, overtoneDecay: .3 },
+    flute: { wave: 'sine', attack: .06, decay: 1.2, overtone: 2, overtoneLevel: .12, overtoneDecay: .9 },
+    bass: { wave: 'sine', attack: .02, decay: 1 },
+    pulse: { wave: 'sine', attack: .005, decay: .5 },
+  },
+  cues: {
+    pickup: [[0, 0], [2, .5], [4, 1]], deliver: [[4, 0], [2, .5], [7, 1], [9, 1.5]], win: [[0, 0], [4, .5], [7, 1], [9, 1.5], [11, 2.5]], lose: [[4, 0], [3, 1], [1, 2]],
+  },
+};
+
 export const AUDIO = {
   smooth: .07,
   updateEvery: .08,

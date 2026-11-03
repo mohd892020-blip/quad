@@ -2,6 +2,7 @@ import { clearAction, planMission, planTraffic } from './action.js';
 import { sfx } from './audio.js';
 import { standout } from './contrast.js';
 import { planClouds } from './weather.js';
+import { musicCue } from './music.js';
 import {
   AIRCRAFT, BATTERY, BOX, CAMERA, CARGO, CONTRAST, DELIVERY, DEV, DOUBLE, DRONE, FIXED_DT, FX, HANGAR, HEALTH, LAND, LEVELS, MISSION, ORDER_TIME, ORDERS, POINTER, PREP, RESTAURANT, RIVAL, ROPE, SKIP, ROPE_CTL, WIND,
 } from './config.js';
@@ -66,6 +67,7 @@ export function startMission(st, shop, item) {
   st.box.y = st.box.py = p.y - RESTAURANT.boxLift;
   planMission(st, shop);
   sfx('pickup');
+  musicCue('pickup');
   if (parcels) showToast('Double Run', `${parcels[0].item.label} first, then ${parcels[1].item.label}`, true);
   hud(st);
 }
@@ -140,6 +142,7 @@ function passMission(st) {
     cheer(st, st.order.t);
     endMission(st);
     sfx('deliver');
+  musicCue('deliver');
     finish(st, { passed: true, training: true });
     hud(st);
     return;
@@ -160,6 +163,7 @@ function passMission(st) {
   st.del++;
   pop(st, o.t.x, o.t.y - c.popLift, `+$${tip}`, '#ffc23d');
   sfx('deliver');
+  musicCue('deliver');
   if (o.next) {
     dropLower(st);
     saveProgress(st.del, st.money);

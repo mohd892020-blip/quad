@@ -1,4 +1,5 @@
 import { sfx, toggleMute } from './audio.js';
+import { musicCue } from './music.js';
 import { AIRCRAFT, BADGE, BOOST, DEV, DUST, FROST, FX, G, HANGAR, HEALTH, JOY, KEY_HINT, LEVELS, MISSION, PICTURE, POINTER, QUALITY, RESULT, SHAKE, SHOP, SKIP, VIEW, WIND } from './config.js';
 import { applyControls, touchUI } from './input.js';
 import { bought, loadProgress, owns, saveSettings, saveSkips, settings, skips } from './storage.js';
@@ -623,6 +624,7 @@ export function showResult(o, level, hasNext) {
   else showSkip(level.n);
   card.hidden = false;
   sfx(o.passed ? 'win' : 'lose');
+  musicCue(o.passed ? 'win' : 'lose');
   if (won) countUp($('resultMoney'), o.tip);
 }
 
@@ -669,6 +671,25 @@ export const previewCanvas = () => $('preview');
 
 function markPicture() {
   for (const b of $('pictureModes').children) b.setAttribute('aria-pressed', settings.picture === b.dataset.value);
+}
+
+function markMusic() {
+  for (const b of $('musicModes').children) b.setAttribute('aria-pressed', String(settings.music !== false) === b.dataset.value);
+}
+
+function buildMusic() {
+  for (const [value, label] of [['true', 'On'], ['false', 'Off']]) {
+    const b = document.createElement('button');
+    b.textContent = label;
+    b.dataset.value = value;
+    b.addEventListener('click', () => {
+      settings.music = value === 'true';
+      saveSettings();
+      markMusic();
+    });
+    $('musicModes').appendChild(b);
+  }
+  markMusic();
 }
 
 function buildPicture() {
@@ -798,6 +819,7 @@ export function initSheet() {
   buildStickOptions();
   markControls();
   buildPicture();
+  buildMusic();
   showDev();
   const openSheet = () => { $('sheet').hidden = false; };
   $('gear').addEventListener('click', openSheet);

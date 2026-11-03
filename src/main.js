@@ -3,7 +3,8 @@ import { initAudio, sfx, updateRotor } from './audio.js';
 import { beginChallenge, drawChallenge, drawWeather, stepChallenge } from './challenge.js';
 import { stepContrast } from './contrast.js';
 import { drawCloudsBack, drawCloudsFront, drawHighClouds, stepClouds } from './weather.js';
-import { BEACH, CAMERA, CITY_SEED, DRONE, DUST, FIXED_DT, GROUND, HANGAR, HUD_INTERVAL, MAX_FRAME_DT, QUALITY } from './config.js';
+import { updateMusic } from './music.js';
+import { BEACH, CAMERA, CITY_SEED, DRONE, DUST, FIXED_DT, GROUND, HANGAR, HUD_INTERVAL, MAX_FRAME_DT, MUSIC, QUALITY } from './config.js';
 import { settings as picked } from './storage.js';
 import { initLeague } from './league.js';
 import { buildLevels } from './levels.js';
@@ -24,7 +25,7 @@ import {
   ctx, drawFx, drawMarks, frost, hideModals, hideOverlay, hud, initLevels, initSheet, kickDust, levelsOpen, lowerQuality, measureHud, modalOpen, onDevActions, onStart,
   previewCanvas, raiseQuality, shakeOffset, sheetOpen, showActions, showHangarTip, showKeyHints, showLesson, showLevels, showResult, stepFx, view,
 } from './ui.js';
-import { drawCity, drawMap, drawSky, dropSprites, genWorld, stepCamera, stepClock, stepWind } from './world.js';
+import { world, drawCity, drawMap, drawSky, dropSprites, genWorld, stepCamera, stepClock, stepWind } from './world.js';
 
 let st = null, hudT = 0, last = performance.now(), levels = [];
 const pace = { t: 0, n: 0, even: 0, last: 0, easy: 0, raised: false, tried: false };
@@ -201,6 +202,7 @@ function loop(now) {
   showActions(zones(st), !!st.anchor, !!st.landing, st.boosting);
   showHangarTip(paused ? null : hangarHint(st));
   updateRotor(!paused && !st.wreck && !st.falling && st.d.bat > 0, rotorLoad(st, controls()), currentModel());
+  updateMusic(musicState(paused));
   requestAnimationFrame(loop);
 }
 
@@ -228,8 +230,19 @@ function leave() {
 
 // Idle demo city behind the start card, until play begins.
 const demo = { x: 0, at: performance.now() };
+// What the music follows: where the mission is, the time of day, and how the flight is going.
+function musicState(paused) {
+  const l = st.level, d = st.d, o = st.has ? st.order : null, left = o ? o.deadline - st.t : Infinity;
+  return {
+    active: !st.done && !st.outcome, paused, place: l.beach ? 'beach' : l.desert ? 'desert' : l.forest ? 'forest' : 'city', time: Math.floor(world.palKey) % 3,
+    alt: Math.max(0, Math.min(1, (GROUND - d.y) / MUSIC.altSpan)), speed: Math.min(1, Math.hypot(d.vx, d.vy) / MUSIC.fastSpeed), wind: l.wind ? Math.min(1, Math.abs(st.wind) / l.wind) : 0,
+    danger: Math.max(left < MUSIC.lateSecs ? 1 - left / MUSIC.lateSecs : 0, st.batWarn > 1 ? 1 : st.batWarn ? .5 : 0), boosting: st.boosting, holding: !!st.anchor,
+  };
+}
+
 function idle(now = demo.at) {
   if (st) { requestAnimationFrame(loop); return; }
+  updateMusic({ active: false, paused: false, place: 'city', time: Math.floor(world.palKey) % 3, alt: .3, speed: 0, wind: 0, danger: 0 });
   const frame = (now - demo.at) / 1000, dt = Math.min(MAX_FRAME_DT, frame);
   demo.at = now;
   if (!levelsOpen()) {

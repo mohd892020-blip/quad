@@ -88,6 +88,9 @@ function wake() {
   return ac.resume()?.catch?.(() => {});
 }
 
+// The live context and the limiter every sound passes through, once the player has woken the audio.
+export const audioGraph = () => (ac ? { ac, bus } : null);
+
 export function toggleMute() {
   settings.muted = !settings.muted;
   saveSettings();
