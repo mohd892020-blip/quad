@@ -2,10 +2,10 @@ import { clearAction, planMission, planTraffic } from './action.js';
 import { sfx } from './audio.js';
 import { standout } from './contrast.js';
 import {
-  AIRCRAFT, BATTERY, BOX, CAMERA, CARGO, CONTRAST, DELIVERY, DEV, DOUBLE, DRONE, FIXED_DT, FX, HANGAR, HEALTH, LAND, LEVELS, MISSION, ORDER_TIME, ORDERS, POINTER, PREP, RESTAURANT, RIVAL, ROPE, ROPE_CTL, WIND,
+  AIRCRAFT, BATTERY, BOX, CAMERA, CARGO, CONTRAST, DELIVERY, DEV, DOUBLE, DRONE, FIXED_DT, FX, HANGAR, HEALTH, LAND, LEVELS, MISSION, ORDER_TIME, ORDERS, POINTER, PREP, RESTAURANT, RIVAL, ROPE, SKIP, ROPE_CTL, WIND,
 } from './config.js';
 import { currentModel } from './drone.js';
-import { loadProgress, owns, saveProgress, settings } from './storage.js';
+import { loadProgress, noteResult, owns, saveProgress, settings } from './storage.js';
 import { addMark, blast, clockText, ctx, glow, hud, placeName, pop, puff, showToast, view, X, Y } from './ui.js';
 import { mixHex, nearby, nearestShop, shopPad, world } from './world.js';
 
@@ -57,6 +57,7 @@ export function startMission(st, shop, item) {
   st.heat = 100;
   st.integ = 100;
   st.has = true;
+  st.picked = true;
   st.leg = { t: st.t, x: st.d.x };
   st.ropeLen = st.level.rope ?? ROPE;
   st.box.x = st.box.px = st.d.x + RESTAURANT.boxOffsetX;
@@ -94,6 +95,8 @@ function endMission(st) {
 // The first ending stands: a drone that burns out just after delivering has still delivered.
 function finish(st, outcome) {
   if (st.outcome || st.done) return;
+  // a quick restart is not a real try, so it never counts toward a skip
+  if (!st.level.training) noteResult(st.level.n, outcome.passed, st.t >= SKIP.realSecs || st.picked);
   st.outcome = { ...outcome, at: st.t + (outcome.passed ? LEVELS.passDelay : LEVELS.resultDelay) };
 }
 

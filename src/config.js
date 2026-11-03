@@ -18,6 +18,16 @@ export const QUALITY = {
   window: 2, slowFrame: .021, awfulFrame: .045, capFrame: .036, evenGap: .003, evenShare: .85, easyFrame: .0178, calm: 3, maxFrameGap: 1, start: 3,
   tiers: [{ dpr: 3 }, { dpr: 2.5 }, { dpr: 2 }, { dpr: 1.5 }, { dpr: 1.25 }, { dpr: 1, low: true }, { dpr: .75, low: true }],
 };
+// Skipping a mission for a rewarded ad. It is offered after afterFails real fails in a row (a fail counts once the try
+// lasted realSecs or reached the pickup), from mission from on, never for the checkpoints in never. Between skips the
+// player passes gap missions; each block of blockSize missions allows perBlock skips (challengePerBlock from
+// challengeFrom on); and no more than open skipped missions may wait unplayed at once. There is no clock, so changing
+// the phone's time gains nothing. devOnly keeps it in developer mode until real ads exist; until then a stand-in plays.
+export const SKIP = {
+  devOnly: true, afterFails: 3, realSecs: 15, from: 6, never: [10, 20, 30, 40, 50], gap: 2,
+  blockSize: 10, perBlock: 2, challengeFrom: 41, challengePerBlock: 1, open: 3, adSecs: 5,
+};
+
 // The player's choice of picture. Sharp draws at the screen's own density and gives way, never below sharpFloor, only
 // when frames are awful. Auto finds the sharpest the device keeps up with. Saver stays on the low tier.
 export const PICTURE = { modes: [['sharp', 'Sharp'], ['auto', 'Auto'], ['saver', 'Saver']], sharpFloor: 2, saverTier: 5 };

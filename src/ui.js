@@ -1,7 +1,7 @@
 import { sfx, toggleMute } from './audio.js';
-import { AIRCRAFT, BADGE, BOOST, DEV, DUST, FROST, FX, G, HANGAR, HEALTH, JOY, KEY_HINT, LEVELS, MISSION, PICTURE, POINTER, QUALITY, RESULT, SHAKE, SHOP, VIEW, WIND } from './config.js';
+import { AIRCRAFT, BADGE, BOOST, DEV, DUST, FROST, FX, G, HANGAR, HEALTH, JOY, KEY_HINT, LEVELS, MISSION, PICTURE, POINTER, QUALITY, RESULT, SHAKE, SHOP, SKIP, VIEW, WIND } from './config.js';
 import { applyControls, touchUI } from './input.js';
-import { bought, loadProgress, owns, saveSettings, settings } from './storage.js';
+import { bought, loadProgress, owns, saveSettings, saveSkips, settings, skips } from './storage.js';
 
 const $ = id => document.getElementById(id);
 
@@ -427,7 +427,7 @@ export function showActions(zone, anchored, landing, boosting) {
 
 /* ---------- settings ---------- */
 export const sheetOpen = () => !$('sheet').hidden;
-const MODALS = ['levels', 'levelCard', 'resultCard', 'pauseCard', 'shop', 'league'];
+const MODALS = ['levels', 'levelCard', 'resultCard', 'pauseCard', 'shop', 'league', 'adCard'];
 export const modalOpen = () => sheetOpen() || MODALS.some(id => !$(id).hidden);
 // The level map is opaque, so nothing behind it needs drawing.
 export const levelsOpen = () => !$('levels').hidden;
@@ -454,8 +454,64 @@ export const clockText = s => `${Math.floor(Math.ceil(s) / 60)}:${String(Math.ce
 // The first level without a star is the furthest one open.
 function reachedLevel(stars) {
   let n = 1;
-  while (stars[n]) n++;
+  while (stars[n] || skips.skipped.includes(n)) n++;
   return n;
+}
+
+// Whether mission n can be skipped for an ad: null before the offer applies, else ok or why it cannot be taken now.
+// The offer stays hidden until it is earned, so it never invites a player to fail on purpose.
+function skipState(n) {
+  const c = SKIP, { stars } = loadProgress();
+  if ((c.devOnly && !settings.dev) || (skips.fails[n] || 0) < c.afterFails || stars[n] || skips.skipped.includes(n) || n < c.from) return null;
+  if (c.never.includes(n)) return { why: "Checkpoint mission. Can't be skipped" };
+  const block = Math.ceil(n / c.blockSize), allowed = n >= c.challengeFrom ? c.challengePerBlock : c.perBlock;
+  const used = skips.skipped.filter(k => Math.ceil(k / c.blockSize) === block).length, waiting = skips.skipped.filter(k => !stars[k]).length;
+  if (skips.skipped.length && skips.since < c.gap) return { why: `Pass ${c.gap - skips.since} more ${c.gap - skips.since === 1 ? 'mission' : 'missions'} to skip again` };
+  if (waiting >= c.open) return { why: 'Clear a skipped mission to skip again' };
+  if (used >= allowed) return { why: `No skips left until Mission ${block * c.blockSize + 1}` };
+  return { ok: true };
+}
+
+function showSkip(n) {
+  const s = skipState(n), b = $('resultSkip');
+  b.hidden = !s;
+  if (!s) return;
+  b.disabled = !s.ok;
+  $('resultSkipNote').textContent = s.ok ? 'Watch an ad · no stars, tips or score' : s.why;
+}
+
+// A stand-in for a rewarded ad: it counts down, then the skip is granted and the next mission opens.
+let adTimer = 0;
+function playAd(n) {
+  const card = $('adCard'), end = Date.now() + SKIP.adSecs * 1000;
+  $('adDone').disabled = true;
+  card.hidden = false;
+  clearInterval(adTimer);
+  const tick = () => {
+    const left = Math.max(0, Math.ceil((end - Date.now()) / 1000));
+    $('adCount').textContent = left ? `${left}` : '';
+    $('adState').textContent = left ? 'Ad playing' : 'Reward ready';
+    if (left) return;
+    clearInterval(adTimer);
+    $('adDone').disabled = false;
+  };
+  tick();
+  adTimer = setInterval(tick, 250);
+  // the reward is taken once, however fast the button is pressed again
+  $('adDone').onclick = () => {
+    $('adDone').onclick = null;
+    card.hidden = true;
+    if (!skips.skipped.includes(n)) skips.skipped.push(n);
+    skips.since = 0;
+    delete skips.fails[n];
+    saveSkips();
+    if (levelList[n]) acts.play(levelList[n]);
+    else showLevels();
+  };
+  $('adClose').onclick = () => {
+    clearInterval(adTimer);
+    card.hidden = true;
+  };
 }
 
 // What a mission holds, read at a glance beside its number: its own rule first, then whatever is most likely to end it.
@@ -486,10 +542,10 @@ export function showLevels() {
   const spot = l => ({ x: 50 + Math.sin(l.n * LEVELS.pathWave) * LEVELS.pathWidth, y: height - l.n * gap });
   const road = levelList.map(l => { const p = spot(l); return `${p.x},${p.y}`; }).join(' ');
   const nodes = levelList.map(l => {
-    const p = spot(l), best = stars[l.n] || 0;
+    const p = spot(l), best = stars[l.n] || 0, skipped = !best && skips.skipped.includes(l.n);
     const state = !unlocked(l.n) ? 'locked' : l.n === open ? 'next' : 'done', signs = signsFor(l);
     const marks = signs.map(([key, name]) => `<i class="sign ${key}" title="${name}"><svg aria-hidden="true"><use href="#s-${key}"/></svg></i>`).join('');
-    return `<button class="node ${state}${p.x > 50 ? ' west' : ''}${l.n > open && unlocked(l.n) ? ' devMark' : ''}" data-n="${l.n}" style="left:${p.x}%;top:${p.y}px;--zone:${l.shop.zone.map}" aria-label="${[`Mission ${l.n}`, ...signs.map(s => s[1])].join(', ')}"><b>${l.n}</b><small>${best ? starText(best) : ''}</small><span class="signs">${marks}</span></button>`;
+    return `<button class="node ${state}${p.x > 50 ? ' west' : ''}${l.n > open && unlocked(l.n) ? ' devMark' : ''}" data-n="${l.n}" style="left:${p.x}%;top:${p.y}px;--zone:${l.shop.zone.map}" aria-label="${[`Mission ${l.n}`, ...signs.map(s => s[1])].join(', ')}"><b>${l.n}</b><small${skipped ? ' title="Skipped. Replay for stars"' : ''}>${best ? starText(best) : skipped ? '⏭ skipped' : ''}</small><span class="signs">${marks}</span></button>`;
   }).join('');
   const path = $('levelsPath');
   path.style.height = height + 'px';
@@ -562,6 +618,8 @@ export function showResult(o, level, hasNext) {
   $('resultTip').textContent = o.passed ? '' : RESULT.tips[o.why] || '';
   for (const id of ['resultMap', 'resultRetry']) $(id).className = id === lead ? 'go wide' : 'ghost round';
   $('resultNext').hidden = !next;
+  if (o.passed || o.training) $('resultSkip').hidden = true;
+  else showSkip(level.n);
   card.hidden = false;
   sfx(o.passed ? 'win' : 'lose');
   if (won) countUp($('resultMoney'), o.tip);
@@ -604,6 +662,7 @@ export function initLevels(levels, handlers) {
   $('resultNext').addEventListener('click', () => acts.play(levelList[resultLevel.n]));
   $('resultRetry').addEventListener('click', () => acts.play(resultLevel));
   $('resultMap').addEventListener('click', showLevels);
+  $('resultSkip').addEventListener('click', () => playAd(resultLevel.n));
 }
 export const previewCanvas = () => $('preview');
 

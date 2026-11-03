@@ -3,6 +3,7 @@ import { AIRCRAFT } from './config.js';
 const PROGRESS_KEY = 'pizzaCityV1';
 const SETTINGS_KEY = 'pizzaSettingsV1';
 const GARAGE_KEY = 'pizzaGarageV1';
+const SKIPS_KEY = 'pizzaSkipsV1';
 
 const STICK = { size: 'medium', feel: 'normal', fade: 'solid', origin: 'fixed', hand: 'right' };
 export const settings = { controls: 'joystick', plane: 'courier', dev: false, muted: false, tier: null, picture: 'sharp', trained: false, stick: STICK };
@@ -11,6 +12,28 @@ try {
   Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {});
 } catch (_) {}
 settings.stick = { ...STICK, ...(settings.stick && typeof settings.stick === 'object' ? settings.stick : null) };
+
+// Real fails in a row on each mission, the missions skipped, and the missions passed since the last skip.
+export const skips = { fails: {}, skipped: [], since: 0 };
+try {
+  const saved = JSON.parse(localStorage.getItem(SKIPS_KEY));
+  for (const [n, v] of Object.entries(saved?.fails ?? {})) if (Number.isInteger(+n) && Number.isInteger(v) && v > 0) skips.fails[n] = v;
+  if (Array.isArray(saved?.skipped)) skips.skipped = saved.skipped.filter(Number.isInteger);
+  if (Number.isInteger(saved?.since) && saved.since >= 0) skips.since = saved.since;
+} catch (_) {}
+
+export function saveSkips() {
+  try { localStorage.setItem(SKIPS_KEY, JSON.stringify(skips)); } catch (_) {}
+}
+
+// A pass clears the run of fails and counts toward the next skip; a real fail adds to the run.
+export function noteResult(n, passed, real) {
+  if (passed) {
+    delete skips.fails[n];
+    skips.since++;
+  } else if (real) skips.fails[n] = (skips.fails[n] || 0) + 1;
+  saveSkips();
+}
 
 // What the player has bought. It lives in memory, so flight code never touches storage.
 export const garage = { owned: [], parts: {}, version: 0 };
