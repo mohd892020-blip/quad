@@ -1,5 +1,5 @@
 import { sfx } from './audio.js';
-import { BEACH, BOX, CARS, CONTRAST, DESERT, DRONE, EAGLES, EDGE, G, GROUND, HAWKS, HEALTH, RIVAL } from './config.js';
+import { BEACH, BOX, CARS, CONTRAST, DESERT, FOREST, DRONE, EAGLES, EDGE, G, GROUND, HAWKS, HEALTH, RIVAL } from './config.js';
 import { currentModel, drawAirframe } from './drone.js';
 import { ctx, glow, kickDust, pop, shade, showToast, view, X, Y } from './ui.js';
 import { roofAt, world } from './world.js';
@@ -30,6 +30,9 @@ export function planTraffic(st) {
   else if (level.desert) {
     fill(DESERT.from, DESERT.to, speed * c.buggySpeed, () => 'buggy', DESERT.trafficGap);
     fill(DESERT.from, DESERT.to, speed * c.camelSpeed, () => 'camel', DESERT.trafficGap);
+  } else if (level.forest) {
+    fill(FOREST.from, FOREST.to, speed * c.buggySpeed, () => 'jeep', FOREST.trafficGap);
+    fill(FOREST.from, FOREST.to, speed * c.camelSpeed * 1.4, () => 'deer', FOREST.trafficGap);
   } else fill(EDGE.left, BEACH.from, speed, roadKind);
 }
 
@@ -325,6 +328,42 @@ function paintCamel(car, light, L, H) {
   ctx.fill();
 }
 
+function paintDeer(car, light, L, H) {
+  const body = shade('#9c6b44', light), step = Math.sin(car.x * .09) * 5;
+  ctx.strokeStyle = body;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  for (const [x, swing] of [[-L * .28, step], [-L * .16, -step], [L * .18, -step], [L * .3, step]]) {
+    ctx.moveTo(x, -H * .5);
+    ctx.lineTo(x + swing, 0);
+  }
+  ctx.stroke();
+  ctx.fillStyle = body;
+  ctx.beginPath();
+  ctx.ellipse(0, -H * .58, L * .36, H * .16, 0, 0, 7);
+  ctx.fill();
+  ctx.lineWidth = 5;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(L * .3, -H * .62);
+  ctx.lineTo(L * .4, -H * .9);
+  ctx.stroke();
+  ctx.lineCap = 'butt';
+  ctx.beginPath();
+  ctx.ellipse(L * .45, -H * .92, L * .09, H * .07, 0, 0, 7);
+  ctx.fill();
+  ctx.strokeStyle = shade('#5a3a26', light);
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.moveTo(L * .4, -H);
+  ctx.lineTo(L * .34, -H * 1.18);
+  ctx.moveTo(L * .37, -H * 1.08);
+  ctx.lineTo(L * .3, -H * 1.12);
+  ctx.moveTo(L * .44, -H);
+  ctx.lineTo(L * .5, -H * 1.18);
+  ctx.stroke();
+}
+
 // A side-on vehicle drawn facing right; the scale flips it for the other direction.
 function paintCar(car, light) {
   const c = CARS, { length: L, height: H } = c.shapes[car.kind], van = car.kind === 'van', body = car.taxi ? '#f2c230' : car.paint;
@@ -332,6 +371,8 @@ function paintCar(car, light) {
   if (car.kind === 'boat') { paintBoat(car, light, L, H); return; }
   if (car.kind === 'buggy') { paintBuggy(car, light, L, H); return; }
   if (car.kind === 'camel') { paintCamel(car, light, L, H); return; }
+  if (car.kind === 'jeep') { paintBuggy({ ...car, paint: '#3f6e4e' }, light, L, H); return; }
+  if (car.kind === 'deer') { paintDeer(car, light, L, H); return; }
   ctx.fillStyle = shade(body, light);
   ctx.beginPath();
   if (van) {
@@ -377,7 +418,7 @@ export function drawCars(st) {
       ctx.fillRect(s.length / 2 - 4, -s.height * .32, 4, 4);
     }
     ctx.restore();
-    if (pal.windowGlow > .5 && !view.lowQ && car.kind !== 'boat' && car.kind !== 'camel') glow(ctx, 'rgba(255,233,168,.55)', sx + st.carDir * (s.length / 2 + 12) * S, y - s.height * .4 * S, 26 * S);
+    if (pal.windowGlow > .5 && !view.lowQ && car.kind !== 'boat' && car.kind !== 'camel' && car.kind !== 'deer') glow(ctx, 'rgba(255,233,168,.55)', sx + st.carDir * (s.length / 2 + 12) * S, y - s.height * .4 * S, 26 * S);
   }
 }
 

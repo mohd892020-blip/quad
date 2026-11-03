@@ -1,5 +1,6 @@
-import { BEACH, BIRDS, CAMERA, CELL, CITY, CLOCK, DESERT, GROUND, GROUND_BOX, ORDERS, PEOPLE, PERSPECTIVE, SHOPS, SPRITE, TIMES, WIND, ZONES } from './config.js';
+import { BEACH, BIRDS, CAMERA, CELL, CITY, CLOCK, DESERT, FOREST, GROUND, GROUND_BOX, ORDERS, PEOPLE, PERSPECTIVE, SHOPS, SPRITE, TIMES, WIND, ZONES } from './config.js';
 import { buildDesert, drawDesert, drawDunes } from './desert.js';
+import { buildForest, drawWoods, drawWoodsBehind } from './forest.js';
 import { buildSeaside, drawSeaBehind, drawShore } from './seaside.js';
 import { ctx, glow, shade, view, X, Y } from './ui.js';
 
@@ -216,12 +217,16 @@ export function genWorld(seed) {
   const sand = buildDesert(B.length);
   B.push(...sand.kiosks, ...sand.rocks);
   solids.push(...sand.solids);
+  const woods = buildForest(B.length);
+  B.push(...woods.kiosks, ...woods.cabins);
+  solids.push(...woods.solids);
 
   dropSprites();
   indexColliders(solids);
   Object.assign(world, {
     B, solids, lines, targets: reachable, shops, rigs, far1, far2, people, flocks, span, kiosks: coast.kiosks, seaTargets: coast.targets,
-    camps: sand.kiosks, sandTargets: sand.targets, pads: [...shops, ...coast.kiosks, ...sand.kiosks],
+    camps: sand.kiosks, sandTargets: sand.targets, lodges: woods.kiosks, forestTargets: woods.targets, pines: woods.pines,
+    pads: [...shops, ...coast.kiosks, ...sand.kiosks, ...woods.kiosks],
   });
 }
 
@@ -244,6 +249,7 @@ function blendTimes(a, b, t) {
     stars: num('stars'), discCut: num('discCut'), light: num('light'), extraLit: num('extraLit'), windowGlow: num('windowGlow'), signGlow: num('signGlow'),
     cloud: col('cloud'), cloudShade: col('cloudShade'), cloudAlpha: num('cloudAlpha'), disc: col('disc'), discShade: col('discShade'), far1: col('far1'), far2: col('far2'), ground: col('ground'), walk: col('walk'), sea: col('sea'), sand: col('sand'),
     dune: col('dune'), duneNear: col('duneNear'), duneFar: col('duneFar'),
+    moss: col('moss'), hill: col('hill'), pineFar: col('pineFar'), pineNear: col('pineNear'), mistTone: t < .5 ? a.mistTone : b.mistTone,
   };
 }
 
@@ -393,6 +399,20 @@ function paintBuilding(g, b) {
     g.fillRect(L, T, b.w, 7);
     g.fillStyle = 'rgba(60,25,10,.14)';
     for (let y = T + 26, i = 1; y < GROUND; y += 20 + hash(b.idx + i) * 28, i++) g.fillRect(L, y, b.w, 3 + hash(b.idx * 3 + i) * 6);
+  } else if (style === 'forest') {
+    // log walls and a roof of turf
+    g.fillStyle = 'rgba(40,20,10,.22)';
+    for (let y = T + 14; y < GROUND; y += 11) g.fillRect(L, y, b.w, 2);
+    g.fillStyle = shade('#5f8f45', time.light);
+    g.fillRect(L - 4, T - 6, b.w + 8, 10);
+    g.fillStyle = shade('#46703a', time.light);
+    for (let x = L - 2; x < L + b.w; x += 9) g.fillRect(x, T - 9, 3, 4);
+    if (b.cabin) {
+      g.fillStyle = shade('#3a2618', time.light);
+      g.fillRect(L + b.w * .62, GROUND - 46, 24, 46);
+      g.fillStyle = time.lit[1];
+      g.fillRect(L + b.w * .18, GROUND - b.h * .62, 26, 20);
+    }
   } else if (style === 'desert') {
     // a striped cloth shade over the stall's door
     for (let x = L + 12, i = 0, y = GROUND - 64; x < L + b.w - 12; x += 16, i++) {
@@ -719,7 +739,9 @@ function drawBirds(st) {
 // The strip map: zones as bands, then shops, the customer, and the player on top.
 export function drawMap(st) {
   const c = document.getElementById('map'), w = view.mapW, h = view.mapH;
-  const k = view.DPR, left = CITY.leftBuilding.x, span = DESERT.to - left;
+  // the strip covers the stretch of world the mission is flown in
+  const level = st.level, [left, right] = level.forest ? [FOREST.from, FOREST.to] : level.desert ? [DESERT.from, DESERT.to] : level.beach ? [BEACH.from, BEACH.to] : [CITY.leftBuilding.x, BEACH.from];
+  const k = view.DPR, span = right - left;
   if (c.width !== Math.round(w * k)) {
     c.width = Math.round(w * k);
     c.height = Math.round(h * k);
@@ -765,6 +787,7 @@ export function drawCity(st) {
   ctx.restore();
   drawSeaBehind();
   drawDunes();
+  drawWoodsBehind();
   ctx.fillStyle = time.ground;
   ctx.fillRect(0, Y(GROUND), W, H);
   drawBuildings();
@@ -773,6 +796,7 @@ export function drawCity(st) {
   ctx.fillRect(0, Y(GROUND + PEOPLE.sidewalk), W, H);
   drawShore(st);
   drawDesert(st);
+  drawWoods(st);
   drawLines(st);
   drawPeople(st);
   drawBirds(st);

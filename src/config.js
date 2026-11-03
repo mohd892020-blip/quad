@@ -50,9 +50,9 @@ export const CELL = { size: 256, base: -2400, margin: 48 };
 
 export const G = 700;
 export const GROUND = 560;
-export const GROUND_BOX = { x: -2000, w: 29000, h: 200 };
+export const GROUND_BOX = { x: -2000, w: 36000, h: 200 };
 // The drone stops at these, well inside the ground, so it can never fly off the end of the world.
-export const EDGE = { left: -1000, right: 26500 };
+export const EDGE = { left: -1000, right: 33300 };
 export const CITY_SEED = 7;
 
 // A job: its clock, when harder customers appear, and the pad that starts it.
@@ -101,7 +101,32 @@ export const ZONES = [
   },
   { name: 'Seaside', from: 14300, style: 'beach', map: '#3fb0c8', stones: ['#c99a5e'], winW: 12, winH: 16 },
   { name: 'Desert', from: 20000, style: 'desert', map: '#d9a441', stones: ['#c9a06a'], winW: 12, winH: 16 },
+  { name: 'Forest', from: 26450, style: 'forest', map: '#3f8f5a', stones: ['#8a5a3a'], winW: 12, winH: 16 },
 ];
+
+// The forest past the desert, flown in the missions listed. Pines grow from seed every pineGap to pineGap + pineGapRange,
+// clear of the landmarks by clear; each is a trunk and tiers of needles whose solid core is narrower than the drawing.
+// A treehouse deck juts out from its trunk under a crown, so its customer can be reached from beside the crown.
+export const FOREST = {
+  from: 26600, to: 33000, missions: [16, 26, 36], every: 10, minDist: 1500, windBoost: 1.1, trafficGap: 1.8, targetLift: 11, seen: 320,
+  kioskH: 120, kioskColor: '#8a5a3a', logColor: '#8a5a3a', barkColor: '#5a3a26', needles: '#2f6b45',
+  kiosks: [
+    { x: 26900, shop: { name: 'Ranger Station', items: ['coffee', 'medicine'], glow: '#4fc27c' } },
+    { x: 29700, shop: { name: 'Lodge Kitchen', items: ['pizza', 'kunafa'], glow: '#ff8a3c' } },
+    { x: 32500, shop: { name: 'Berry Bakery', items: ['cake', 'flowers'], glow: '#d97aa8' } },
+  ],
+  cabins: [{ x: 27650, w: 150, h: 104 }, { x: 30560, w: 170, h: 96 }, { x: 31850, w: 140, h: 118 }],
+  treehouses: [{ x: 28320, h: 230 }, { x: 31180, h: 200 }],
+  lookouts: [29250], clearings: [27280, 30180, 32170], rivers: [[28760, 29020]],
+  seed: 83, edge: 60, clear: 120, pineGap: 70, pineGapRange: 90, pineH: [170, 320], pineW: [64, 96],
+  tiers: 3, tierFrom: .2, tierStep: .25, tierTall: .42, tierShrink: .22, tierLight: .82, tierLighten: .08, trunkW: 10, trunkShare: .32, core: .55, coreFrom: .45,
+  sway: 3, swayRate: 1.1, windSway: .03,
+  houseTrunk: 26, deckBack: 40, deckOut: 120, deckEdge: 22, deckH: 10, crownW: 110, crownH: 90, crownLift: 70,
+  crownPuffs: [[-30, 0, 38], [10, -18, 42], [36, 8, 30], [-6, 22, 34]],
+  lookoutH: 180, lookoutW: 70, legW: 6, plankH: 8, bridgeY: 7, bridgeH: 8, flow: 40,
+  rise: 500, ridgeStep: 22, ridgeLong: 170, hillDrift: .2, hillH: 220, hillSwell: 60, farDrift: .35, farH: 130, farSwell: 26, farTeeth: 16,
+  nearDrift: .55, nearH: 80, nearSwell: 18, nearTeeth: 22, mistH: 90, mistAlpha: .3,
+};
 
 // The open coast past the city. Sea spans are water to fall into; sand and the island are safe.
 // Every level whose number divides by every is flown here, from its three beach kiosks.
@@ -177,7 +202,7 @@ export const DRONE = {
 export const HEALTH = {
   hitSpeed: 150,
   perSpeed: .13,
-  materials: { wall: 1, ground: .9, steel: 1.25, balcony: .8, tank: .7, dish: .5, wood: .75, rock: 1, cactus: .6 },
+  materials: { wall: 1, ground: .9, steel: 1.25, balcony: .8, tank: .7, dish: .5, wood: .75, rock: 1, cactus: .6, tree: .5 },
   hawkHit: 4,
   smokeAt: 60,
   fireAt: 30,
@@ -477,7 +502,7 @@ export const CARS = {
   spacing: 1000, spacingRange: 300, speedMin: 150, speedPerLevel: 2, speedMax: 230, boatSpeed: .85,
   shapes: {
     car: { length: 62, height: 28 }, van: { length: 70, height: 32 }, bike: { length: 36, height: 24 }, boat: { length: 66, height: 16 },
-    buggy: { length: 56, height: 28 }, camel: { length: 58, height: 42, lane: 15 },
+    buggy: { length: 56, height: 28 }, camel: { length: 58, height: 42, lane: 15 }, jeep: { length: 58, height: 30 }, deer: { length: 46, height: 38, lane: 15 },
   },
   lane: 8, buggySpeed: .9, camelSpeed: .3, brake: 500, shake: 8, dust: 220, flashRate: 7,
   paint: ['#d9483b', '#3f6fb0', '#f2efe6', '#3a8f6b', '#e0a52c'], bikeEvery: 3, vanEvery: 5, taxiEvery: 7,
@@ -533,17 +558,17 @@ export const CLOCK = { hold: 120, fade: 20, steps: 16, startAt: 2 };
 export const TIMES = [
   {
     name: 'Sunset', sky: [[0, '#140f2a'], [.45, '#3b2452'], [.8, '#b4505a'], [1, '#f0a259']],
-    stars: .7, cloud: '#ffd2c2', cloudShade: '#b9788c', cloudAlpha: .85, disc: '#fff1d0', discShade: '#3b2452', discCut: 1, far1: '#3d2849', far2: '#2c1d40', sea: '#7a4a6e', sand: '#b98a6a', dune: '#c08a5e', duneNear: '#a56c58', duneFar: '#8a585e',
+    stars: .7, cloud: '#ffd2c2', cloudShade: '#b9788c', cloudAlpha: .85, disc: '#fff1d0', discShade: '#3b2452', discCut: 1, far1: '#3d2849', far2: '#2c1d40', sea: '#7a4a6e', sand: '#b98a6a', moss: '#4a5a3a', hill: '#5e4a6e', pineFar: '#40384f', pineNear: '#2e3040', mistTone: '255,214,200', dune: '#c08a5e', duneNear: '#a56c58', duneFar: '#8a585e',
     ground: '#2a1d2c', walk: '#3a2c33', light: 1, lit: ['#4a3a52', '#f2a65a', '#ffd27a'], extraLit: 0, windowGlow: 0, signGlow: .5,
   },
   {
     name: 'Night', sky: [[0, '#05060f'], [.45, '#0b0f28'], [.8, '#171d40'], [1, '#232a52']],
-    stars: 1, cloud: '#6f7aa6', cloudShade: '#383f68', cloudAlpha: .55, disc: '#e8ecff', discShade: '#0a0e26', discCut: 1, far1: '#141a38', far2: '#0e1228', sea: '#141c3e', sand: '#45424f', dune: '#4a4552', duneNear: '#2f2e4a', duneFar: '#20233f',
+    stars: 1, cloud: '#6f7aa6', cloudShade: '#383f68', cloudAlpha: .55, disc: '#e8ecff', discShade: '#0a0e26', discCut: 1, far1: '#141a38', far2: '#0e1228', sea: '#141c3e', sand: '#45424f', moss: '#1d2a26', hill: '#1b2140', pineFar: '#141a2e', pineNear: '#0e1422', mistTone: '150,165,210', dune: '#4a4552', duneNear: '#2f2e4a', duneFar: '#20233f',
     ground: '#10131f', walk: '#1a1c2a', light: .48, lit: ['#1f2233', '#e8a24f', '#ffd884'], extraLit: .22, windowGlow: 1, signGlow: .75,
   },
   {
     name: 'Day', sky: [[0, '#3f8fd6'], [.45, '#7db8e8'], [.8, '#b9dcef'], [1, '#eaf4f2']],
-    stars: 0, cloud: '#ffffff', cloudShade: '#b4c3da', cloudAlpha: 1, disc: '#fff3c4', discShade: '#7db8e8', discCut: 0, far1: '#9db8cc', far2: '#b7cddd', sea: '#3f9fc8', sand: '#e8d6a8', dune: '#e9c98c', duneNear: '#ddb274', duneFar: '#e6c693',
+    stars: 0, cloud: '#ffffff', cloudShade: '#b4c3da', cloudAlpha: 1, disc: '#fff3c4', discShade: '#7db8e8', discCut: 0, far1: '#9db8cc', far2: '#b7cddd', sea: '#3f9fc8', sand: '#e8d6a8', moss: '#5f7f45', hill: '#9cb4bc', pineFar: '#6a927a', pineNear: '#467556', mistTone: '255,255,255', dune: '#e9c98c', duneNear: '#ddb274', duneFar: '#e6c693',
     ground: '#6f6a62', walk: '#8c867b', light: 1.08, lit: ['#5f7f95', '#7c9bb0', '#a8c4d6'], extraLit: 0, windowGlow: 0, signGlow: .2,
   },
 ];

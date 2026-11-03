@@ -1,4 +1,4 @@
-import { BEACH, BOX, CITY, DRONE, GROUND } from './config.js';
+import { BEACH, BOX, CITY, DESERT, DRONE, GROUND } from './config.js';
 import { ctx, shade, view, X, Y } from './ui.js';
 import { world, zoneAt } from './world.js';
 
@@ -50,7 +50,7 @@ export function drawSeaBehind() {
   if (x0 >= W) return;
   const left = Math.max(0, x0), top = Y(GROUND - c.horizon);
   ctx.fillStyle = time.sea;
-  ctx.fillRect(left, top, W - left, Math.max(H, Y(GROUND)) - top);
+  ctx.fillRect(left, top, Math.min(W, X(DESERT.to)) - left, Math.max(H, Y(GROUND)) - top);
   ctx.fillStyle = time.far1;
   ctx.beginPath();
   ctx.ellipse(x0, Y(GROUND), c.headland * S, c.headlandH * S, 0, 0, 7);

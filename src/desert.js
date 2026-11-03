@@ -50,11 +50,13 @@ function dune(par, height, swell, col) {
   ctx.fillStyle = col;
   ctx.beginPath();
   ctx.moveTo(left, base);
-  for (let sx = left; sx < W + step; sx += step) {
+  const right = Math.min(W, X(c.to));
+  if (right <= left) return;
+  for (let sx = left; sx < right + step; sx += step) {
     const x = cam.x + sx / S, u = cam.x * par + sx / S, rise = Math.min(1, (x - c.from) / c.duneRise);
     ctx.lineTo(sx, base - rise * (height + swell * Math.sin(u / c.duneLong) + swell * .4 * Math.sin(u / c.duneShort)) * S);
   }
-  ctx.lineTo(W, base);
+  ctx.lineTo(right, base);
   ctx.fill();
 }
 
@@ -167,7 +169,7 @@ export function drawDesert(st) {
   if (x0 >= W) return;
   const seen = x => X(x) > -c.seen * S && X(x) < W + c.seen * S, y = Y(GROUND), left = Math.max(0, x0);
   ctx.fillStyle = time.dune;
-  ctx.fillRect(left, y, W - left, H);
+  ctx.fillRect(left, y, Math.min(W, X(c.to)) - left, H);
   ctx.strokeStyle = shade(time.dune, c.rippleShade);
   ctx.lineWidth = 1.5 * S;
   ctx.beginPath();

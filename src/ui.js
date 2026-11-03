@@ -312,7 +312,7 @@ export function drawFx(st) {
 }
 
 /* ---------- HUD ---------- */
-const PLACES = { street: 'Street', roof: 'Rooftop', ferry: 'Ferry', boat: 'Boat', pier: 'Pier', tower: 'Lifeguard tower', sand: 'Beach', rock: 'Rock top', camp: 'Camp', oasis: 'Oasis' };
+const PLACES = { street: 'Street', roof: 'Rooftop', ferry: 'Ferry', boat: 'Boat', pier: 'Pier', tower: 'Lifeguard tower', sand: 'Beach', rock: 'Rock top', camp: 'Camp', oasis: 'Oasis', cabin: 'Cabin roof', treehouse: 'Treehouse', lookout: 'Lookout tower', clearing: 'Clearing' };
 export const placeName = t => (t.kind === 'bal' ? `Balcony, floor ${t.fl}` : PLACES[t.kind]);
 
 // The HUD ticks ten times a second and most of it has not moved, so only changes reach the page.
@@ -521,6 +521,7 @@ function signsFor(l) {
     l.eagles && ['eagle', 'Eagles'],
     l.stops[0].parcels && ['double', 'Double Run'],
     l.desert && ['desert', 'Desert'],
+    l.forest && ['forest', 'Forest'],
     l.beach && ['sea', 'Open sea'],
     l.rival && ['rival', 'Rival'],
     l.street && ['street', 'Street traffic'],
@@ -572,8 +573,8 @@ function openLevelCard(n) {
     ...(l.challenge ? [['Challenge', l.challenge.name], ['Rule', l.challenge.note]] : []),
     ...jobs, ['If ruined', route ? `up to -$${Math.max(...legs.map(s => s.item.price))}` : `-$${item.price}`],
     ['Wind', `up to ${l.wind}`], ['Hawks', l.hawks ? `${l.hawks}${route ? ' per stop' : ''}` : 'None'], ...(l.eagles ? [['Eagles', `${l.eagles}${route ? ', last stop' : ''}, one hit downs you`]] : []),
-    ['Rival', l.rival ? `Yes${route ? ', last stop' : ''}, speed ${l.rivalSpeed}` : 'None'], ...(l.calm ? [] : [[l.beach ? 'Boats' : l.desert ? 'Buggies' : 'Cars', `${l.street ? (l.desert ? 'Crossing your drop' : 'On your street') : 'Yes'}, speed ${l.carSpeed}`]]),
-    ...(l.beach ? [['Danger', 'Open sea']] : l.desert ? [['Danger', 'Quicksand, sandstorms']] : []),
+    ['Rival', l.rival ? `Yes${route ? ', last stop' : ''}, speed ${l.rivalSpeed}` : 'None'], ...(l.calm ? [] : [[l.beach ? 'Boats' : l.desert ? 'Buggies' : l.forest ? 'Jeeps and deer' : 'Cars', `${l.street ? (l.desert || l.forest ? 'Crossing your drop' : 'On your street') : 'Yes'}, speed ${l.carSpeed}`]]),
+    ...(l.beach ? [['Danger', 'Open sea']] : l.desert ? [['Danger', 'Quicksand, sandstorms']] : l.forest ? [['Danger', 'Tall pines, the river']] : []),
   ];
   $('levelRows').innerHTML = rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');
   const locked = n > open && !settings.dev;
