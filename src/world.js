@@ -1,3 +1,4 @@
+import { drawCityLife, drawSkyline, paintRoof } from './skyline.js';
 import { BEACH, BIRDS, CELL, CITY, CLOCK, DESERT, FOREST, GROUND, MOUNTAIN, SNOW, GROUND_BOX, ORDERS, PEOPLE, PERSPECTIVE, SHOPS, SPRITE, TIMES, WIND, ZONES } from './config.js';
 import { buildDesert, drawDesert, drawDunes } from './desert.js';
 import { buildForest, drawWoods, drawWoodsBehind } from './forest.js';
@@ -315,32 +316,6 @@ export function drawSky(st) {
   }
 }
 
-function drawFar(st, arr, par, col, baseOff, scale) {
-  const { W, S } = view;
-  ctx.fillStyle = col;
-  let x = 0;
-  const tot = arr.reduce((s, b) => s + b.w + 6, 0);
-  const off = ((st.cam.x * par) % tot + tot) % tot;
-  const gy = Y(GROUND) - baseOff * S;
-  for (let rep = -1; rep < 3; rep++) {
-    x = rep * tot - off;
-    for (const b of arr) {
-      const sx = x * S, w = b.w * S * scale, h = b.h * S * scale;
-      if (sx < W + 50 && sx + w > -50) {
-        ctx.fillRect(sx, gy - h, w, h + baseOff * S + 400);
-        if (b.d) {
-          ctx.beginPath();
-          ctx.arc(sx + w / 2, gy - h, w * .32, Math.PI, 0);
-          ctx.fill();
-          ctx.fillRect(sx + w * .48, gy - h - w * .55, w * .04, w * .25);
-        }
-        if (b.m) ctx.fillRect(sx + w * .4, gy - h - 60 * S * scale, w * .2, 60 * S * scale);
-      }
-      x += b.w + 6;
-    }
-  }
-}
-
 // Paints the parts of a building that do not change with the camera, in world units.
 function paintBuilding(g, b) {
   const time = world.pal, c = CITY, z = b.zone, style = z.style;
@@ -517,6 +492,7 @@ function paintBuilding(g, b) {
     g.lineTo(bl.x + bl.w, bl.y - 14);
     g.stroke();
   }
+  paintRoof(g, b);
 }
 
 // painted at the camera's settled zoom, so a glide between shots never repaints them
@@ -805,8 +781,7 @@ export function drawCity(st) {
     ctx.rect(0, 0, Math.max(0, coast), H);
     ctx.clip();
   }
-  drawFar(st, world.far2, .25, time.far2, 40, .9);
-  if (!view.lowQ) drawFar(st, world.far1, .5, time.far1, 10, 1);
+  drawSkyline(st);
   ctx.restore();
   drawSeaBehind();
   drawDunes();
@@ -816,6 +791,7 @@ export function drawCity(st) {
   ctx.fillRect(0, Y(GROUND), W, H);
   drawBuildings();
   drawRigs(st);
+  drawCityLife(st);
   ctx.fillStyle = time.walk;
   ctx.fillRect(0, Y(GROUND + PEOPLE.sidewalk), W, H);
   drawShore(st);

@@ -21,6 +21,7 @@ import { drawSandstorm, touchesSink } from './desert.js';
 import { touchesRiver } from './forest.js';
 import { stepDraft, touchesIce } from './alpine.js';
 import { drawShotBars, stepCamera } from './camera.js';
+import { drawForeground } from './skyline.js';
 import { touchesSea } from './seaside.js';
 import { loadProgress, settings } from './storage.js';
 import {
@@ -129,6 +130,7 @@ function render() {
   drawDrone(s);
   drawCloudsFront(s);
   drawFallFront(s);
+  drawForeground(s);
   drawPrep(s);
   drawHawks(s);
   drawEagles(s);

@@ -64,6 +64,37 @@ export const WEATHER = {
   clouds: { name: 'Low cloud', missions: [4, 9, 22, 35], amount: .97, overcast: .22 },
 };
 
+// The city's depth. Each strip slides at par of the camera's pace at scale, its foot base above the street; items
+// come from seed (the old skylines reuse the first take of the city's far towers), sized w by h with gap between, lift
+// leaving room for spires, headroom above that. haze fades a strip's colour into the sky skyAt down the screen, windows is how strongly
+// unlit windows show, density how sharp it is painted (never wider than maxStrip pixels), lowQ keeps it on the low
+// picture. litShare is how many windows light up at night. Midground homes take a stone, hazed by midHaze toward the
+// far skyline, a striped awning, and at signChance a sign. Red lights blink (on of every blink seconds) on city roofs
+// over minH and far towers over farH; twinkle turns per windows of each building on and off every period seconds;
+// neon dips at flicker.rate unless hash stays under dip. Roofs get props of these kinds, kept clear of the customer.
+// The foreground runs from the city's start to coastGap short of the coast, at par and scale, its foot drop below the
+// street, items gap apart; it fades to fade within near of the aircraft or its order, and trees sway with the wind.
+export const SKYLINE = {
+  seed: 404, take: 16, maxStrip: 8192, headroom: 70, litShare: .3, skyAt: .62,
+  layers: [
+    { key: 'horizon', par: .1, scale: .8, base: 70, count: 16, w: [50, 110], h: [260, 520], gap: [4, 30], haze: .5, windows: .35, density: 1, lift: 1.3, kinds: ['flat', 'stepped', 'spire', 'antenna', 'crown'] },
+    { key: 'far2', par: .25, scale: .9, base: 40, haze: .15, windows: .45, density: 1, lift: 1, lowQ: true },
+    { key: 'far1', par: .5, scale: 1, base: 10, haze: 0, windows: .6, density: 1, lift: 1 },
+    { key: 'mid', par: .72, scale: 1, base: 0, count: 14, w: [110, 190], h: [110, 230], gap: [14, 60], haze: 0, windows: .8, density: 1.5, lift: 1, lowQ: true },
+  ],
+  midStones: ['#c9a27e', '#b9b3a6', '#a7b4bf', '#c7a48f', '#d4b896', '#9fb0a3'], midHaze: .4, awnings: ['#e8492c', '#2f8f8a', '#d9a321', '#3f6fb0'],
+  signs: ['HOTEL', 'CAFE', 'OPEN', 'BAKERY', 'CINEMA', 'MARKET', 'BOOKS', 'GYM'], neon: ['#ff5a8a', '#4fe0ff', '#ffd23d', '#7cff9a'], signChance: .4,
+  light: { color: '#ff3b30', blink: 1.4, on: .35, minH: 300, farH: 220, size: 2.2 },
+  twinkle: { per: 2, period: 7 }, flicker: { rate: 9, dip: .97 },
+  flocks: { count: 3, birds: [3, 6], speed: 14, par: .15, top: .14, bottom: .3, color: 'rgba(40,40,60,.45)' },
+  roof: { props: [2, 4], clear: 46, kinds: ['ac', 'vent', 'solar', 'hut', 'box', 'plant', 'antenna'], widths: { ac: 18, vent: 8, solar: 30, hut: 26, box: 10, plant: 22, antenna: 16 } },
+  fg: {
+    par: 1.35, scale: 1.35, drop: 70, gap: [520, 980], coastGap: 600, kinds: [['tree', .3], ['lamp', .3], ['sign', .15], ['bridge', .1], ['roof', .15]],
+    widths: { tree: 110, lamp: 50, sign: 170, bridge: 520, roof: 360 }, heights: { tree: 232, lamp: 225, sign: 240, bridge: 205, roof: 265 },
+    color: '#1d1824', tint: .4, alpha: .86, fade: .22, near: 90, sway: 4, swayWind: .02, swayRate: 1.3,
+  },
+};
+
 // The player's choice of picture. Sharp draws at the screen's own density and gives way, never below sharpFloor, only
 // when frames are awful. Auto finds the sharpest the device keeps up with. Saver stays on the low tier.
 export const PICTURE = { modes: [['sharp', 'Sharp'], ['auto', 'Auto'], ['saver', 'Saver']], sharpFloor: 2, saverTier: 5 };
