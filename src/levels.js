@@ -1,7 +1,7 @@
 import { carSpeed, eagleCount, hawkCount, rivalSpeed } from './action.js';
-import { BEACH, BOX, CHALLENGES, DESERT, FOREST, MOUNTAIN, SNOW, DOUBLE, DRONE, FERRY, GROUND, ITEMS, LEVELS, RADAR, RIVAL, ROPE, ROPE_CTL, STOPS, WIND } from './config.js';
+import { BEACH, BOX, CHALLENGES, DESERT, FOREST, MOUNTAIN, SNOW, DOUBLE, DRONE, FERRY, GATES, GROUND, ITEMS, JET, LEVELS, RADAR, RIVAL, ROPE, ROPE_CTL, STOPS, THIN_ICE, WIND } from './config.js';
 import { targetsFor, timeLimit } from './delivery.js';
-import { nearby, rng, world } from './world.js';
+import { nearby, rng, roofAt, world } from './world.js';
 
 // Customers at the level of the wheels, where a drop has to be timed between the traffic.
 const ON_THE_ROAD = ['street', 'camp', 'oasis', 'clearing', 'basecamp', 'igloo'];
@@ -62,25 +62,59 @@ function radarLine(a, b) {
   return world.solids.reduce((top, R) => (R.x < hi && R.x + R.w > lo ? Math.min(top, R.y) : top), GROUND) - RADAR.clear;
 }
 
-// A challenge has its own random stream too, so the generated levels stay exactly as they were.
+// Each map's shops and its customers. Only the city's customers need a clear way down between the buildings.
+const MAPS = {
+  city: () => [world.shops, world.targets], beach: () => [world.kiosks, world.seaTargets], desert: () => [world.camps, world.sandTargets],
+  forest: () => [world.lodges, world.forestTargets], mountain: () => [world.mountShops, world.mountTargets], snow: () => [world.snowShops, world.snowTargets],
+};
+
+// Customers that come with their rule: the ferry, and an angler on a frozen lake who stands on the ice and reaches up.
+const RIDERS = {
+  ferry: () => ({ x: FERRY.start, home: FERRY.start, y: GROUND - FERRY.deckH - FERRY.targetLift, kind: 'ferry', ferry: true }),
+  ice: c => {
+    const [a, b] = SNOW.lakes[c.lake ?? 0];
+    return { x: (a + b) / 2, y: GROUND - THIN_ICE.lift, stand: GROUND, kind: 'ice' };
+  },
+};
+
+// Rings between the shop and the customer, low and high in turn, each lifted clear of whatever stands near it.
+function gateLine(a, b) {
+  const c = GATES, out = [];
+  for (let i = 0; i < c.count; i++) {
+    const x = a + (b - a) * (c.from + (c.to - c.from) * i / (c.count - 1));
+    out.push({ x, y: Math.min(GROUND - c.bands[i % 2], roofAt(x, c.span) - c.clear) });
+  }
+  return out;
+}
+
+// A challenge has its own random stream too, so the generated levels stay exactly as they were. A customer that comes
+// with its rule draws nothing from it, as the ferry never did.
 function challengeLevel(c, n) {
-  const pick = rng(LEVELS.seed + n), tier = n - 1, beach = c.map === 'beach', desert = c.map === 'desert', rules = c.stops ?? [c.key];
-  const shops = beach ? world.kiosks : desert ? world.camps : world.shops, spots = desert ? world.sandTargets : world.targets, stops = [];
+  const pick = rng(LEVELS.seed + n), tier = n - 1, rules = c.stops ?? [c.key], [shops, spots] = MAPS[c.map](), city = c.map === 'city', stops = [];
   for (let k = 0, shop = shops[c.shop]; k < rules.length; k++) {
-    const twist = rules[k], item = ITEMS[c.item ?? shop.shop.items[0]], x = shop.x + shop.w / 2;
-    const fits = beach ? [] : spots.filter(s => {
-      const gap = Math.abs(s.x - x);
-      return s.b !== shop && gap > c.near && gap < c.far && c.kinds.includes(s.kind) && (s.kind !== 'bal' || item.size <= LEVELS.balconyMaxSize) && (desert || wayDown(s, item));
+    const twist = rules[k], leg = { ...c, ...c.legs?.[k] }, item = ITEMS[leg.item ?? shop.shop.items[0]], x = shop.x + shop.w / 2;
+    let t = RIDERS[twist]?.(leg);
+    if (!t) {
+      const fits = spots.filter(s => {
+        const gap = Math.abs(s.x - x);
+        return s.b !== shop && gap > leg.near && gap < leg.far && leg.kinds.includes(s.kind) && (s.kind !== 'bal' || item.size <= LEVELS.balconyMaxSize) && (!city || wayDown(s, item));
+      });
+      t = fits[(pick() * fits.length) | 0];
+    }
+    const dist = Math.abs(t.x - x), dir = Math.sign(t.x - x);
+    stops.push({
+      shop, item, t, dist, limit: timeLimit(item, dist) + (c.extra ?? 0), rival: false, twist, ceiling: twist === 'radar' ? radarLine(x, t.x) : null,
+      gates: twist === 'gates' ? gateLine(x, t.x) : null, jet: twist === 'jet' ? { line: radarLine(x, t.x) - JET.gap, dir } : null, wall: twist === 'avalanche' ? { from: x, dir } : null,
     });
-    const t = twist === 'ferry' ? { x: FERRY.start, home: FERRY.start, y: GROUND - FERRY.deckH - FERRY.targetLift, kind: 'ferry', ferry: true } : fits[(pick() * fits.length) | 0];
-    const dist = Math.abs(t.x - x);
-    stops.push({ shop, item, t, dist, limit: timeLimit(item, dist) + (c.extra ?? 0), rival: false, twist, ceiling: twist === 'radar' ? radarLine(x, t.x) : null });
     shop = nextShop(t, shop, shops);
   }
   stops[stops.length - 1].rival = !!c.rival;
+  const is = m => c.map === m, beach = is('beach'), snow = is('snow');
+  // music, the map strip, traffic, drafts, the cold and the level card all read these flags
   return {
-    n, tier, shop: stops[0].shop, stops, beach, desert, hawks: c.hawks, eagles: c.eagles ?? 0, rival: !!c.rival, rivalSpeed: c.rivalSpeed ?? rivalSpeed(tier), street: false, carSpeed: carSpeed(tier), wind: c.wind,
-    challenge: c, startBat: c.startBat, noBoost: c.noBoost, rope: c.rope, calm: beach,
+    n, tier, shop: stops[0].shop, stops, beach, desert: is('desert'), forest: is('forest'), mountain: is('mountain'), snow, cold: snow ? SNOW.cold : 1,
+    hawks: c.hawks, eagles: c.eagles ?? 0, rival: !!c.rival, rivalSpeed: c.rivalSpeed ?? rivalSpeed(tier), street: false, carSpeed: carSpeed(tier), wind: c.wind,
+    challenge: c, startBat: c.startBat, noBoost: c.noBoost, rope: c.rope, calm: beach || rules.includes('ice'),
   };
 }
 

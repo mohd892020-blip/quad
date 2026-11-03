@@ -1,6 +1,6 @@
 import { sfx, toggleMute } from './audio.js';
 import { musicCue } from './music.js';
-import { AIRCRAFT, BADGE, BOOST, DEV, DUST, FROST, FX, G, HANGAR, HEALTH, JOY, KEY_HINT, LEVELS, MISSION, PICTURE, POINTER, QUALITY, RESULT, SHAKE, SHOP, SKIP, VIEW, WIND } from './config.js';
+import { AIRCRAFT, BADGE, BOOST, DEV, DUST, FROST, FX, G, GATES, HANGAR, HEALTH, JOY, KEY_HINT, LEVELS, MISSION, PICTURE, POINTER, QUALITY, RESULT, SHAKE, SHOP, SKIP, VIEW, WIND } from './config.js';
 import { applyControls, touchUI } from './input.js';
 import { bought, loadProgress, owns, saveSettings, saveSkips, settings, skips } from './storage.js';
 
@@ -301,19 +301,26 @@ export function drawFx(st) {
   }
   ctx.textAlign = 'center';
   for (const q of st.pops) {
+    const p = popSpot(q);
     ctx.globalAlpha = Math.min(1, 2 * (FX.popLife - q.t));
-    ctx.font = `${Math.round(20 * S)}px Lalezar,Tajawal,sans-serif`;
+    ctx.font = p.font;
     ctx.lineWidth = 4;
     ctx.strokeStyle = 'rgba(20,15,40,.8)';
-    ctx.strokeText(q.txt, X(q.x), Y(q.y - q.t * 40));
+    ctx.strokeText(q.txt, p.x, p.y);
     ctx.fillStyle = q.col;
-    ctx.fillText(q.txt, X(q.x), Y(q.y - q.t * 40));
+    ctx.fillText(q.txt, p.x, p.y);
   }
   ctx.globalAlpha = 1;
 }
 
+// Where a pop's words stand on screen as they rise, for drawing them and for labels that keep out of their way.
+export function popSpot(q) {
+  const size = Math.round(FX.popSize * view.S);
+  return { x: X(q.x), y: Y(q.y - q.t * FX.popRise), size, font: `${size}px Lalezar,Tajawal,sans-serif` };
+}
+
 /* ---------- HUD ---------- */
-const PLACES = { street: 'Street', roof: 'Rooftop', ferry: 'Ferry', boat: 'Boat', pier: 'Pier', tower: 'Lifeguard tower', sand: 'Beach', rock: 'Rock top', camp: 'Camp', oasis: 'Oasis', cabin: 'Cabin roof', treehouse: 'Treehouse', lookout: 'Lookout tower', clearing: 'Clearing', crag: 'Crag top', hut: 'Mountain hut', basecamp: 'Base camp', station: 'Lift station', chalet: 'Chalet roof', igloo: 'Igloo' };
+const PLACES = { street: 'Street', roof: 'Rooftop', ferry: 'Ferry', boat: 'Boat', pier: 'Pier', tower: 'Lifeguard tower', sand: 'Beach', rock: 'Rock top', camp: 'Camp', oasis: 'Oasis', cabin: 'Cabin roof', treehouse: 'Treehouse', lookout: 'Lookout tower', clearing: 'Clearing', crag: 'Crag top', hut: 'Mountain hut', basecamp: 'Base camp', station: 'Lift station', chalet: 'Chalet roof', igloo: 'Igloo', ice: 'Frozen lake' };
 export const placeName = t => (t.kind === 'bal' ? `Balcony, floor ${t.fl}` : PLACES[t.kind]);
 
 // The HUD ticks ten times a second and most of it has not moved, so only changes reach the page.
@@ -328,7 +335,9 @@ const bar = (id, percent) => put(id, Math.round(percent), v => { $(id).firstChil
 
 export function hud(st) {
   const legs = st.level.stops.length, o = st.has ? st.order : null, run = st.stop.parcels;
-  const tag = o?.drop ? `Drop ${o.drop}/${run.length} · ` : legs > 1 ? `Stop ${st.stopAt + 1}/${legs} · ` : '';
+  // a narrow phone marks the ring count instead of naming it, so the customer still fits
+  const rings = o && st.stop.gates, at = (o?.gate ?? 0) + 1, ring = rings && at <= rings.length ? `${view.W < GATES.narrow ? '◎' : 'Ring '}${at}/${rings.length} · ` : '';
+  const tag = (o?.drop ? `Drop ${o.drop}/${run.length} · ` : legs > 1 ? `Stop ${st.stopAt + 1}/${legs} · ` : '') + ring;
   const left = o ? Math.max(0, o.deadline - st.t) : st.prep ? st.prep.left : 0, whole = Math.ceil(left);
   text('clock', (o || st.prep) && whole < Infinity ? `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}` : '--:--');
   put('clockLow', !!o && left < MISSION.lowTime, v => { $('clock').classList.toggle('low', v); });
@@ -469,7 +478,7 @@ function skipState(n) {
   const used = skips.skipped.filter(k => Math.ceil(k / c.blockSize) === block).length, waiting = skips.skipped.filter(k => !stars[k]).length;
   if (skips.skipped.length && skips.since < c.gap) return { why: `Pass ${c.gap - skips.since} more ${c.gap - skips.since === 1 ? 'mission' : 'missions'} to skip again` };
   if (waiting >= c.open) return { why: 'Clear a skipped mission to skip again' };
-  if (used >= allowed) return { why: `No skips left until Mission ${block * c.blockSize + 1}` };
+  if (used >= allowed) return { why: block * c.blockSize + 1 > levelList.length ? 'No skips left in these missions' : `No skips left until Mission ${block * c.blockSize + 1}` };
   return { ok: true };
 }
 
@@ -518,7 +527,7 @@ function playAd(n) {
 // What a mission holds, read at a glance beside its number: its own rule first, then whatever is most likely to end it.
 function signsFor(l) {
   return [
-    l.challenge && [l.challenge.key === 'hawks' ? 'hawk' : l.challenge.key, l.challenge.name],
+    l.challenge && [l.challenge.sign ?? (l.challenge.key === 'hawks' ? 'hawk' : l.challenge.key), l.challenge.name],
     l.eagles && ['eagle', 'Eagles'],
     l.stops[0].parcels && ['double', 'Double Run'],
     l.desert && ['desert', 'Desert'],
@@ -572,8 +581,11 @@ function openLevelCard(n) {
     : route
     ? legs.map((s, k) => [`Stop ${k + 1}`, `${order(s.item)} to ${to(s)}, ${clockText(s.limit)}`])
     : [['Order', order(item)], ['Shop', `${shop.shop.name}, ${shop.zone.name}`], ['Customer', to(legs[0])], ['Time', clockText(limit)]];
+  // a slow aircraft is told before an avalanche, while there is still time to pick another
+  const plane = AIRCRAFT.find(a => a.key === settings.plane) ?? AIRCRAFT[0], chased = legs.some(s => s.twist === 'avalanche') && plane.speed < HANGAR.chaseSpeed;
   const rows = [
     ...(l.challenge ? [['Challenge', l.challenge.name], ['Rule', l.challenge.note]] : []),
+    ...(chased ? [['Aircraft', plane.speed < HANGAR.boostFloor ? `${plane.name} is too slow for an avalanche, even with Boost. Pick a faster one` : `${plane.name} is slow for an avalanche. Boost, or pick a faster one`]] : []),
     ...jobs, ['If ruined', route ? `up to -$${Math.max(...legs.map(s => s.item.price))}` : `-$${item.price}`],
     ['Wind', `up to ${l.wind}`], ['Hawks', l.hawks ? `${l.hawks}${route ? ' per stop' : ''}` : 'None'], ...(l.eagles ? [['Eagles', `${l.eagles}${route ? ', last stop' : ''}, one hit downs you`]] : []),
     ['Rival', l.rival ? `Yes${route ? ', last stop' : ''}, speed ${l.rivalSpeed}` : 'None'], ...(l.calm ? [] : [[l.beach ? 'Boats' : l.desert ? 'Buggies' : l.forest ? 'Jeeps and deer' : l.mountain ? 'Jeeps and goats' : l.snow ? 'Sleds and reindeer' : 'Cars', `${l.street ? (l.desert || l.forest || l.mountain || l.snow ? 'Crossing your drop' : 'On your street') : 'Yes'}, speed ${l.carSpeed}`]]),

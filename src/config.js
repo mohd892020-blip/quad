@@ -24,7 +24,7 @@ export const QUALITY = {
 // challengeFrom on); and no more than open skipped missions may wait unplayed at once. There is no clock, so changing
 // the phone's time gains nothing. devOnly keeps it in developer mode until real ads exist; until then a stand-in plays.
 export const SKIP = {
-  devOnly: true, afterFails: 3, realSecs: 15, from: 6, never: [10, 20, 30, 40, 50], gap: 2,
+  devOnly: true, afterFails: 3, realSecs: 15, from: 6, never: [10, 20, 30, 40, 50, 55], gap: 2,
   blockSize: 10, perBlock: 2, challengeFrom: 41, challengePerBlock: 1, open: 3, adSecs: 5,
 };
 
@@ -388,7 +388,8 @@ export const SHOP = {
   ],
 };
 
-// The player's score against computer pilots; a full 120 stars plus steady replays reach the top.
+// The player's score against computer pilots. The ladder was set so a full 120 stars plus steady replays reach the top;
+// missions 51-55 make 165 stars possible.
 export const LEAGUE = {
   perStar: 100,
   perDelivery: 5,
@@ -398,9 +399,11 @@ export const LEAGUE = {
   ],
 };
 
-// When a shop suggests another aircraft while it makes the order.
+// When a shop suggests another aircraft while it makes the order. An aircraft slower than chaseSpeed hears, on an
+// avalanche stop and on the card of a mission with one, that Boost or a faster aircraft helps; one slower than boostFloor
+// is caught even with Boost (or flattens its battery boosting), so it hears only to take a faster aircraft.
 // previewEvery: seconds between pictures of the spinning aircraft in settings, which need not keep up with the screen.
-export const HANGAR = { heavyFrom: 1.8, fragileFrom: 1.6, windyFrom: 1.6, rotate: 3, tipGap: 10, previewHeight: 68, previewEvery: .05 };
+export const HANGAR = { heavyFrom: 1.8, fragileFrom: 1.6, windyFrom: 1.6, rotate: 3, chaseSpeed: 1, boostFloor: .65, tipGap: 10, previewHeight: 68, previewEvery: .05 };
 
 // A Double Run is one long trip with two orders tied together on the rope. The lower one comes off at the
 // nearer customer and the aircraft jumps, suddenly lighter. near and gap are how far out each customer is.
@@ -433,12 +436,17 @@ export const RESULT = {
     'SPOTTED BY RADAR': 'Stay under the red line, a moment above it is forgiven',
     MELTED: 'Ice cream will not wait. Fly straight there',
     'DOWNED BY AN EAGLE': 'When the red arc shows, break hard or boost out of its line',
+    'MISSED A RING': 'Line up with the next ring early, then fly straight through',
+    'THROUGH THE ICE': 'Keep the order off the ice. Fly high, and lower the rope only at the customer',
+    'CAUGHT BY THE AVALANCHE': 'Keep moving and Boost on the straights. Drop straight onto the customer',
   },
 };
 
 // The last missions, each with one rule of its own. map is where it flies, shop which of that map's shops it opens at,
 // near and far how far off the customer is, and kinds which customers will do. stops names the rule of each order on
-// a route. A mission with no stops is one order under the rule named by its key.
+// a route. A mission with no stops is one order under the rule named by its key. legs overrides near, far, kinds or item
+// for one stop of a route, lake picks the frozen lake of an ice stop, sign names the map sign when it is not the key,
+// and wallSpeed sets the avalanche's speed for one mission.
 export const CHALLENGES = [
   { key: 'blackout', name: 'Blackout', note: 'Power cut. You only see what your lights reach', map: 'city', shop: 3, item: 'medicine', kinds: ['roof', 'bal'], near: 1500, far: 2600, hawks: 1, wind: 120 },
   { key: 'glass', name: 'Glass Cargo', note: 'One good knock and the vase is gone', map: 'city', shop: 4, item: 'vase', kinds: ['roof'], near: 900, far: 1700, hawks: 0, wind: 110, extra: 12 },
@@ -449,7 +457,15 @@ export const CHALLENGES = [
   { key: 'ferry', name: 'Ferry Drop', note: 'The customer is on a moving ferry. Hold rides along', map: 'beach', shop: 0, item: 'coffee', hawks: 1, wind: 150, extra: 14 },
   { key: 'hawks', name: 'Hawk Season', note: 'Six hawks on the way. Shield the order with your aircraft', map: 'city', shop: 6, item: 'kunafa', kinds: ['roof'], near: 2400, far: 3400, hawks: 6, eagles: 1, wind: 140, extra: 10 },
   { key: 'rope', name: 'Long Line', note: 'Double rope. Fly high, the load hangs far below you', map: 'city', shop: 8, item: 'pizza', kinds: ['roof'], near: 1500, far: 2600, hawks: 1, wind: 150, rope: 130, extra: 10 },
-  { key: 'finale', name: 'Grand Finale', note: 'A storm, then a blackout, then a race', map: 'city', shop: 7, stops: ['storm', 'blackout', 'race'], kinds: ['roof', 'bal'], near: 900, far: 1700, hawks: 2, eagles: 1, wind: 220, rival: true, rivalSpeed: 160, extra: 12 },
+  { key: 'finale', name: 'City Finale', note: 'A storm, then a blackout, then a race', map: 'city', shop: 7, stops: ['storm', 'blackout', 'race'], kinds: ['roof', 'bal'], near: 900, far: 1700, hawks: 2, eagles: 1, wind: 220, rival: true, rivalSpeed: 160, extra: 12 },
+  { key: 'gates', name: 'Canopy Gates', note: 'Fly through every ring over the pines, in order', map: 'forest', shop: 1, item: 'pizza', kinds: ['cabin'], near: 2100, far: 2600, hawks: 1, wind: 170, extra: 10 },
+  { key: 'jet', name: 'Jet Stream', note: 'Above the line the wind carries you. Below it, it fights you', map: 'mountain', shop: 2, item: 'medicine', kinds: ['crag'], near: 3800, far: 4300, hawks: 2, wind: 400, extra: 4 },
+  { key: 'avalanche', name: 'Avalanche', note: 'An avalanche is right behind you. Keep moving', map: 'mountain', shop: 0, item: 'coffee', kinds: ['crag'], near: 3500, far: 4000, hawks: 2, wind: 180, wallSpeed: 200, extra: 10 },
+  { key: 'ice', name: 'Thin Ice', note: 'Low rotors crack the ice. Stay above the line and lower the rope', map: 'snow', shop: 1, item: 'pizza', lake: 0, hawks: 1, wind: 180, extra: 10 },
+  {
+    key: 'grand', sign: 'finale', name: 'Grand Finale', note: 'Rings, thin ice, then outrun the avalanche', map: 'snow', shop: 0, stops: ['gates', 'ice', 'avalanche'], kinds: ['chalet'],
+    legs: [{ near: 1800, far: 2100 }, {}, { near: 4800, far: 5200 }], lake: 1, hawks: 2, wind: 200, wallSpeed: 198, extra: 10,
+  },
 ];
 
 // reach is how far the aircraft's lights carry, clear the share of it that stays fully lit.
@@ -466,6 +482,41 @@ export const RADAR = { clear: 120, grace: 1.6, fade: 1.2, line: 3, dash: 16, das
 
 // The ferry works the bay between from and to, with the customer on its open deck.
 export const FERRY = { from: 15520, to: 16880, speed: 62, w: 190, deckH: 30, bow: 18, draft: 10, stripe: 9, stripeH: 6, cabinAt: 14, cabinW: 56, cabinH: 34, targetLift: 11, start: 16200 };
+
+// Rings on a route: count of them from from to to of the way, each at a height band above the ground taken in turn and
+// lifted to clear anything within span of it by clear. Passing within reach of the next one counts it. On a screen
+// narrower than narrow the HUD marks the ring count instead of naming it.
+export const GATES = {
+  count: 4, from: .15, to: .75, span: 100, clear: 140, bands: [220, 340], reach: 46, narrow: 360,
+  line: 4, thin: .6, pulse: 4, pulseRate: 5, text: 12, popLift: 34, popColor: '#7fe0a8',
+  done: 'rgba(79,194,124,.5)', next: '255,194,61', nextAlpha: .55, later: 'rgba(255,255,255,.55)', shadow: 'rgba(20,15,40,.7)',
+};
+
+// The jet stream's line stands gap above the route's radar line. Above it the wind blows toward the customer at the
+// mission's wind, below it headShare of that blows back. band is how deep the streaks above the line reach, and popGap
+// how far the label keeps from any words that pop up and from the pointer.
+export const JET = {
+  gap: 40, headShare: .6, line: 3, dash: 18, dashRate: 90, text: 12, edge: 10, popGap: 4, color: '#8fd8ff',
+  band: 260, streaks: 22, streakLong: 44, streakDrift: 1.4, streak: 'rgba(210,240,255,.35)',
+};
+
+// An angler on a frozen lake reaches up for the order lift above the ice. While an order is on the rope, rotor wash
+// closer than wash to the ice cracks it: grace seconds of it and the ice gives, and the cracks heal at fade a second.
+// A creak sounds every creak seconds of cracking, and the zone's edge and label turn alert while it cracks.
+export const THIN_ICE = {
+  lift: 48, wash: 200, grace: 1.8, fade: 1, creak: .5, hole: 16, holeAt: -14, holeColor: '#1d3550',
+  line: 3, dash: 14, dashRate: 30, text: 12, edge: 8, color: '#bfe6ff', zoneTop: 'rgba(191,230,255,0)', zoneBottom: 'rgba(191,230,255,.16)', zoneAlert: 'rgba(255,255,255,.32)',
+  alert: '#ff7a5c', cracks: 6, crackLong: 70, crackColor: 'rgba(255,255,255,.9)',
+};
+
+// The avalanche waits delay seconds, behind pixels behind the shop, then rolls after the order at speed (a mission may set
+// its own wallSpeed). It spends itself on the climb: over its last spend pixels it slows at a steady rate and comes to
+// rest rest pixels short of the customer, so the race is on the way and the handover is never rushed. Within cue of it
+// the camera rumbles, less as it slows; off screen its cue turns warn inside twice cue while it still rolls.
+export const AVALANCHE = {
+  behind: 450, delay: 1.5, speed: 200, spend: 400, rest: 200, cue: 400, rumble: 1.5, dust: 300,
+  haze: .9, puff: '#f4f8fc', puffs: 9, puffR: [40, 70], roll: 3, spray: 14, sprayRate: 120, sprayReach: 80, text: 12, edge: 10, warn: '#ff7a5c',
+};
 
 // The lesson flight: how far the drone must go in each step, measured from the green pad.
 export const TRAINING = { prep: 2, climb: 90, ringX: 420, ringY: 150, ringReach: 46, boostFor: .4, padLift: 20, rope: 40 };
@@ -674,8 +725,11 @@ export const CAMERA = {
   idleTimeDiv: 60,
 };
 
+// popSize is the words that pop up, before the screen's scale, and popRise how fast they climb.
 export const FX = {
   popLife: 1.8,
+  popSize: 20,
+  popRise: 40,
   steamLife: 1,
   crumbLife: 1.2,
   steamDrift: .3,

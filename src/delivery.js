@@ -224,16 +224,24 @@ export function hangarHint(st) {
   // the first order's suggestion stands until the aircraft leaves the pad
   const item = st.prep?.item ?? (st.has && st.onGround && !st.stopAt ? st.item : null);
   if (!item || st.level.training) return null;
-  const c = HANGAR, named = key => AIRCRAFT.find(a => a.key === key);
+  const c = HANGAR, named = key => AIRCRAFT.find(a => a.key === key), pace = (named(settings.plane) ?? AIRCRAFT[0]).speed;
+  // an avalanche catches a slow aircraft: Boost helps, and so does the fastest aircraft the player owns; the slowest
+  // are caught even with Boost, so they hear only to switch (the Courier is always owned, so there is one to name)
+  if (st.stop.twist === 'avalanche' && pace < c.chaseSpeed) {
+    const quick = AIRCRAFT.filter(a => owns(a.key) && a.speed > pace).sort((a, b) => b.speed - a.speed)[0] ?? AIRCRAFT[0];
+    return pace < c.boostFloor ? `Avalanche: too slow, take the ${quick.name}` : `Avalanche: Boost, or try the ${quick.name}`;
+  }
+  // with an avalanche on the route, it never suggests an aircraft slower than the one flying
+  const chase = st.level.stops.some(s => s.twist === 'avalanche'), slower = key => chase && named(key).speed < pace;
   const pick = item.weight >= c.heavyFrom ? ['heavy', `Heavy load: try ${named('heavy').name}`]
     : item.fragile >= c.fragileFrom ? ['cage', `Fragile order: try ${named('cage').name}`]
     : item.urgent ? ['fpv', `Urgent: try ${named('fpv').name}`]
     : item.wind >= c.windyFrom ? ['hexa', `Catches the wind: try ${named('hexa').name}`]
     : null;
-  if (pick) return pick[0] === settings.plane ? null : owns(pick[0]) ? pick[1] : `${pick[1]} from the Shop`;
+  if (pick) return pick[0] === settings.plane || slower(pick[0]) ? null : owns(pick[0]) ? pick[1] : `${pick[1]} from the Shop`;
   if (st.del % c.rotate !== 0) return null;
   const next = AIRCRAFT[(st.del / c.rotate + 1) % AIRCRAFT.length];
-  return next.key === settings.plane || !owns(next.key) ? null : `Try the ${next.name}`;
+  return next.key === settings.plane || !owns(next.key) || slower(next.key) ? null : `Try the ${next.name}`;
 }
 
 const NO_ZONE = { rope: false, hold: false, land: null };
@@ -261,7 +269,11 @@ export function zones(st) {
 // Where the player should be heading: the customer, or the closest job.
 function goal(st) {
   if (st.lesson?.goal) return st.lesson.goal;
-  if (st.has && st.order) return { x: st.order.t.x, y: st.order.t.y, label: 'Customer' };
+  if (st.has && st.order) {
+    // a route of rings points at the next ring until the last one is through
+    const ring = st.stop.gates?.[st.order.gate ?? 0];
+    return ring ? { x: ring.x, y: ring.y, label: 'Ring' } : { x: st.order.t.x, y: st.order.t.y, label: 'Customer' };
+  }
   const { shop } = st.stop, p = shopPad(shop);
   return { x: p.x, y: p.y - 20, label: shop.shop.name };
 }
@@ -530,7 +542,7 @@ export function drawTarget(st) {
     ctx.stroke();
   }
   // customer
-  const cx = t.kind === 'bal' ? t.x + (t.side > 0 ? -12 : 12) : t.x + 22, cy = t.y + 11;
+  const cx = t.kind === 'bal' ? t.x + (t.side > 0 ? -12 : 12) : t.x + 22, cy = t.stand ?? t.y + 11;
   ctx.fillStyle = '#2b1b14';
   ctx.fillRect(X(cx - 4), Y(cy - 24), 8 * S, 16 * S);
   ctx.beginPath();
@@ -618,17 +630,37 @@ export function drawOrderTime(st) {
   ctx.restore();
 }
 
+// Where the pointer stands this frame, or null while it hides: the dart's spot and heading, its distance pill, and the
+// screen boxes [left, top, right, bottom] the two take up, so a label on the screen can keep out of their way.
+export function pointerSpot(st) {
+  if (st.wreck || st.outcome || st.done || st.prep) return null;
+  const { W, S } = view, c = POINTER, g = goal(st), sx = X(g.x), sy = Y(g.y), m = c.safeMargin;
+  if (sx > m && sx < W - m && sy > view.top + m && sy < view.bottom - m) return null;
+  // right over a customer in sight the handover is under way, and the dart would only cover them
+  if (g.label === 'Customer' && sy < view.H && zones(st).hold) return null;
+  const dx = X(st.d.x), dy = Y(st.d.y), ang = Math.atan2(sy - dy, sx - dx), z = c.size;
+  const reach = st.has ? st.ropeLen + BOX.anchorY + BOX.padX * st.item.size * CARGO.drawScale : currentModel().span * CONTRAST.scale;
+  const r = Math.max(c.minOrbit, reach * S + c.clear) + Math.sin(st.t * c.bobRate) * c.bob;
+  const px = Math.max(m, Math.min(W - m, dx + Math.cos(ang) * r)), py = Math.max(view.top + m, Math.min(view.bottom - m, dy + Math.sin(ang) * r));
+  const text = `${Math.round(Math.hypot(g.x - st.d.x, g.y - st.d.y) / 10)} m`;
+  ctx.font = `800 ${c.textSize}px Tajawal,sans-serif`;
+  const half = ctx.measureText(text).width / 2 + c.pillPad || 30, under = py + z + c.pillGap + c.pillH, lx = Math.max(half + 4, Math.min(W - half - 4, px));
+  const top = under < view.bottom ? under - c.pillH : py - z - c.pillGap - c.pillH;
+  // the dart from its tip back to the wings of the last chevron, turned to its heading
+  const back = -z - c.chevronGap * c.chevrons - c.chevronSize, cos = Math.cos(ang), sin = Math.sin(ang);
+  const ends = [[z * 1.3, 0], [-z * .8, -z * .9], [-z * .8, z * .9], [back, -c.chevronSize], [back, c.chevronSize]].map(([u, v]) => [px + u * cos - v * sin, py + u * sin + v * cos]);
+  const xs = ends.map(e => e[0]), ys = ends.map(e => e[1]);
+  const boxes = [[Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)], [lx - half, top, lx + half, top + c.pillH]];
+  return { px, py, ang, text, lx, top, half, boxes };
+}
+
 // A faceted dart circling the aircraft, wide enough to clear its span and the swing of the order on the rope, with
 // chevrons running out from behind it toward the goal. It stays near where the player is already looking, so it can
 // never slide under the controls or the HUD.
 export function drawPointer(st) {
-  if (st.wreck || st.outcome || st.done || st.prep) return;
-  const { W, S } = view, c = POINTER, g = goal(st), sx = X(g.x), sy = Y(g.y), m = c.safeMargin;
-  if (sx > m && sx < W - m && sy > view.top + m && sy < view.bottom - m) return;
-  const dx = X(st.d.x), dy = Y(st.d.y), ang = Math.atan2(sy - dy, sx - dx), z = c.size, [light, deep] = st.has ? c.customer : c.shop;
-  const reach = st.has ? st.ropeLen + BOX.anchorY + BOX.padX * st.item.size * CARGO.drawScale : currentModel().span * CONTRAST.scale;
-  const r = Math.max(c.minOrbit, reach * S + c.clear) + Math.sin(st.t * c.bobRate) * c.bob;
-  const px = Math.max(m, Math.min(W - m, dx + Math.cos(ang) * r)), py = Math.max(view.top + m, Math.min(view.bottom - m, dy + Math.sin(ang) * r));
+  const p = pointerSpot(st);
+  if (!p) return;
+  const c = POINTER, { px, py, ang, text, lx, top, half } = p, z = c.size, [light, deep] = st.has ? c.customer : c.shop;
   ctx.save();
   ctx.translate(px, py);
   ctx.rotate(ang);
@@ -671,12 +703,9 @@ export function drawPointer(st) {
   ctx.strokeStyle = c.edge;
   ctx.stroke();
   ctx.restore();
-  const text = `${Math.round(Math.hypot(g.x - st.d.x, g.y - st.d.y) / 10)} m`;
   ctx.font = `800 ${c.textSize}px Tajawal,sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  const half = ctx.measureText(text).width / 2 + c.pillPad || 30, under = py + z + c.pillGap + c.pillH, lx = Math.max(half + 4, Math.min(W - half - 4, px));
-  const top = under < view.bottom ? under - c.pillH : py - z - c.pillGap - c.pillH;
   ctx.fillStyle = c.pill;
   ctx.beginPath();
   ctx.roundRect(lx - half, top, half * 2, c.pillH, c.pillH / 2);

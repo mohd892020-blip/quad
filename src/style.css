@@ -91,6 +91,7 @@ kbd{display:inline-grid;place-items:center;min-width:24px;height:24px;box-sizing
 #toast b{font-family:var(--display);font-weight:400;font-size:clamp(22px,6vw,30px);line-height:1.1;color:var(--basil)}
 #toast.bad b{color:#ff7a5c}
 #toast span{font-size:14px;font-weight:700;color:var(--ink)}
+@media (max-height:480px){#toast{max-width:min(70vw,560px)}}
 #cardStart{display:grid;gap:14px;justify-items:center}
 /* these open over the mission map, which is sharp and busy, so their glass is solid */
 #levelCard .card,#shop .card,#league .card,#sheet .card{--tint:#3d3580}
@@ -176,6 +177,10 @@ body:not(.dev) .devOnly{display:none!important}
 .sign.battery{background:linear-gradient(#ff8a5c,#c9402a)}
 .sign.melt{background:linear-gradient(#f7b6cc,#d9709a)}
 .sign.rope{background:linear-gradient(#a98463,#6b4a30)}
+.sign.gates{background:linear-gradient(#5fd08a,#24804a)}
+.sign.jet{background:linear-gradient(#8fd8ff,#2f7fb8)}
+.sign.avalanche{background:linear-gradient(#eef6fc,#9fb4c8);color:#2c4a66}
+.sign.ice{background:linear-gradient(#bfe6ff,#4f8fc0)}
 .node.locked{background:#4a4258;color:#a79cb4;border-color:rgba(255,243,223,.3)}
 .node.next{border-color:var(--cheese);animation:nudge 1.3s ease-in-out infinite}
 @media (prefers-reduced-motion:reduce){.node.next{animation:none}}
