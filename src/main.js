@@ -250,7 +250,9 @@ const demo = { x: 0, at: performance.now() };
 function musicState(paused) {
   const l = st.level, d = st.d, o = st.has ? st.order : null, left = o ? o.deadline - st.t : Infinity;
   return {
-    active: !st.done && !st.outcome, paused, place: l.beach ? 'beach' : l.desert ? 'desert' : l.forest ? 'forest' : 'city', time: Math.floor(world.palKey) % 3,
+    active: !st.done && !st.outcome, paused, place: l.beach ? 'beach' : l.desert ? 'desert' : l.forest ? 'forest' : l.mountain ? 'mountain' : l.snow ? 'snow' : 'city', time: Math.floor(world.palKey) % 3,
+    // a mission keeps its own music through a pause and its result card; once it is over and the maps are open, they take over
+    mission: !st.done || !levelsOpen(), challenge: !!l.challenge,
     alt: Math.max(0, Math.min(1, (GROUND - d.y) / MUSIC.altSpan)), speed: Math.min(1, Math.hypot(d.vx, d.vy) / MUSIC.fastSpeed), wind: l.wind ? Math.min(1, Math.abs(st.wind) / l.wind) : 0,
     danger: Math.max(left < MUSIC.lateSecs ? 1 - left / MUSIC.lateSecs : 0, st.batWarn > 1 ? 1 : st.batWarn ? .5 : 0), boosting: st.boosting, holding: !!st.anchor,
   };

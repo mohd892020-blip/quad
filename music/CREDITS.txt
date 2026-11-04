@@ -1,0 +1,8 @@
+Music by Abstraction (Benjamin Burnes) - https://abstractionmusic.com
+From the Music Loop Bundle - https://tallbeard.itch.io/music-loop-bundle
+License: CC0 1.0 (public domain). Credit is not required; it is given here with thanks.
+
+abstraction-july-6th.ogg            VGMA Challenge 06, "July 6th" (2017)      maps and menus
+abstraction-2024-12-21.ogg          Sketchbook 2024-12-21, electronic        city missions
+abstraction-ludum-dare-30-04.ogg    Ludum Dare 30, track 4 (2014)            beach, desert, forest, mountains, snow
+abstraction-2024-02-07.ogg          Sketchbook 2024-02-07, drum and bass     challenge missions 41-55

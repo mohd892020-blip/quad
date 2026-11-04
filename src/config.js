@@ -875,6 +875,16 @@ export const MUSIC = {
   cues: {
     pickup: [[0, 0], [2, .5], [4, 1]], deliver: [[4, 0], [2, .5], [7, 1], [9, 1.5]], win: [[0, 0], [4, .5], [7, 1], [9, 1.5], [11, 2.5]], lose: [[4, 0], [3, 1], [1, 2]],
   },
+  // Recorded loops by Abstraction, CC0, from the Music Loop Bundle (music/CREDITS.txt), one for each scene: the maps,
+  // city missions, the open country (beach, desert, forest, mountains, snow) and challenges. Once one has decoded it
+  // takes over from the generated music, which stays only where a device cannot decode them. Each is brought to
+  // loudness (an RMS level, measured every stride samples) and its last seam seconds blend into its first, so the
+  // turn has no click. The maps play at menuShare; a paused mission keeps pausedShare behind a lowpass at pauseCut.
+  // swap is the crossfade between scenes in seconds, and kept how many decoded loops stay in memory.
+  tracks: {
+    files: { menu: 'abstraction-july-6th.ogg', city: 'abstraction-2024-12-21.ogg', country: 'abstraction-ludum-dare-30-04.ogg', challenge: 'abstraction-2024-02-07.ogg' },
+    loudness: .045, stride: 16, seam: .02, menuShare: .85, pausedShare: .45, pauseCut: 700, openCut: 18000, swap: 1.5, kept: 2,
+  },
 };
 
 export const AUDIO = {
