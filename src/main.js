@@ -5,11 +5,11 @@ import { stepContrast } from './contrast.js';
 import { drawCloudsBack, drawCloudsFront, drawFallBehind, drawFallFront, drawFog, drawHighClouds, drawOvercast, stepClouds } from './weather.js';
 import { updateMusic } from './music.js';
 import { BEACH, CAMERA, CITY_SEED, CLOCK, DRONE, DUST, FIXED_DT, GROUND, HANGAR, HUD_INTERVAL, MAX_FRAME_DT, MUSIC, QUALITY } from './config.js';
-import { settings as picked } from './storage.js';
+import { saveSettings, settings as picked } from './storage.js';
 import { initLeague } from './league.js';
 import { buildLevels } from './levels.js';
 import {
-  autoDeliver, chargeDrone, drawBatteryCue, drawHalos, drawOrderTime, drawPointer, drawPrep, drawTarget, explode, failMission, hangarHint, newGame, prepareFirstOrder, restrain, stepHealth, stepCargo,
+  autoDeliver, chargeDrone, drawBatteryCue, goal, drawHalos, drawOrderTime, drawPointer, drawPrep, drawTarget, explode, failMission, hangarHint, newGame, prepareFirstOrder, restrain, stepHealth, stepCargo,
   stepMission, stepShop, strikeDown, zones,
 } from './delivery.js';
 import { currentModel, drawAirframe, drawDrone, drawShadow, rotorLoad, stepBoost, stepDrone, stepHold, stepLand } from './drone.js';
@@ -25,7 +25,7 @@ import { drawForeground } from './skyline.js';
 import { touchesSea } from './seaside.js';
 import { loadProgress, settings } from './storage.js';
 import {
-  ctx, drawFx, drawMarks, frost, hideModals, hideOverlay, hud, initLevels, initSheet, kickDust, levelsOpen, lowerQuality, measureHud, modalOpen, onDevActions, onStart,
+  ctx, drawAltimeter, drawFx, drawMarks, frost, hideModals, hideOverlay, hud, initLevels, initSheet, kickDust, levelsOpen, lowerQuality, measureHud, resize, modalOpen, onDevActions, onStart,
   previewCanvas, raiseQuality, resetWeatherNote, setZoom, shakeOffset, sheetOpen, showActions, showHangarTip, showKeyHints, showLesson, showLevels, showResult, stepFx, view,
 } from './ui.js';
 import { world, drawCity, drawMap, drawSky, dropSprites, genWorld, setClock, stepClock, stepWind } from './world.js';
@@ -142,6 +142,7 @@ function render() {
   drawWeather(s);
   ctx.restore();
   drawPointer(s);
+  drawAltimeter(s, goal(s));
   drawBatteryCue(s);
   drawOrderTime(s);
 }
@@ -160,6 +161,8 @@ function drawPreview(time) {
 function watchPace(frame) {
   const c = QUALITY;
   if (frame > c.maxFrameGap || picked.picture === 'saver') return;
+  // the first seconds of a mission paint its buildings, and say nothing about the phone
+  if (pace.warm > 0) { pace.warm -= frame; return; }
   if (Math.abs(frame - pace.last) < c.evenGap) pace.even++;
   pace.last = frame;
   pace.t += frame;
@@ -169,7 +172,13 @@ function watchPace(frame) {
   const avg = pace.t / pace.n, capped = avg < c.capFrame && pace.even / pace.n > c.evenShare, slow = avg > (picked.picture === 'sharp' ? c.awfulFrame : c.slowFrame) && !capped, { raised } = pace;
   pace.t = pace.n = pace.even = 0;
   pace.raised = false;
-  if (slow) {
+  // the first slow stretch costs the extra detail, for good on this phone; only after that the sharpness
+  if (!picked.lite && avg > c.slowFrame && !capped) {
+    picked.lite = true;
+    saveSettings();
+    pace.easy = 0;
+    resize();
+  } else if (slow) {
     pace.easy = 0;
     pace.tried = true;
     lowerQuality(avg > c.awfulFrame && !raised ? 2 : 1);
@@ -227,6 +236,7 @@ function start(level) {
   hideModals();
   last = performance.now();
   pace.t = pace.n = pace.even = 0;
+  pace.warm = QUALITY.warmup;
   showLesson();
   beginChallenge(st);
   if (level.training) beginTraining(st);

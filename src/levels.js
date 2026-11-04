@@ -123,13 +123,17 @@ function challengeLevel(c, n) {
 // player reads on the level card is exactly what they will fly.
 export function buildLevels() {
   const r = rng(LEVELS.seed), levels = [];
+  const turns = {};
   for (let n = 1; n <= LEVELS.count; n++) {
-    const tier = n - 1, count = stopCount(n), beach = n % BEACH.every === 0, desert = n >= DESERT.first && n % DESERT.every === DESERT.at, forest = FOREST.missions.includes(n), mountain = MOUNTAIN.missions.includes(n), snow = SNOW.missions.includes(n);
+    const tier = n - 1, count = stopCount(n), region = LEVELS.regions[n - 1];
+    const beach = region === 'B', desert = region === 'D', forest = region === 'F', mountain = region === 'M', snow = region === 'S';
     // an open map has its own stalls and customers, and nothing tall to shelter from the wind
     const open = beach ? BEACH : desert ? DESERT : forest ? FOREST : mountain ? MOUNTAIN : snow ? SNOW : null;
     const shops = beach ? world.kiosks : desert ? world.camps : forest ? world.lodges : mountain ? world.mountShops : snow ? world.snowShops : world.shops;
     const spots = beach ? world.seaTargets : forest ? world.forestTargets : mountain ? world.mountTargets : snow ? world.snowTargets : world.sandTargets;
-    const start = shops[Math.floor(tier / (open ? open.every : 1)) % shops.length], stops = [];
+    // an open map takes its stalls in turn, one each time the missions come back to it
+    const turn = open ? (turns[region] = (turns[region] ?? -1) + 1) : tier;
+    const start = shops[turn % shops.length], stops = [];
     // a route shares out the flying of one long order, so its stops ask for the reach of an earlier tier
     const reach = Math.floor(tier / count), visit = Math.floor(tier / world.shops.length);
     for (let k = 0, shop = start; k < count; k++) {

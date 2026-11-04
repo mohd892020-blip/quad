@@ -127,6 +127,12 @@ function paintItem(g, s, it, time) {
   }
 }
 
+// The day's fade in a few coarse steps: a strip is a large image, too costly to repaint at every small one.
+function palStep() {
+  const key = world.palKey, i = Math.floor(key), n = SKYLINE.palSteps;
+  return i + Math.floor((key - i) / .99 * n + 1e-6) / n;
+}
+
 function paintStrip(s, k, time) {
   const top = s.top + SKYLINE.headroom, height = Math.ceil((top + s.bottom) * k), width = Math.ceil(s.P * k);
   const cv = s.canvas ?? document.createElement('canvas');
@@ -138,13 +144,13 @@ function paintStrip(s, k, time) {
   s.lights = [];
   s.signs = [];
   for (const it of s.items) paintItem(g, s, it, time);
-  Object.assign(s, { canvas: cv, pal: world.palKey, k, drawTop: top });
+  Object.assign(s, { canvas: cv, pal: palStep(), k, drawTop: top });
 }
 
 function drawStrip(s, st, time) {
   const L = s.L, S = view.S * L.scale, want = Math.min(view.sharp * L.scale * Math.min(view.DPR, L.density), SKYLINE.maxStrip / s.P);
   // a strip from an older step of the day still stamps fine; one is repainted a frame
-  if (!s.canvas || ((s.pal !== world.palKey || s.k !== want) && budget-- > 0)) paintStrip(s, want, time);
+  if (!s.canvas || ((s.pal !== palStep() || s.k !== want) && budget-- > 0)) paintStrip(s, want, time);
   const off = wrap(st.cam.x * L.par / L.scale, s.P), y0 = Y(GROUND) - L.base * view.S, top = y0 - s.drawTop * S;
   const night = Math.max(time.stars, time.windowGlow), c = SKYLINE.light;
   for (let x = -off; x * S < view.W; x += s.P) {

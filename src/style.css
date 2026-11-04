@@ -408,3 +408,10 @@ button:focus:not(:focus-visible),[tabindex]:focus:not(:focus-visible){outline:no
 #wxChip{position:absolute;top:calc(100% + 10px);left:max(12px,env(safe-area-inset-left,0px));display:flex;align-items:center;gap:6px;padding:5px 11px 5px 8px;border-radius:10px;background:var(--strip);color:var(--ink);font-size:12px;font-weight:700;white-space:nowrap;pointer-events:none;opacity:0;transform:translateY(-4px);transition:opacity .45s ease,transform .45s ease}
 #wxChip.on{opacity:1;transform:none}
 #wxChip .ico{width:16px;height:16px;color:#9fd8ff}
+#shopNudge{position:fixed;z-index:4;max-width:min(300px,calc(100vw - 24px));padding:9px 13px;border-radius:12px;border:1px solid rgba(255,194,61,.55);background:rgba(26,20,48,.94);color:var(--ink);font-family:var(--body);font-size:13px;font-weight:700;line-height:1.35;text-align:left;cursor:pointer;animation:nudgeIn .5s ease both;box-shadow:0 6px 18px rgba(0,0,0,.3)}
+#shopNudge::before{content:"";position:absolute;top:-7px;left:calc(var(--tip,50%) - 7px);border:7px solid transparent;border-top:0;border-bottom-color:rgba(255,194,61,.55)}
+.barBtn.nudge{animation:nudgeGlow 2.4s ease-in-out infinite}
+@keyframes nudgeIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+@keyframes nudgeGlow{0%,100%{box-shadow:0 0 0 0 rgba(255,194,61,0)}50%{box-shadow:0 0 0 5px rgba(255,194,61,.22)}}
+.sideBtn{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:10px;width:100%}
+.sideBtn .ico{width:20px;height:20px}

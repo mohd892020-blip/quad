@@ -1,10 +1,12 @@
 package com.flyingpizza.game;
 
 import android.app.Activity;
+import android.content.pm.ActivityInfo;
 import android.os.Bundle;
 import android.os.SystemClock;
 import android.view.View;
 import android.view.WindowManager;
+import android.webkit.JavascriptInterface;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.widget.Toast;
@@ -37,6 +39,13 @@ public class MainActivity extends Activity {
     page.setMediaPlaybackRequiresUserGesture(false);
     // the layout is measured in pixels, so the phone's large-text setting must not stretch it
     page.setTextZoom(100);
+    // the page asks to play on the phone's side, or to follow the phone again
+    web.addJavascriptInterface(new Object() {
+      @JavascriptInterface
+      public void sideways(final boolean on) {
+        runOnUiThread(() -> setRequestedOrientation(on ? ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE : ActivityInfo.SCREEN_ORIENTATION_FULL_USER));
+      }
+    }, "PizzaScreen");
     setContentView(web);
     web.loadUrl(PAGE);
   }

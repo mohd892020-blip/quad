@@ -6,11 +6,12 @@ const GARAGE_KEY = 'pizzaGarageV1';
 const SKIPS_KEY = 'pizzaSkipsV1';
 
 const STICK = { size: 'medium', feel: 'normal', fade: 'solid', origin: 'fixed', hand: 'right' };
-export const settings = { controls: 'joystick', plane: 'courier', dev: false, muted: false, music: true, camera: 'chase', tier: null, picture: 'sharp', trained: false, stick: STICK };
+export const settings = { controls: 'joystick', plane: 'courier', dev: false, muted: false, music: true, camera: 'chase', tier: null, lite: false, sideways: false, shopSeen: [], picture: 'sharp', trained: false, stick: STICK };
 
 try {
   Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {});
 } catch (_) {}
+if (!Array.isArray(settings.shopSeen)) settings.shopSeen = [];
 settings.stick = { ...STICK, ...(settings.stick && typeof settings.stick === 'object' ? settings.stick : null) };
 
 // Real fails in a row on each mission, the missions skipped, and the missions passed since the last skip.

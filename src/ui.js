@@ -1,6 +1,7 @@
 import { sfx, toggleMute } from './audio.js';
 import { musicCue } from './music.js';
-import { AIRCRAFT, BADGE, BOOST, DEV, DUST, FROST, FX, G, GATES, HANGAR, HEALTH, JOY, KEY_HINT, LEVELS, MISSION, PICTURE, POINTER, QUALITY, RESULT, SHAKE, SHOP, SHOTS, SKIP, VIEW, WEATHER, WEATHER_HINT, WIND } from './config.js';
+import { nudgeShop } from './shop.js';
+import { AIRCRAFT, ALTIMETER, BADGE, BOOST, DEV, DUST, FROST, FX, G, GATES, GROUND as G_LINE, HANGAR, HEALTH, JOY, KEY_HINT, LEVELS, MISSION, PICTURE, POINTER, QUALITY, RESULT, SHAKE, SHOP, SHOTS, SKIP, VIEW, WEATHER, WEATHER_HINT, WIND } from './config.js';
 import { applyControls, touchUI } from './input.js';
 import { bought, loadProgress, owns, saveSettings, saveSkips, settings, skips } from './storage.js';
 
@@ -41,7 +42,8 @@ function resize() {
   if (!innerWidth || !innerHeight) return;
   const tier = QUALITY.tiers[view.tier];
   view.DPR = Math.min(tier.dpr, window.devicePixelRatio || 1);
-  view.lowQ = !!tier.low;
+  // a phone found slow keeps its sharpness and drops the extra detail instead
+  view.lowQ = !!tier.low || !!settings.lite;
   view.W = innerWidth;
   view.H = innerHeight;
   cv.width = Math.round(view.W * view.DPR);
@@ -62,6 +64,96 @@ export function setZoom(z) {
   view.viewH = view.H / view.S;
 }
 
+// The altimeter on the right: a coloured scale from the street up, the aircraft's height on it with a pointer, the
+// goal's height as a tick, and chevrons that show the climb or the drop.
+export function drawAltimeter(st, goal) {
+  const c = ALTIMETER, x = view.W - c.right - c.w, top = view.top + c.top, bottom = view.bottom - c.bottom, span = bottom - top;
+  if (span < c.minH || st.level.training) return;
+  const at = h => bottom - Math.max(0, Math.min(1, h / c.max)) * span, scale = ctx.createLinearGradient(0, bottom, 0, top);
+  for (const [k, col] of c.colors) scale.addColorStop(k, col);
+  ctx.fillStyle = 'rgba(20,15,40,.5)';
+  ctx.beginPath();
+  ctx.roundRect(x - 3, top - 3, c.w + 6, span + 6, c.w / 2 + 3);
+  ctx.fill();
+  ctx.globalAlpha = c.alpha;
+  ctx.fillStyle = scale;
+  ctx.beginPath();
+  ctx.roundRect(x, top, c.w, span, c.w / 2);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+  if (goal) {
+    ctx.fillStyle = c.goal;
+    ctx.fillRect(x - 5, at(G_LINE - goal.y) - 1.5, c.w + 10, 3);
+  }
+  const h = G_LINE - st.d.y, y = at(h), climb = -st.d.vy, rate = Math.min(1, Math.abs(climb) / c.fastClimb);
+  if (rate > c.still) {
+    const dir = climb > 0 ? -1 : 1;
+    ctx.strokeStyle = climb > 0 ? c.up : c.down;
+    ctx.globalAlpha = .35 + .65 * rate;
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    for (let i = 0; i < 2; i++) {
+      const cy = y + dir * (12 + i * 7);
+      ctx.moveTo(x - 2, cy - dir * 4);
+      ctx.lineTo(x + c.w / 2, cy);
+      ctx.lineTo(x + c.w + 2, cy - dir * 4);
+    }
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.moveTo(x - 3, y);
+  ctx.lineTo(x - 12, y - 6);
+  ctx.lineTo(x - 12, y + 6);
+  ctx.closePath();
+  ctx.fill();
+  ctx.font = '700 11px Tajawal,sans-serif';
+  ctx.textAlign = 'right';
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = 'rgba(20,15,40,.85)';
+  const label = `${Math.max(0, Math.round(h / 10))} m`;
+  ctx.strokeText(label, x - 15, y + 4);
+  ctx.fillText(label, x - 15, y + 4);
+}
+
+// Phones play best on their side. A phone held upright is offered the turn: the app turns itself, a browser goes full
+// screen and locks sideways where it can, and otherwise a short note asks the player to turn the phone.
+const turner = () => window.PizzaScreen;
+async function playSideways(on) {
+  settings.sideways = on;
+  saveSettings();
+  if (turner()) turner().sideways(on);
+  else if (on) {
+    try {
+      await document.documentElement.requestFullscreen?.();
+      await screen.orientation.lock('landscape');
+    } catch (_) {
+      showToast('Turn your phone sideways', 'The wide screen shows more of the way ahead', true);
+    }
+  } else {
+    try { screen.orientation.unlock?.(); } catch (_) {}
+  }
+  markSideways();
+}
+
+export function markSideways() {
+  const upright = innerHeight > innerWidth, locked = !!settings.sideways && !upright;
+  for (const id of ['levelSideways', 'pauseSideways']) {
+    const b = $(id);
+    b.hidden = !touchUI() || (!upright && !locked);
+    b.querySelector('span').textContent = locked ? 'Play upright' : 'Play sideways';
+  }
+}
+
+function buildSideways() {
+  for (const id of ['levelSideways', 'pauseSideways']) $(id).addEventListener('click', () => playSideways(!(settings.sideways && innerWidth > innerHeight)));
+  addEventListener('resize', markSideways);
+  // the app remembers the turn between launches
+  if (settings.sideways && turner()) turner().sideways(true);
+  markSideways();
+}
+
 // Asking for layout is costly, so this runs when the HUD changes size, never on the HUD tick.
 export function measureHud() {
   view.top = $('hud').getBoundingClientRect().bottom || view.top;
@@ -75,6 +167,7 @@ export function measureHud() {
   $('lesson').style.top = view.top + 8 + 'px';
 }
 addEventListener('resize', resize);
+export { resize };
 addEventListener('orientationchange', () => setTimeout(resize, VIEW.turnDelay));
 resize();
 if (globalThis.ResizeObserver) {
@@ -617,6 +710,7 @@ export function showLevels() {
   path.innerHTML = `<svg viewBox="0 0 100 ${height}" preserveAspectRatio="none" aria-hidden="true"><polyline points="${road}"/></svg>${nodes}`;
   $('levelsMoney').textContent = `$${money}`;
   $('levels').hidden = false;
+  nudgeShop();
   const scroll = $('levelsScroll');
   scroll.scrollTop = height - open * gap - (scroll.clientHeight || 0) / 2;
 }
@@ -934,6 +1028,7 @@ export function initSheet() {
   markControls();
   buildPicture();
   buildCamera();
+  buildSideways();
   buildMusic();
   showDev();
   const openSheet = () => { $('sheet').hidden = false; };

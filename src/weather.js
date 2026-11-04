@@ -75,13 +75,15 @@ function puffSprite(color) {
 
 // A cloud is painted whole into its own image, shade first and light on top, so overlapping puffs read as one body
 // instead of a pile of discs. The image is only repainted when the puffs move, the sky changes tint, or the zoom does.
+let paints = 0;
 function cloudImage(cl, front) {
   const c = CLOUDS, k = view.sharp * Math.min(view.DPR, c.density), tint = world.pal.cloud, key = front ? 'front' : 'back';
   const halfW = c.spread + c.puffR[1] + c.margin, halfH = c.spread * c.flat + c.puffR[1] + c.margin;
   let pose = 0;
   for (const p of cl.puffs) if (p.front === front) pose += Math.round((Math.abs(p.dx) + Math.abs(p.dy)) * 4);
   const im = cl[key];
-  if (im && im.k === k && im.tint === tint && im.pose === pose) return im;
+  if (im && ((im.k === k && im.tint === tint && im.pose === pose) || paints >= c.paintsPerFrame)) return im;
+  paints++;
   const canvas = im?.canvas ?? document.createElement('canvas'), w = Math.ceil(halfW * 2 * k), h = Math.ceil(halfH * 2 * k);
   if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
   const g = canvas.getContext('2d'), light = puffSprite(tint), shade = puffSprite(world.pal.cloudShade);
@@ -121,7 +123,10 @@ function drawPuffs(st, front) {
   ctx.globalAlpha = 1;
 }
 
-export const drawCloudsBack = st => drawPuffs(st, false);
+export const drawCloudsBack = st => {
+  paints = 0;
+  drawPuffs(st, false);
+};
 export const drawCloudsFront = st => drawPuffs(st, true);
 
 // Long, flat clouds far off in the sky, each painted once per tint, drifting much slower than the city.

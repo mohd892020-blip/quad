@@ -13,9 +13,10 @@ export const PERSPECTIVE = { depth: .93, eyeY: .38 };
 // arrive evenly under capFrame are a capped screen, say on battery saver, not a device struggling, so they cost no
 // sharpness: even means evenShare of them landed within evenGap of the one before. Gaps over maxFrameGap are the game
 // being away, not slow. A session that never stepped down tries one tier up after calm windows under easyFrame, and
-// steps back if that turns slow. A phone remembers its tier, so the next launch starts where this one settled.
+// steps back if that turns slow. A phone remembers its tier, so the next launch starts where this one settled. The first
+// slow window drops the extra detail instead, for good on that phone. The first warmup seconds of a mission are not judged.
 export const QUALITY = {
-  window: 2, slowFrame: .021, awfulFrame: .045, capFrame: .036, evenGap: .003, evenShare: .85, easyFrame: .0178, calm: 3, maxFrameGap: 1, start: 3,
+  window: 2, warmup: 3, slowFrame: .021, awfulFrame: .045, capFrame: .036, evenGap: .003, evenShare: .85, easyFrame: .0178, calm: 3, maxFrameGap: 1, start: 3,
   tiers: [{ dpr: 3 }, { dpr: 2.5 }, { dpr: 2 }, { dpr: 1.5 }, { dpr: 1.25 }, { dpr: 1, low: true }, { dpr: .75, low: true }],
 };
 // Skipping a mission for a rewarded ad. It is offered after afterFails real fails in a row (a fail counts once the try
@@ -30,11 +31,12 @@ export const SKIP = {
 
 // Clouds at flying height. amount is the share of slots that hold a cloud (a level may set its own); each is a cluster of
 // puffs that the aircraft pushes (push, within reach of a puff's edge, with wash pressing down and carry dragging along)
-// and that springs back. A pushed puff thins and swells; frontShare of the puffs are drawn over the aircraft.
+// and that springs back. A pushed puff thins and swells; frontShare of the puffs are drawn over the aircraft. No more
+// than paintsPerFrame clouds are repainted in one frame; the rest catch up on the next.
 export const CLOUDS = {
   seed: 31, amount: .6, spacing: 1100, spacingRange: 800, settled: .5, heightMin: -360, heightMax: 140, puffs: [7, 12], spread: 95, flat: .42, puffR: [28, 50],
   drift: 7, windDrift: .05, awake: 500, reach: 46, push: 1500, wash: .35, carry: .25, spring: 2.6, damp: 2.4, inside: .9,
-  alpha: .9, frontShare: .4, frontAlpha: .72, thin: 1.6, thinMin: .25, swell: .5, margin: 70, density: 2, shadeDrop: .22, lightLift: .1,
+  alpha: .9, frontShare: .4, frontAlpha: .72, paintsPerFrame: 2, thin: 1.6, thinMin: .25, swell: .5, margin: 70, density: 2, shadeDrop: .22, lightLift: .1,
   falloff: [[0, 1], [.45, .96], [.72, .55], [.9, .14], [1, 0]],
   mist: { rate: 24, max: 40, minSpeed: 40, life: 1, size: 18, grow: 26, alpha: .5, sink: 10 },
   high: { seed: 57, count: 6, width: 340, flat: .3, pad: .2, parts: 6, alpha: .55, drift: .06, speed: 4, top: .06, bottom: .3 },
@@ -51,22 +53,22 @@ export const CLOUDS = {
 export const WEATHER = {
   kinds: ['rain', 'fog', 'clouds', 'snow'], dim: '150,156,170',
   snow: {
-    name: 'Snowfall', missions: [21, 31], count: 140, depth: [.45, .8, 1.35], size: [1.3, 1.8, 2.4], fall: 48, spread: .6, sway: 14, swayRate: .9, windShare: .35, lean: 0,
+    name: 'Snowfall', missions: [16, 33], count: 140, depth: [.45, .8, 1.35], size: [1.3, 1.8, 2.4], fall: 48, spread: .6, sway: 14, swayRate: .9, windShare: .35, lean: 0,
     pad: 30, lowShare: .5, color: '255,255,255', alpha: [.5, .75, .9], overcast: .2,
   },
   rain: {
-    name: 'Rain', missions: [7, 14, 19, 29, 39], count: 120, depth: [.5, .8, 1.3], size: [1, 1.1, 1.3], fall: 900, spread: .3, windShare: .5, lean: .0025, long: 18,
+    name: 'Rain', missions: [6, 14, 19, 26, 31, 39], count: 120, depth: [.5, .8, 1.3], size: [1, 1.1, 1.3], fall: 900, spread: .3, windShare: .5, lean: .0025, long: 18,
     pad: 40, lowShare: .5, color: '205,220,255', alpha: [.22, .32, .45], overcast: .42, splashes: 28, splashRate: 1.6, splashSize: 7, splashAlpha: .5,
   },
   fog: {
-    name: 'Fog. Follow the arrow', missions: [11, 16, 26, 36], sprite: 128, clear: 330, wide: 1.45, core: .05, near: .22, thick: .7,
+    name: 'Fog. Follow the arrow', missions: [11, 20, 28, 36], sprite: 128, clear: 330, wide: 1.45, core: .05, near: .22, thick: .7,
     ease: [[.35, .06], [.6, .32], [.82, .74]], low: .45, lowH: 170, banks: 7, bankW: 520, bankFlat: .32,
     bankAlpha: .35, drift: 14, bankDepth: .8, bankLow: 30, bankHigh: 320, overcast: .3,
   },
-  clouds: { name: 'Low cloud', missions: [4, 9, 22, 35], amount: .97, overcast: .22 },
+  clouds: { name: 'Low cloud', missions: [3, 9, 22, 35], amount: .97, overcast: .22 },
 };
 
-// The city's depth. Each strip slides at par of the camera's pace at scale, its foot base above the street; items
+// The city's depth. A strip is repainted palSteps times through each fade of the day, not at every step. Each strip slides at par of the camera's pace at scale, its foot base above the street; items
 // come from seed (the old skylines reuse the first take of the city's far towers), sized w by h with gap between, lift
 // leaving room for spires, headroom above that. haze fades a strip's colour into the sky skyAt down the screen, windows is how strongly
 // unlit windows show, density how sharp it is painted (never wider than maxStrip pixels), lowQ keeps it on the low
@@ -77,7 +79,7 @@ export const WEATHER = {
 // The foreground runs from the city's start to coastGap short of the coast, at par and scale, its foot drop below the
 // street, items gap apart; it fades to fade within near of the aircraft or its order, and trees sway with the wind.
 export const SKYLINE = {
-  seed: 404, take: 16, maxStrip: 8192, headroom: 70, litShare: .3, skyAt: .62,
+  seed: 404, take: 16, maxStrip: 8192, headroom: 70, litShare: .3, skyAt: .62, palSteps: 4,
   layers: [
     { key: 'horizon', par: .1, scale: .8, base: 70, count: 16, w: [50, 110], h: [260, 520], gap: [4, 30], haze: .5, windows: .35, density: 1, lift: 1.3, kinds: ['flat', 'stepped', 'spire', 'antenna', 'crown'] },
     { key: 'far2', par: .25, scale: .9, base: 40, haze: .15, windows: .45, density: 1, lift: 1, lowQ: true },
@@ -101,6 +103,14 @@ export const SKYLINE = {
 // a draft past draft, and for the first intro seconds the fog or the cold. A note shows once it has held for show
 // seconds and lingers linger seconds after.
 export const WEATHER_HINT = { gust: .75, gustMin: 120, draft: 110, show: .5, linger: 1.5, intro: 6 };
+
+// The altimeter on the right edge: a coloured scale from the street (0) to max, w wide, right of the edge, from top
+// below the HUD to bottom above the controls; it hides when shorter than minH. The goal's height shows as a tick, and
+// chevrons show a climb or a drop, strongest at fastClimb px/s, hidden under still of that.
+export const ALTIMETER = {
+  max: 900, w: 7, right: 10, top: 64, bottom: 14, minH: 120, alpha: .85, fastClimb: 220, still: .12, up: '#7cff9a', down: '#ffb35c', goal: '#4fc27c',
+  colors: [[0, '#e8492c'], [.1, '#ff9a3c'], [.28, '#ffd23d'], [.45, '#4fc27c'], [.7, '#3fb0c8'], [1, '#8a7cff']],
+};
 
 // The player's choice of picture. Sharp draws at the screen's own density and gives way, never below sharpFloor, only
 // when frames are awful. Auto finds the sharpest the device keeps up with. Saver stays on the low tier.
@@ -171,7 +181,7 @@ export const ZONES = [
 // The mountains past the forest. Crags are rock to deliver onto, huts are stone, and a cable car hangs between two
 // pylons. Each draft is a column of air w wide pushing at v (negative lifts, positive sinks), fading toward its edges.
 export const MOUNTAIN = {
-  from: 33400, to: 39800, missions: [21, 31], every: 10, minDist: 1500, windBoost: 1.3, trafficGap: 2, targetLift: 11, seen: 360, idxGap: 400,
+  from: 33400, to: 39800, minDist: 1500, windBoost: 1.3, trafficGap: 2, targetLift: 11, seen: 360, idxGap: 400,
   kioskH: 130, kioskColor: '#8a8078', wallColor: '#8a8078', rockColor: '#7d7470', rockCap: '#b9b2a8',
   kiosks: [
     { x: 33700, shop: { name: 'Summit Cafe', items: ['coffee', 'kunafa'], glow: '#ffc23d' } },
@@ -189,7 +199,7 @@ export const MOUNTAIN = {
 // The snowfield past the mountains: snowy pines from seed, chalets, a ski lift, igloos and frozen lakes. cold scales how
 // fast the battery drains here. Its ground runs on to groundTo, past the end of the world.
 export const SNOW = {
-  from: 40100, to: 46500, groundTo: 49000, missions: [24, 34], every: 10, minDist: 1500, windBoost: 1.2, cold: 1.3, trafficGap: 2, targetLift: 11, seen: 360,
+  from: 40100, to: 46500, groundTo: 49000, minDist: 1500, windBoost: 1.2, cold: 1.3, trafficGap: 2, targetLift: 11, seen: 360,
   kioskH: 120, kioskColor: '#9c6b44', wallColor: '#9c6b44',
   kiosks: [
     { x: 40400, shop: { name: 'Cocoa Hut', items: ['coffee', 'cake'], glow: '#c89a6a' } },
@@ -204,11 +214,11 @@ export const SNOW = {
   rise: 600, ridgeStep: 22, ridgeLong: 230, snowLine: .55, capDepth: 120, haze: .4, farDrift: .2, farH: 340, farSwell: 60, farTeeth: 60, nearDrift: .45, nearH: 170, nearSwell: 30, nearTeeth: 26,
 };
 
-// The forest past the desert, flown in the missions listed. Pines grow from seed every pineGap to pineGap + pineGapRange,
+// The forest past the desert. Pines grow from seed every pineGap to pineGap + pineGapRange,
 // clear of the landmarks by clear; each is a trunk and tiers of needles whose solid core is narrower than the drawing.
 // A treehouse deck juts out from its trunk under a crown, so its customer can be reached from beside the crown.
 export const FOREST = {
-  from: 26600, to: 33000, missions: [16, 26, 36], every: 10, minDist: 1500, windBoost: 1.1, trafficGap: 1.8, targetLift: 11, seen: 320,
+  from: 26600, to: 33000, minDist: 1500, windBoost: 1.1, trafficGap: 1.8, targetLift: 11, seen: 320,
   kioskH: 120, kioskColor: '#8a5a3a', logColor: '#8a5a3a', barkColor: '#5a3a26', needles: '#2f6b45',
   kiosks: [
     { x: 26900, shop: { name: 'Ranger Station', items: ['coffee', 'medicine'], glow: '#4fc27c' } },
@@ -229,9 +239,8 @@ export const FOREST = {
 };
 
 // The open coast past the city. Sea spans are water to fall into; sand and the island are safe.
-// Every level whose number divides by every is flown here, from its three beach kiosks.
 export const BEACH = {
-  from: 14300, to: 19900, every: 5, minDist: 900, windBoost: 1.25, splash: 240,
+  from: 14300, to: 19900, minDist: 900, windBoost: 1.25, splash: 240,
   sea: [[15050, 17000], [17560, 19200]],
   kiosks: [
     { x: 14560, shop: { name: 'Beach Bar', items: ['coffee', 'watermelon'], glow: '#4fa3c2' } },
@@ -254,9 +263,9 @@ export const BEACH = {
 };
 
 // The desert past the coast. Quicksand swallows what touches it, gusts raise a sandstorm that cuts the view,
-// and buggies and camels cross it. Levels from first on, whose number leaves remainder at, are flown here.
+// and buggies and camels cross it.
 export const DESERT = {
-  from: 20000, to: 26300, first: 8, every: 5, at: 3, minDist: 1600, windBoost: 1.4, trafficGap: 1.7, targetLift: 11, kioskH: 110, kioskColor: '#c9a06a', seen: 260,
+  from: 20000, to: 26300, minDist: 1600, windBoost: 1.4, trafficGap: 1.7, targetLift: 11, kioskH: 110, kioskColor: '#c9a06a', seen: 260,
   kiosks: [
     { x: 20320, shop: { name: 'Oasis Cafe', items: ['coffee', 'kunafa'], glow: '#4fa3c2' } },
     { x: 23040, shop: { name: 'Caravan Grill', items: ['falafel', 'pizza'], glow: '#ff5a3c' } },
@@ -441,7 +450,7 @@ export const BADGE = {
 // aircraft: stat says what it multiplies, gain is how much each level adds.
 export const SHOP = {
   aircraft: { miniFold: 150, hexa: 200, x8: 200, cage: 250, agri: 250, tandem: 300, whoop: 350, tilt: 450, heavy: 450, vtol: 550, fpv: 600 },
-  partPrices: [100, 220, 400],
+  partPrices: [100, 220, 400], nudgeNames: 2,
   parts: [
     { key: 'motors', stat: 'thrust', gain: .06, name: 'Stronger motors', note: '+6% lift each' },
     { key: 'shell', stat: 'speed', gain: .06, name: 'Sleek shell', note: '+6% speed each' },
@@ -480,7 +489,9 @@ export const STOPS = { twoFrom: 6, threeFrom: 21 };
 
 // resultDelay stays under HEALTH.respawnDelay, so a wreck is still on screen when the card opens.
 // signs is how many marks stand beside a mission on the map.
-export const LEVELS = { count: 40, seed: 2026, maxDist: 6500, resultDelay: 2, passDelay: 2.2, rowGap: 92, pathWave: .85, pathWidth: 30, balconyMaxSize: 1.3, wayMargin: 24, signs: 2 };
+// regions names where each generated mission flies, one letter a mission: C city, B beach, D desert, F forest,
+// M mountains, S snowfield. The first ten visit every one; the Double Runs (12, 17, 22, 27, 32, 37) stay in the city.
+export const LEVELS = { regions: 'CBCFDCBMCSFCDCBMCSCFDCBMSCCFDBCCMSBFCDCB', count: 40, seed: 2026, maxDist: 6500, resultDelay: 2, passDelay: 2.2, rowGap: 92, pathWave: .85, pathWidth: 30, balconyMaxSize: 1.3, wayMargin: 24, signs: 2 };
 
 // The result screen. tally is how long the money takes to run up, in milliseconds, after tallyDelay. tips answer each way
 // of failing, by the words on the screen.
@@ -790,8 +801,9 @@ export const CAMERA = {
 
 // The camera's shots. zoom scales the picture, leadX and leadY place the aircraft across and down the screen, ahead
 // leads the shot by that many seconds of flight, follow is how fast it catches up, and breathe drifts the zoom by that
-// share at breatheRate. The player steps through order; intro holds while a mission's first order is made, outro
-// pushes in on a delivery. A change of shot glides over blend seconds. Cached images are painted for the closest
+// share at breatheRate. The player steps through order. A mission opens on one of openings, picked at random, moving
+// into the first shot over openBlend seconds while the order is made: zoom is where it starts, offX and offY shift
+// the camera in world units, and a side move comes from either side. outro pushes in on a delivery. A change of shot glides over blend seconds. Cached images are painted for the closest
 // shot, sharpZoom, so no change of shot ever repaints them. Auto cuts to close within near of the shop or customer, to wide above fast px/s, and holds a shot
 // at least hold seconds. chip is how long the shot's name shows after a change.
 export const SHOTS = {
@@ -801,7 +813,11 @@ export const SHOTS = {
   close: { name: 'Close', zoom: 1.15, leadX: .46, ahead: .2, leadY: .38, follow: 4 },
   cinema: { name: 'Cinema', zoom: .88, leadX: .36, ahead: .8, leadY: .32, follow: 1.4, breathe: .025, breatheRate: .45 },
   auto: { name: 'Auto', near: 380, fast: 250, hold: 2.2 },
-  intro: { zoom: .74, leadX: .42, ahead: 0, leadY: .5, follow: 2 },
+  openBlend: 2.8,
+  openings: [
+    { name: 'push', zoom: .7 }, { name: 'crane', zoom: .9, offY: -420 }, { name: 'track', zoom: .85, offX: 650, side: true },
+    { name: 'pull', zoom: 1.15 }, { name: 'sweep', zoom: .78, offX: 520, offY: -280, side: true },
+  ],
   outro: { zoom: 1.08, leadX: .5, ahead: 0, leadY: .45, follow: 1.6 },
 };
 

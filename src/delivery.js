@@ -267,7 +267,7 @@ export function zones(st) {
 }
 
 // Where the player should be heading: the customer, or the closest job.
-function goal(st) {
+export function goal(st) {
   if (st.lesson?.goal) return st.lesson.goal;
   if (st.has && st.order) {
     // a route of rings points at the next ring until the last one is through
