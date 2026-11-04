@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.flyingpizza.game">
+  <uses-permission android:name="android.permission.VIBRATE" />
   <application android:label="Flying Pizza" android:icon="@mipmap/ic_launcher" android:allowBackup="false" android:hardwareAccelerated="true" android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen">
     <activity android:name=".MainActivity" android:exported="true" android:screenOrientation="fullUser" android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation|uiMode">
       <intent-filter>

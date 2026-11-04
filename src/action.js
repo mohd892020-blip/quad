@@ -1,8 +1,8 @@
-import { sfx } from './audio.js';
-import { BEACH, BOX, CARS, CONTRAST, DESERT, FOREST, MOUNTAIN, SNOW, DRONE, EAGLES, EDGE, G, GROUND, HAWKS, HEALTH, RIVAL } from './config.js';
+import { buzz, sfx } from './audio.js';
+import { BEACH, BOX, CARS, CLOSE, CONTRAST, DESERT, FIXED_DT, FOREST, FX, MISSION, MOUNTAIN, SNOW, DRONE, EAGLES, EDGE, G, GROUND, HAWKS, HEALTH, RIVAL, SURPRISE } from './config.js';
 import { currentModel, drawAirframe } from './drone.js';
-import { ctx, glow, kickDust, pop, shade, showToast, view, X, Y } from './ui.js';
-import { roofAt, world } from './world.js';
+import { confetti, ctx, glow, hud, kickDust, noticeUp, placeName, pop, shade, showToast, view, X, Y } from './ui.js';
+import { nearby, roofAt, world } from './world.js';
 
 const lerp = (st, q, k) => q['p' + k] + (q[k] - q['p' + k]) * (st.blend ?? 1);
 
@@ -100,6 +100,7 @@ export function planMission(st, shop) {
 
 export function clearAction(st) {
   st.rival = null;
+  st.ring = st.gust = null;
   for (const h of st.hawks) if (h.state !== 'flee') { h.state = 'flee'; h.t = 0; }
   for (const e of st.eagles) if (e.state !== 'flee' && e.state !== 'dead') { e.state = 'flee'; e.t = 0; }
 }
@@ -121,6 +122,7 @@ function stepHawks(st, dt) {
       }
     } else if (h.state === 'dive') {
       const dist = Math.hypot(bx.x - h.x, bx.y - h.y) || 1;
+      h.near = Math.min(h.near ?? Infinity, dist);
       h.x += (bx.x - h.x) / dist * c.diveSpeed * dt;
       h.y += (bx.y - h.y) / dist * c.diveSpeed * dt;
       if (Math.hypot(d.x - h.x, d.y - h.y) < c.shooDist) {
@@ -134,10 +136,12 @@ function stepHawks(st, dt) {
         st.integ -= c.damage;
         st.shake = Math.max(st.shake, c.hitShake);
         pop(st, h.x, h.y - 24, 'Snatched!', '#e8492c');
+        st.hitAt = st.t;
         sfx('box');
       } else if (h.t > c.diveTime) {
         h.state = 'flee';
         h.t = 0;
+        if (h.near < CLOSE.hawkGap) closeCall(st);
       }
     } else {
       h.x += c.fleeX * dt * Math.sign(h.x - d.x || 1);
@@ -152,6 +156,7 @@ function markPrey(st, e) {
   e.state = 'mark';
   e.t = 0;
   e.tore = false;
+  e.near = Infinity;
   sfx('eagle');
   if (e.pass) return;
   pop(st, e.x, e.y - c.reach, 'EAGLE!', '#ff5a3c');
@@ -191,6 +196,7 @@ export function stepEagles(st, dt) {
         sfx('whoosh');
       }
     } else if (e.state === 'dive') {
+      e.near = Math.min(e.near, gap);
       const off = Math.atan2(Math.sin(want - e.aim), Math.cos(want - e.aim)), limit = c.turnRate * dt;
       e.aim += Math.max(-limit, Math.min(limit, off));
       e.x += Math.cos(e.aim) * c.diveSpeed * dt;
@@ -203,10 +209,12 @@ export function stepEagles(st, dt) {
         st.integ -= c.damage;
         st.shake = Math.max(st.shake, c.hitShake);
         pop(st, e.x, e.y - 24, 'Torn!', '#e8492c');
+        st.hitAt = st.t;
         sfx('box');
       } else if (Math.abs(off) > Math.PI / 2 || e.t > c.diveTime) {
         e.state = 'climb';
         e.t = 0;
+        if (e.near < CLOSE.eagleGap && !e.tore) closeCall(st);
       }
     } else if (e.state === 'climb') {
       e.x += Math.cos(e.aim) * c.climbSpeed * dt;
@@ -251,6 +259,187 @@ function stepRival(st, dt) {
 export function stepAction(st, dt) {
   stepHawks(st, dt);
   return stepRival(st, dt);
+}
+
+/* ---------- close calls ---------- */
+// Slipping past danger at speed without a touch pays into the order: a few times a mission at most, never twice
+// within the cooldown, and only while the player is flying the order, not on Hold or Land. The danger is already
+// behind when it counts, so the words ride over the aircraft where the player is looking.
+function closeCall(st) {
+  const c = CLOSE, o = st.order;
+  if (!st.has || !o || st.anchor || st.landing || st.falling || st.outcome || st.done || st.level.training) return;
+  if (st.close.n >= c.perMission || st.t - st.close.at < c.cooldown) return;
+  st.close.n++;
+  st.close.at = st.t;
+  o.bonus += c.bonus;
+  pop(st, st.d.x, st.d.y - c.popLift, `+$${c.bonus} Close call`, c.color, FX.popSize, false, true);
+  sfx('close');
+}
+
+// How far a point is from a rectangle, zero inside it.
+const rectGap = (x, y, R) => Math.hypot(x - Math.max(R.x, Math.min(x, R.x + R.w)), y - Math.max(R.y, Math.min(y, R.y + R.h)));
+
+// A pass starts in the band at speed and counts once clear again; it is spent by a touch, a hit, or lingering in the
+// band past maxNear, and then waits for the way to be clear before another can start.
+function pass(st, key, band, fast, clear, touched) {
+  const cl = st.close, p = cl[key];
+  if (p === 'spent') {
+    if (clear) cl[key] = null;
+  } else if (!p) {
+    if (band && fast && !touched) cl[key] = { at: st.t, near: 0 };
+  } else {
+    if (band) p.near += FIXED_DT;
+    if (touched || st.hitAt >= p.at || p.near > CLOSE.maxNear || st.t - p.at > CLOSE.maxPass) cl[key] = 'spent';
+    else if (clear) {
+      cl[key] = null;
+      closeCall(st);
+    }
+  }
+}
+
+// Whether a point of size k is within gap over a vehicle whose roof is at top.
+const overCar = (car, s, top, gap, x, y, k) => Math.abs(x - car.x) < s.length / 2 + k && top - (y + k) >= 0 && top - (y + k) < gap;
+
+// Walls and cables are passed at speed; a vehicle by staying just clear over it while it drives under.
+export function stepCloseCalls(st) {
+  const c = CLOSE, d = st.d, bx = st.box, cl = st.close;
+  if (!st.has || !st.order || st.anchor || st.landing || st.falling || st.outcome || st.done || st.level.training) {
+    // a pass starts only once the way has been clear in the player's hands, so flying off a roof right after a
+    // handover on Hold, or the kick of a Double Run's first drop, never counts
+    cl.wall = cl.cable = 'spent';
+    for (const car of st.cars) car.close = null;
+    return;
+  }
+  const fast = Math.hypot(d.vx, d.vy) >= c.speed;
+  // the aircraft and the order on its rope, each by its own size
+  const r = BOX.padX * st.item.size, home = st.order.shop;
+  let gap = Infinity;
+  for (const [x, y, k] of [[d.x, d.y, DRONE.radius], [bx.x, bx.y, r]]) {
+    for (const R of nearby(x)) {
+      // the ground is no danger, and leaving the shop the order came from is routine
+      if (R.mat === 'ground' || (R.x === home.x && R.y === home.top)) continue;
+      gap = Math.min(gap, rectGap(x, y, R) - k);
+    }
+  }
+  pass(st, 'wall', gap < c.gap, fast, gap >= c.clear, gap < .5);
+  let line = 0;
+  for (const L of world.lines) {
+    if (bx.x < L.minX - c.cableX || bx.x > L.maxX + c.cableX) continue;
+    for (const p of L.pts) {
+      const ax = Math.abs(p.x - bx.x), ay = Math.abs(p.y - bx.y);
+      if (ax < BOX.lineReachX && ay < BOX.lineReachY) line = 2;
+      else if (ax < c.cableX && ay < c.cableY) line = Math.max(line, 1);
+    }
+  }
+  pass(st, 'cable', line === 1, fast, !line, line === 2);
+  // most of a flight is high over the street, where only a pass under way needs closing
+  const low = Math.max(d.y + DRONE.radius, bx.y + r) > GROUND - c.carHigh;
+  for (const car of st.cars) {
+    if (!low && car.close == null) continue;
+    const s = CARS.shapes[car.kind], top = GROUND + (s.lane ?? CARS.lane) - s.height;
+    const near = low && car.v > 0 && (overCar(car, s, top, c.carGap, d.x, d.y, DRONE.radius) || overCar(car, s, top, c.carGap, bx.x, bx.y, r));
+    if (near) car.close ??= st.t;
+    else if (car.close != null) {
+      if (car.v > 0 && st.hitAt < car.close) closeCall(st);
+      car.close = null;
+    }
+  }
+}
+
+/* ---------- surprises ---------- */
+// A planned surprise waits until its order is far enough out, a few seconds into the leg with time to spare, and the
+// customer still far off; one at a time, and never while a hawk or an eagle is coming in.
+export function stepSurprises(st) {
+  const c = SURPRISE, o = st.order;
+  stepGust(st);
+  stepRing(st);
+  // a moved customer's old spot shows once it comes on screen, or before long anyway
+  const m = o?.moved;
+  if (m && m.seen == null && ((m.x > st.cam.x && m.x < st.cam.x + view.viewW) || st.t - m.at > c.move.seenBy)) m.seen = st.t;
+  if (!st.has || !o || !o.surprises?.length || st.anchor || st.landing || st.falling || st.outcome || st.done || st.ring || st.gust) return;
+  if (st.t - o.start < c.after || o.deadline - st.t < c.minLeft) return;
+  if (st.hawks.some(h => h.state === 'dive') || st.eagles.some(e => e.state === 'mark' || e.state === 'dive' || e.state === 'climb')) return;
+  const s = o.surprises[0], T = o.t, way = T.x - o.fromX, share = way ? (st.d.x - o.fromX) / way : 0;
+  if (share < s.share) return;
+  if (Math.abs(T.x - st.d.x) < c.approach) {
+    o.surprises.shift();
+    return;
+  }
+  if (s.kind === 'ring' ? launchRing(st, Math.sign(way)) : s.kind === 'gust' ? launchGust(st, s.dir) : moveCustomer(st, s.to)) o.surprises.shift();
+}
+
+// A golden ring a little ahead at the aircraft's height, lifted clear of the roofs. It waits while a hawk, an eagle or
+// a cable is close to where it would stand.
+function launchRing(st, dir) {
+  const c = SURPRISE.ring, d = st.d, x = d.x + dir * c.ahead, y = Math.max(DRONE.ceiling + c.reach, Math.min(d.y - c.rise, roofAt(x, c.span) - c.clear));
+  const close = (px, py) => Math.hypot(px - x, py - y) < c.keepOff;
+  if ([...st.hawks, ...st.eagles].some(b => close(b.x, b.y) || close(b.homeX, b.homeY))) return false;
+  if (world.lines.some(L => x > L.minX - c.keepOff && x < L.maxX + c.keepOff && L.pts.some(p => close(p.x, p.y)))) return false;
+  st.ring = { x, y, born: st.t, end: st.t + c.life };
+  st.note = { icon: 'ring', text: `Bonus ring ahead +$${c.bonus}`, until: st.t + c.note };
+  sfx('gate');
+  return true;
+}
+
+// Taken or missed, the ring's note goes with it.
+function stepRing(st) {
+  const r = st.ring, c = SURPRISE.ring;
+  if (!r) return;
+  const taken = st.has && Math.hypot(st.d.x - r.x, st.d.y - r.y) < c.reach;
+  if (!taken && st.t <= r.end && st.has) return;
+  st.ring = null;
+  if (st.note?.icon === 'ring') st.note = null;
+  if (!taken) return;
+  st.order.bonus += c.bonus;
+  pop(st, st.d.x, st.d.y - c.popLift, `+$${c.bonus} Bonus ring`, '#ffc23d', FX.popSize, false, true);
+  confetti(st, r.x, r.y, c.sparkle);
+  sfx('ring');
+  buzz(c.buzz);
+}
+
+// The warning shows first in the weather note, then the wind swings round for a moment. It waits for open air, so it
+// never throws the aircraft straight into a wall, and for a toast on a narrow screen to clear, so the warning is seen.
+function launchGust(st, dir) {
+  const c = SURPRISE.gust;
+  if (roofAt(st.d.x, c.open) - st.d.y < c.clear || noticeUp()) return false;
+  // a wind already blowing this way hard would hide it, so it comes from the other side
+  if (Math.sign(st.wind) === dir && Math.abs(st.wind) > c.flip * st.level.wind) dir = -dir;
+  st.gust = { at: st.t + c.warn, end: st.t + c.warn + c.secs, dir, wind: 0, on: false };
+  st.note = { icon: 'wind', text: `Gust coming ${dir > 0 ? '→' : '←'}`, until: st.gust.at };
+  sfx('gust');
+  return true;
+}
+
+// It swings the wind from where it stands when it arrives, by the same amount every time, never past the top.
+function stepGust(st) {
+  const g = st.gust, c = SURPRISE.gust;
+  if (!g) return;
+  if (!g.on && st.t >= g.at) {
+    const top = c.top * st.level.wind;
+    g.wind = Math.max(-top, Math.min(top, st.wind + g.dir * c.share * st.level.wind));
+    g.on = true;
+    sfx('whoosh');
+  }
+  // it dies down near the customer, so the last approach is never caught in it
+  if (st.t >= g.end || !st.has || Math.abs(st.order.t.x - st.d.x) < SURPRISE.approach) st.gust = null;
+}
+
+// The customer steps over to the next rooftop or boat, and the clock gains more than the extra way takes. The tip and
+// the time star leave out what the extra way takes at the same pace; a customer stepping closer adds none.
+function moveCustomer(st, to) {
+  const c = SURPRISE.move, o = st.order, dx = to.x - o.t.x, extra = Math.ceil(c.base + Math.abs(dx) / MISSION.speed * c.pace);
+  const further = Math.max(0, Math.abs(to.x - st.d.x) - Math.abs(o.t.x - st.d.x));
+  o.moved = { x: o.t.x, y: o.t.y, at: st.t, seen: null };
+  o.t = to;
+  o.deadline += extra;
+  o.limit += extra;
+  o.added += extra;
+  o.grace += Math.ceil(further / MISSION.speed * c.pace);
+  st.hold = 0;
+  showToast('The customer moved', `${placeName(to)}, ${Math.round(Math.abs(dx) / 10)} m ${dx > 0 ? '→' : '←'} · +${extra}s`, true);
+  sfx('gate');
+  hud(st);
+  return true;
 }
 
 /* ---------- render ---------- */
@@ -581,6 +770,38 @@ export function drawEagles(st) {
   ctx.beginPath();
   ctx.arc(x, y, r, a - c.alarmSpread, a + c.alarmSpread);
   ctx.stroke();
+  ctx.restore();
+}
+
+// The bonus ring: gold and breathing, a fine arc running down its time. It fades in, says BONUS for a moment, and
+// blinks as it runs out.
+export function drawRing(st) {
+  const r = st.ring, c = SURPRISE.ring;
+  if (!r) return;
+  const S = view.S, x = X(r.x), y = Y(r.y), R = (c.reach + Math.sin(st.t * 5) * c.pulse) * S, left = r.end - st.t, age = st.t - r.born;
+  if (x < -R * 2 || x > view.W + R * 2) return;
+  ctx.save();
+  ctx.globalAlpha = Math.min(1, age / c.fade) * (left < c.blink ? .55 + .45 * Math.sin(st.t * 18) : 1);
+  if (!view.lowQ) glow(ctx, `rgba(${c.color},.45)`, x, y, R * 1.5);
+  ctx.lineWidth = c.line * S;
+  ctx.strokeStyle = `rgb(${c.color})`;
+  ctx.beginPath();
+  ctx.arc(x, y, R, 0, 7);
+  ctx.stroke();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = 'rgba(255,243,223,.9)';
+  ctx.beginPath();
+  ctx.arc(x, y, R + c.line * S, -Math.PI / 2, -Math.PI / 2 + Math.max(0, left / c.life) * Math.PI * 2);
+  ctx.stroke();
+  if (age < c.label) {
+    ctx.font = '800 12px Tajawal,sans-serif';
+    ctx.textAlign = 'center';
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(20,15,40,.85)';
+    ctx.strokeText('BONUS', x, y - R - 10);
+    ctx.fillStyle = '#ffd879';
+    ctx.fillText('BONUS', x, y - R - 10);
+  }
   ctx.restore();
 }
 

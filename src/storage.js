@@ -6,7 +6,7 @@ const GARAGE_KEY = 'pizzaGarageV1';
 const SKIPS_KEY = 'pizzaSkipsV1';
 
 const STICK = { size: 'medium', feel: 'normal', fade: 'solid', origin: 'fixed', hand: 'right' };
-export const settings = { controls: 'joystick', plane: 'courier', dev: false, muted: false, music: true, camera: 'chase', tier: null, lite: false, sideways: false, shopSeen: [], picture: 'sharp', trained: false, stick: STICK };
+export const settings = { controls: 'joystick', plane: 'courier', dev: false, muted: false, music: true, vibration: true, comboSeen: false, camera: 'chase', tier: null, lite: false, sideways: false, shopSeen: [], picture: 'sharp', trained: false, stick: STICK };
 
 try {
   Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {});

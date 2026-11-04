@@ -47,6 +47,8 @@ function ferry(st, dt) {
   t.dir = t.dir || 1;
   const step = t.dir * c.speed * dt;
   t.x += step;
+  // its speed, so a perfect drop on deck is judged as the customer riding it sees it
+  t.vx = step / dt;
   if (st.anchor) st.anchor.x += step;
   if (t.x > c.to || t.x < c.from) t.dir = -t.dir;
 }

@@ -144,6 +144,7 @@ export function stepDrone(st, keys, dt) {
       const sp = Math.abs(vn);
       if (sp > HEALTH.hitSpeed) strike(st, R, sp, dr.x - hit.nx * c.radius, dr.y - hit.ny * c.radius);
       if (sp > c.hitSpeed) {
+        st.hitAt = st.t;
         st.shake = Math.min(c.hitShakeMax, sp / c.hitShakeDiv);
         if (st.has) st.integ -= sp * c.hitDamage * st.item.fragile;
         kickDust(st, d.x, d.y, sp * .5);

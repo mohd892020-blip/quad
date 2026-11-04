@@ -1,16 +1,16 @@
-import { drawBoost, drawCars, drawEagles, drawHawks, drawRival, stepAction, stepEagles, stepTraffic } from './action.js';
+import { drawBoost, drawCars, drawEagles, drawHawks, drawRing, drawRival, stepAction, stepCloseCalls, stepEagles, stepSurprises, stepTraffic } from './action.js';
 import { initAudio, sfx, updateRotor } from './audio.js';
 import { beginChallenge, drawChallenge, drawWeather, stepChallenge } from './challenge.js';
 import { stepContrast } from './contrast.js';
 import { drawCloudsBack, drawCloudsFront, drawFallBehind, drawFallFront, drawFog, drawHighClouds, drawOvercast, stepClouds } from './weather.js';
 import { updateMusic } from './music.js';
-import { BEACH, CAMERA, CITY_SEED, CLOCK, DRONE, DUST, FIXED_DT, GROUND, HANGAR, HUD_INTERVAL, MAX_FRAME_DT, MUSIC, QUALITY } from './config.js';
+import { BEACH, CAMERA, CITY_SEED, CLOCK, DRONE, DUST, FIXED_DT, GROUND, HANGAR, HUD_INTERVAL, MAX_FRAME_DT, MUSIC, PERFECT, QUALITY } from './config.js';
 import { saveSettings, settings as picked } from './storage.js';
 import { initLeague } from './league.js';
-import { buildLevels } from './levels.js';
+import { buildLevels, surprisesFor } from './levels.js';
 import {
-  autoDeliver, chargeDrone, drawBatteryCue, goal, drawHalos, drawOrderTime, drawPointer, drawPrep, drawTarget, explode, failMission, hangarHint, newGame, prepareFirstOrder, restrain, stepHealth, stepCargo,
-  stepMission, stepShop, strikeDown, zones,
+  autoDeliver, breakStreak, chargeDrone, drawBatteryCue, goal, drawHalos, drawOrderTime, drawPointer, drawPrep, drawTarget, explode, failMission, hangarHint, newGame, prepareFirstOrder, restrain, stepHealth, stepCargo,
+  stepMission, stepShop, streak, strikeDown, zones,
 } from './delivery.js';
 import { currentModel, drawAirframe, drawDrone, drawShadow, rotorLoad, stepBoost, stepDrone, stepHold, stepLand } from './drone.js';
 import { beginTraining, drawLesson, stepTraining, trainingLevel } from './training.js';
@@ -31,6 +31,8 @@ import {
 import { world, drawCity, drawMap, drawSky, dropSprites, genWorld, setClock, stepClock, stepWind } from './world.js';
 
 let st = null, hudT = 0, last = performance.now(), levels = [];
+// how many times each mission has been started this session, so each try draws its own surprises
+const tries = {};
 const pace = { t: 0, n: 0, even: 0, last: 0, easy: 0, raised: false, tried: false };
 
 const controls = () => (st.prep?.opening || st.falling ? PARKED : keys);
@@ -70,6 +72,10 @@ export function step(dt) {
   }
   stepMission(st, dt);
   if (stepAction(st, dt) && st.has) failMission(st, 'The rival got there first');
+  stepSurprises(st);
+  stepCloseCalls(st);
+  // anything that struck this step ends the run of clean deliveries, until the mission is decided
+  if (st.hitAt === st.t && !st.outcome && !st.done) breakStreak(st);
   stepShop(st, grounded, dt);
   const lost = st.outcome || st.done ? null : touchesSea(st) ? 'Lost at sea' : touchesSink(st) ? 'Lost in quicksand' : touchesRiver(st) ? 'Lost in the river' : touchesIce(st) ? 'Through the ice' : null;
   if (lost) {
@@ -121,6 +127,7 @@ function render() {
   drawFog(s);
   drawFallBehind(s);
   drawChallenge(s);
+  drawRing(s);
   drawMarks(s);
   drawHalos(s);
   if (!s.wreck) drawShadow(s);
@@ -192,6 +199,16 @@ function watchPace(frame) {
   }
   dropSprites();
 }
+
+// A perfect drop slows the world for a moment of real time, easing back at the end. Physics still steps at FIXED_DT;
+// only fewer steps run, so every clock in the game slows with it.
+function timeRate(dt) {
+  if (!st.slow) return 1;
+  const c = PERFECT, k = 1 - st.slow / c.slowSecs;
+  st.slow = Math.max(0, st.slow - dt);
+  return k < c.easeFrom ? c.slowRate : c.slowRate + (1 - c.slowRate) * (k - c.easeFrom) / (1 - c.easeFrom);
+}
+
 function loop(now) {
   const frame = (now - last) / 1000;
   const dt = Math.min(MAX_FRAME_DT, frame);
@@ -201,7 +218,7 @@ function loop(now) {
   if (!paused) watchPace(frame);
   if (sheetOpen()) drawPreview(now / 1000);
   if (!paused) {
-    st.acc += dt;
+    st.acc += dt * timeRate(dt);
     while (st.acc >= FIXED_DT) {
       rememberPose();
       step(FIXED_DT);
@@ -242,6 +259,7 @@ function start(level) {
   if (level.training) beginTraining(st);
   else {
     showKeyHints();
+    st.plan = surprisesFor(level, (tries[level.n] = (tries[level.n] ?? -1) + 1));
     prepareFirstOrder(st);
   }
   hud(st);
@@ -251,7 +269,14 @@ function start(level) {
 
 // Walking out on an order in the air costs the same as ruining it.
 function leave() {
-  if (st?.has) failMission(st, 'Left the mission', true);
+  // walking out of a mission that has not been passed ends the run too, quietly, and the badge goes with it
+  if (st?.has) {
+    breakStreak(st, true);
+    failMission(st, 'Left the mission', true);
+  } else if (st && !st.done && !st.outcome?.passed) {
+    breakStreak(st, true);
+    hud(st);
+  }
 }
 
 // Idle demo city behind the start card, until play begins.
@@ -317,6 +342,9 @@ initLevels(levels, {
     start(trainingLevel());
   },
   stake: () => (st.has ? Math.min(st.money, st.item.price) : 0),
+  // the run walking out would end, and the run as it stands for the mission card
+  combo: () => (st.level.training || st.done || st.outcome?.passed ? 0 : streak.n),
+  streak: () => streak.n,
   level: () => st.level,
 });
 // building sprites hold shop signs, so repaint them once the web fonts arrive

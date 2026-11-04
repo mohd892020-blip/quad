@@ -1,5 +1,5 @@
 import { drawCityLife, drawSkyline, paintRoof } from './skyline.js';
-import { BEACH, BIRDS, CELL, CITY, CLOCK, DESERT, FOREST, GROUND, MOUNTAIN, SNOW, GROUND_BOX, ORDERS, PEOPLE, PERSPECTIVE, SHOPS, SPRITE, TIMES, WIND, ZONES } from './config.js';
+import { BEACH, BIRDS, CELL, CITY, CLOCK, DESERT, FOREST, GROUND, MOUNTAIN, SNOW, GROUND_BOX, ORDERS, PEOPLE, PERSPECTIVE, SHOPS, SPRITE, SURPRISE, TIMES, WIND, ZONES } from './config.js';
 import { buildDesert, drawDesert, drawDunes } from './desert.js';
 import { buildForest, drawWoods, drawWoodsBehind } from './forest.js';
 import { buildAlpine, drawHigh, drawHighBehind } from './alpine.js';
@@ -286,7 +286,9 @@ export function stepWind(st, dt) {
     st.windT = (Math.random() < .5 ? -1 : 1) * (kind.from + Math.random() * (kind.to - kind.from)) * st.level.wind;
     st.windNext = st.t + WIND.gapMin + Math.random() * WIND.gapRange;
   }
-  st.wind += (st.windT - st.wind) * Math.min(1, dt * WIND.follow);
+  // a surprise gust takes over for a moment and turns faster; the drawn wind carries on underneath it
+  const g = st.gust?.on ? st.gust : null;
+  st.wind += ((g ? g.wind : st.windT) - st.wind) * Math.min(1, dt * (g ? SURPRISE.gust.follow : WIND.follow));
 }
 
 /* ---------- render ---------- */

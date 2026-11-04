@@ -1,24 +1,35 @@
 import { clearAction, planMission, planTraffic } from './action.js';
-import { sfx } from './audio.js';
+import { buzz, sfx } from './audio.js';
 import { standout } from './contrast.js';
 import { planClouds } from './weather.js';
 import { musicCue } from './music.js';
 import {
-  AIRCRAFT, BATTERY, BOX, CAMERA, CARGO, CONTRAST, DELIVERY, DEV, DOUBLE, DRONE, FIXED_DT, FX, HANGAR, HEALTH, LAND, LEVELS, MISSION, ORDER_TIME, ORDERS, POINTER, PREP, RESTAURANT, RIVAL, ROPE, SKIP, ROPE_CTL, WIND,
+  AIRCRAFT, BATTERY, BOX, CAMERA, CARGO, COMBO, CONTRAST, DELIVERY, DEV, DOUBLE, DRONE, FIXED_DT, FX, HANGAR, HEALTH, LAND, LEVELS, MISSION, ORDER_TIME, ORDERS, PERFECT, POINTER, PREP, RESTAURANT, RIVAL, ROPE, SKIP, ROPE_CTL, SURPRISE, WIND,
 } from './config.js';
 import { currentModel } from './drone.js';
 import { loadProgress, noteResult, owns, saveProgress, settings } from './storage.js';
-import { addMark, blast, clockText, ctx, glow, hud, placeName, pop, puff, showToast, view, X, Y } from './ui.js';
+import { addMark, blast, clockText, confetti, ctx, glow, hud, placeName, pop, puff, showToast, view, X, Y } from './ui.js';
 import { mixHex, nearby, nearestShop, shopPad, world } from './world.js';
 
 let current = null;
 export const currentShift = () => current;
 
+// The run of clean deliveries. It lives as long as the page, through every mission passed, and is never saved.
+export const streak = { n: 0 };
+
+// A hit, a ruined order or a mission not passed ends the run; training neither builds nor breaks it. A run the badge
+// was showing ends on a falling note, unless the player walked out (quiet).
+export function breakStreak(st, quiet = false) {
+  if (st.level.training) return;
+  if (streak.n >= COMBO.showFrom && !quiet) sfx('comboLost');
+  streak.n = 0;
+}
+
 // A level starts on its shop's pad.
 export function newGame(level) {
   const shop = level.shop, p = shopPad(shop), saved = loadProgress();
   const st = {
-    t: 0, money: saved.money, del: saved.del, level, tier: level.tier, stop: level.stops[0], stopAt: 0, earned: { stars: 3, tip: 0, beat: 0, integ: 100, secs: 0 }, outcome: null, done: false, cam: { x: p.x - view.viewW * CAMERA.leadX, y: 0 },
+    t: 0, money: saved.money, del: saved.del, level, tier: level.tier, stop: level.stops[0], stopAt: 0, earned: { stars: 3, tip: 0, beat: 0, bonus: 0, perfect: 0, integ: 100, secs: 0 }, outcome: null, done: false, cam: { x: p.x - view.viewW * CAMERA.leadX, y: 0 },
     d: { x: p.x, y: p.y - DRONE.radius, vx: 0, vy: 0, a: 0, bat: level.startBat ?? 100 },
     box: { x: p.x, y: p.y, px: p.x, py: p.y },
     has: false, heat: 100, integ: 100, order: null, item: null, hold: 0, readyAt: 0,
@@ -27,6 +38,7 @@ export function newGame(level) {
     boost: 100, boosting: false, boostDir: 1, boostWait: 0, hawks: [], eagles: [], falling: false, rival: null, prep: null,
     hp: 100, wreck: 0, lastHit: null, smokeDue: 0, marks: [], smoke: [], blasts: [], batWarn: 0, charging: false, ready: 0,
     leg: { t: 0, x: p.x }, charge: 0, standout: standout(),
+    combo: streak, hitAt: -Infinity, close: { n: 0, at: -Infinity, wall: null, cable: null }, ring: null, gust: null, slow: 0, plan: [], note: null, notice: null, waves: [],
   };
   planTraffic(st);
   planClouds(st);
@@ -56,7 +68,11 @@ export function timeLimit(item, dist) {
 export function startMission(st, shop, item) {
   const { t, parcels } = st.stop, p = shopPad(shop), limit = st.level.training ? Infinity : parcels || st.level.challenge ? st.stop.limit : timeLimit(item, Math.abs(t.x - st.d.x));
   st.item = item;
-  st.order = { t, shop, start: st.t, deadline: st.t + limit, limit, drop: parcels ? 1 : 0, next: parcels ? parcels[1] : null };
+  const surprises = st.plan.filter(s => s.stop === st.stopAt).sort((a, b) => a.share - b.share);
+  // bonus: close calls and rings banked on the way, paid with the tip; added: seconds a moved customer put on the clock;
+  // grace: what the extra way takes, which the tip and the time star never count; hand: how calm the handover has
+  // been, for a perfect drop
+  st.order = { t, shop, start: st.t, deadline: st.t + limit, limit, drop: parcels ? 1 : 0, next: parcels ? parcels[1] : null, bonus: 0, added: 0, grace: 0, hand: null, fromX: st.d.x, surprises };
   st.heat = 100;
   st.integ = 100;
   st.has = true;
@@ -115,6 +131,8 @@ function cheer(st, { x, y }) {
 // charged: the player wrecked the goods, so they pay the shop for them.
 export function failMission(st, why, charged = false) {
   const training = st.level.training, cost = charged && st.item && !training ? Math.min(st.money, st.item.price) : 0, reason = why.toUpperCase();
+  // a mission already decided stands: a car or a blast in a passed mission's last moments takes nothing from the run
+  if (!st.outcome && !st.done) breakStreak(st);
   st.money -= cost;
   endMission(st);
   if (cost) saveProgress(st.del, st.money);
@@ -131,10 +149,20 @@ function dropLower(st) {
   o.t = t;
   o.next = null;
   o.drop = 2;
+  o.surprises = [];
+  o.hand = null;
+  // the jump leaves the order right over the roof at speed, which is no close call
+  st.close.wall = st.close.cable = 'spent';
   st.hold = 0;
   st.d.vy -= c.kick;
   st.box.py = st.box.y + c.boxKick * FIXED_DT;
-  showToast('First drop done', `Next: ${item.label} to ${placeName(t)}`, true);
+  notice(st, 'First drop done', `Next: ${item.label} to ${placeName(t)}`);
+}
+
+// The notice naming the next stop comes a moment after the delivery, so the tip and a perfect drop are read first;
+// stepMission shows it, and a mission decided meanwhile drops it.
+function notice(st, title, detail) {
+  st.notice = { at: st.t + DELIVERY.noticeWait, title, detail };
 }
 
 function passMission(st) {
@@ -147,22 +175,36 @@ function passMission(st) {
     hud(st);
     return;
   }
-  const c = DELIVERY, o = st.order, item = st.item, secs = st.t - o.start;
-  const base = c.tipBase + st.heat * c.tipHeat + st.integ * c.tipBox + (secs < c.tipFastSecs ? c.tipFastBonus : secs < c.tipOkSecs ? c.tipOkBonus : 0);
-  const beat = st.rival ? RIVAL.bonus : 0;
-  const tip = Math.round(item.urgent ? base * c.urgentTip : base) + beat;
-  const fresh = item.heat && !item.spoils ? st.heat > c.starHeat : secs / o.limit < c.starTimeShare;
+  // a moved customer's extra way counts neither against the clock nor against the warmth of a hot order
+  const c = DELIVERY, o = st.order, item = st.item, secs = st.t - o.start, fair = secs - o.grace, heat = Math.min(100, st.heat + o.grace * c.heatLoss * item.heat);
+  const base = c.tipBase + heat * c.tipHeat + st.integ * c.tipBox + (fair < c.tipFastSecs ? c.tipFastBonus : fair < c.tipOkSecs ? c.tipOkBonus : 0);
+  const beat = st.rival ? RIVAL.bonus : 0, care = Math.round(item.urgent ? base * c.urgentTip : base);
+  // a clean delivery adds to the run, and the run raises the tip; the bonuses banked on the way are paid with it
+  const P = PERFECT, h = o.hand, clean = st.integ >= COMBO.minInteg && st.hitAt < o.start;
+  const perfect = clean && st.integ >= P.minInteg && Math.abs(st.box.x - o.t.x) <= P.centre && !!h && h.swing <= P.swing && h.fall <= P.fall && h.drone <= P.drone;
+  // an order that arrives in poor shape ends the run on the same falling note as a hit
+  if (!clean) breakStreak(st);
+  streak.n = clean ? streak.n + 1 : 0;
+  const mult = COMBO.mult[Math.min(streak.n, COMBO.mult.length - 1)], extra = Math.round(care * mult) - care + o.bonus;
+  const tip = care + extra + beat;
+  o.bonus = 0;
+  const fresh = item.heat && !item.spoils ? heat > c.starHeat : fair / (o.limit - o.added) < c.starTimeShare;
   const stars = 1 + (st.integ > c.starBox ? 1 : 0) + (fresh ? 1 : 0);
   const made = st.earned, next = st.level.stops[st.stopAt + 1];
   made.stars = Math.min(made.stars, stars);
   made.tip += tip;
   made.beat += beat;
+  made.bonus += extra;
+  made.perfect += perfect ? 1 : 0;
   made.integ = Math.min(made.integ, st.integ);
   made.secs += secs;
   st.money += tip;
   st.del++;
-  pop(st, o.t.x, o.t.y - c.popLift, `+$${tip}`, '#ffc23d');
+  pop(st, o.t.x, o.t.y - c.popLift, mult > 1 ? `+$${tip} COMBO ×${mult}` : `+$${tip}`, '#ffc23d');
   sfx('deliver');
+  // the chime climbs as the run grows, after the delivery's own two notes
+  if (streak.n >= COMBO.showFrom) sfx('combo', 2 ** (COMBO.notes[Math.min(streak.n - COMBO.showFrom, COMBO.notes.length - 1)] / 12));
+  if (perfect) perfectDrop(st, o.t, !!(o.next || next));
   musicCue('deliver');
   if (o.next) {
     dropLower(st);
@@ -173,15 +215,28 @@ function passMission(st) {
   if (st.leg) st.leg.via = o.t.x;
   endMission(st);
   if (next) {
-    showToast(`Stop ${++st.stopAt} done`, `Next: ${next.item.label} at ${next.shop.shop.name}`, true);
+    notice(st, `Stop ${++st.stopAt} done`, `Next: ${next.item.label} at ${next.shop.shop.name}`);
     st.stop = next;
     saveProgress(st.del, st.money);
   } else {
     saveProgress(st.del, st.money, st.level.n, made.stars);
     cheer(st, o.t);
-    finish(st, { passed: true, ...made });
+    finish(st, { passed: true, ...made, combo: streak.n });
   }
   hud(st);
+}
+
+// A perfect drop: time slows for a moment, a gold wave spreads from the customer, the words pop over the aircraft, a
+// bright chime, a short buzz, and confetti unless the mission's own finish is about to throw it.
+function perfectDrop(st, at, paper) {
+  const p = PERFECT;
+  st.slow = p.slowSecs;
+  st.waves.push({ x: at.x, y: at.y, t: 0 });
+  if (paper) confetti(st, at.x, at.y, view.lowQ ? p.confetti >> 1 : p.confetti);
+  // over the aircraft and its order timer, clear of the tip at the customer
+  pop(st, st.d.x, st.d.y - p.popLift, 'PERFECT!', p.color, p.popSize, true);
+  sfx('perfect');
+  buzz(p.buzz);
 }
 
 // Landing on a green pad orders a job; the shop needs the item's prep time to make it,
@@ -189,6 +244,10 @@ function passMission(st) {
 export function stepMission(st, dt) {
   const d = st.d, c = MISSION;
   st.ready = Math.max(0, st.ready - dt);
+  if (st.notice && st.t >= st.notice.at) {
+    if (!st.outcome && !st.done) showToast(st.notice.title, st.notice.detail, true);
+    st.notice = null;
+  }
   if (st.has) {
     if (st.t >= st.order.deadline) failMission(st, "Time's up");
     else if (d.bat <= 0) failMission(st, 'Battery dead');
@@ -309,11 +368,27 @@ export function stepCargo(st, dt) {
     failMission(st, item.spoils, true);
     return;
   }
-  const T = st.order.t, reach = st.anchor ? c.holdReach : c.reach;
-  if (Math.hypot(bx.x - T.x, bx.y - T.y) < reach && Math.hypot(d.vx, d.vy) < c.maxDroneSpeed) {
+  const o = st.order, T = o.t, reach = st.anchor ? c.holdReach : c.reach, speed = Math.hypot(d.vx, d.vy), near = Math.hypot(bx.x - T.x, bx.y - T.y) < reach && speed < c.maxDroneSpeed;
+  // the order and the aircraft as the customer sees them, so a customer on the moving ferry counts the same
+  const P = PERFECT, vx = T.vx ?? 0, swing = Math.abs((bx.x - bx.px) / dt - vx), fall = (bx.y - bx.py) / dt, drone = Math.hypot(d.vx - vx, d.vy);
+  if (near) {
+    // the wildest the handover has been: a perfect drop never swung, dropped or flew fast at any moment of it
+    const h = (o.hand ??= { swing: 0, fall: 0, drone: 0 });
+    h.swing = Math.max(h.swing, swing);
+    h.fall = Math.max(h.fall, fall);
+    h.drone = Math.max(h.drone, drone);
+  }
+  // the lane ticks show gold only while this drop would still count as perfect, read here from the physics
+  const hand = o.hand;
+  o.calm = st.integ >= P.minInteg && st.hitAt < o.start && Math.abs(bx.x - T.x) <= P.centre && swing <= P.swing && fall <= P.fall && drone <= P.drone
+    && (!hand || (hand.swing <= P.swing && hand.fall <= P.fall && hand.drone <= P.drone));
+  if (near) {
     st.hold += dt;
     if (st.hold > c.holdTime) passMission(st);
-  } else st.hold = Math.max(0, st.hold - dt * c.holdDecay);
+  } else {
+    st.hold = Math.max(0, st.hold - dt * c.holdDecay);
+    if (!st.hold) o.hand = null;
+  }
 }
 
 function carryToShop(st, shop, rebuilt) {
@@ -540,6 +615,28 @@ export function drawTarget(st) {
     ctx.beginPath();
     ctx.arc(X(o.next.t.x), Y(o.next.t.y), 20 * S, 0, 7);
     ctx.stroke();
+  }
+  // a customer who stepped over leaves a trail from where they stood, fading once the player has had it on screen
+  const moved = o.moved, fade = !moved ? 0 : moved.seen == null ? 1 : 1 - (st.t - moved.seen) / SURPRISE.move.flash;
+  if (fade > 0) {
+    ctx.globalAlpha = fade * .7;
+    ctx.setLineDash([6 * S, 6 * S]);
+    ctx.lineWidth = 2 * S;
+    ctx.strokeStyle = '#ffc23d';
+    ctx.beginPath();
+    ctx.arc(X(moved.x), Y(moved.y), 20 * S, 0, 7);
+    ctx.moveTo(X(moved.x), Y(moved.y));
+    ctx.lineTo(X(t.x), Y(t.y));
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 1;
+  }
+  // the lane of a perfect drop: a tick either side of the customer while the aircraft is over them, gold while the drop
+  // would still count as perfect (stepCargo reads it from the physics, not from this blended picture)
+  if (!st.level.training && zones(st).hold) {
+    const P = PERFECT, q = P.cue;
+    ctx.fillStyle = o.calm ? q.gold : q.dim;
+    for (const side of [-1, 1]) ctx.fillRect(X(t.x + side * P.centre) - q.width / 2, Y(t.y - q.lift) - q.tick / 2, q.width, q.tick);
   }
   // customer
   const cx = t.kind === 'bal' ? t.x + (t.side > 0 ? -12 : 12) : t.x + 22, cy = t.stand ?? t.y + 11;

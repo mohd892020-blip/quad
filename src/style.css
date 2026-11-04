@@ -415,3 +415,23 @@ button:focus:not(:focus-visible),[tabindex]:focus:not(:focus-visible){outline:no
 @keyframes nudgeGlow{0%,100%{box-shadow:0 0 0 0 rgba(255,194,61,0)}50%{box-shadow:0 0 0 5px rgba(255,194,61,.22)}}
 .sideBtn{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:10px;width:100%}
 .sideBtn .ico{width:20px;height:20px}
+
+/* the run of clean deliveries: a gold tag under the HUD on the right, clear of the altimeter below it and of the pointer,
+   which never comes this close to the HUD; it bumps when the run grows and shakes away when it breaks */
+#combo{position:absolute;top:calc(100% + 4px);right:max(12px,env(safe-area-inset-right,0px));display:flex;align-items:baseline;gap:5px;height:22px;box-sizing:border-box;padding:0 9px;border-radius:11px;
+  background:var(--gold);color:#3a2206;font-family:var(--display);font-size:14px;line-height:23px;white-space:nowrap;pointer-events:none;box-shadow:0 2px 8px rgba(20,15,40,.35);
+  opacity:0;transform:translateY(-4px) scale(.9);transition:opacity .3s ease,transform .3s ease;animation-duration:var(--comboAnim);animation-timing-function:ease-out}
+#combo.on{opacity:1;transform:none}
+#combo svg{width:13px;height:13px;flex:none;align-self:center;fill:#e8492c;stroke:none}
+#combo b{font-weight:400;letter-spacing:.05em}
+#combo i{font-style:normal;font-family:var(--body);font-weight:800;font-size:12px}
+@keyframes comboBumpA{40%{transform:scale(1.22)}}
+@keyframes comboBumpB{40%{transform:scale(1.22)}}
+@keyframes comboLost{0%{opacity:1;transform:none}25%{opacity:1;transform:translateX(-4px)}50%{opacity:.8;transform:translateX(4px)}100%{opacity:0;transform:translateY(-4px) scale(.9)}}
+@media (prefers-reduced-motion:reduce){#combo{transition:none;animation:none!important}}
+/* on a narrow screen (ui.js sets .narrow and the numbers from config) a notice in the badge's band steps down below it
+   rather than sit on it, and glides back up once the badge has gone */
+#wrap.narrow #toast,#wrap.narrow #hangarTip{transition:margin-top var(--comboAnim) ease}
+#wrap.narrow.comboOn #toast,#wrap.narrow.comboOn #hangarTip{margin-top:var(--comboStep)}
+#wxChip.gold .ico{color:var(--cheese)}
+#resultCard:not(.bad) #resultWhy.shine{color:#ffd879;font-size:clamp(15px,4.8vmin,22px)}

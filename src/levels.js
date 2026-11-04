@@ -1,8 +1,8 @@
 import { carSpeed, eagleCount, hawkCount, rivalSpeed } from './action.js';
-import { BEACH, BOX, CHALLENGES, DESERT, FOREST, MOUNTAIN, SNOW, DOUBLE, DRONE, FERRY, GATES, GROUND, ITEMS, JET, LEVELS, RADAR, RIVAL, ROPE, ROPE_CTL, STOPS, THIN_ICE, WEATHER, WIND } from './config.js';
+import { BEACH, BOX, CHALLENGES, DESERT, FOREST, MOUNTAIN, SNOW, DOUBLE, DRONE, FERRY, GATES, GROUND, ITEMS, JET, LEVELS, RADAR, RIVAL, ROPE, ROPE_CTL, STOPS, SURPRISE, THIN_ICE, WEATHER, WIND } from './config.js';
 import { targetsFor, timeLimit } from './delivery.js';
 import { weatherFor } from './weather.js';
-import { nearby, rng, roofAt, world } from './world.js';
+import { nearby, rng, roofAt, shopPad, world } from './world.js';
 
 // Customers at the level of the wheels, where a drop has to be timed between the traffic.
 const ON_THE_ROAD = ['street', 'camp', 'oasis', 'clearing', 'basecamp', 'igloo'];
@@ -117,6 +117,44 @@ function challengeLevel(c, n) {
     hawks: c.hawks, eagles: c.eagles ?? 0, rival: !!c.rival, rivalSpeed: c.rivalSpeed ?? rivalSpeed(tier), street: false, carSpeed: carSpeed(tier), wind: c.wind,
     challenge: c, startBat: c.startBat, noBoost: c.noBoost, rope: c.rope, calm: beach || rules.includes('ice'),
   };
+}
+
+// How far a stop's leg runs from its shop's pad to its customer.
+const legOf = s => Math.abs(s.t.x - shopPad(s.shop).x);
+
+// Where a customer on a rooftop or a boat can step over to: the closest spot of the same kind a step away, about as
+// high and not on the shop, with a clear way down for this order in the city. A balcony rail or a drop at street level
+// is no place to be sent by surprise, the other open maps have no such spot close enough, and a short leg is past the
+// approach before a move could happen.
+function stepOver(l, s) {
+  const c = SURPRISE.move, gap = t => Math.abs(t.x - s.t.x), city = !l.beach && !l.desert && !l.forest && !l.mountain && !l.snow;
+  const pool = l.beach ? world.seaTargets : city ? world.targets : [];
+  if (s.parcels || s.rival || !c.kinds.includes(s.t.kind) || legOf(s) < SURPRISE.approach + c.room) return null;
+  return pool.filter(t => t !== s.t && t.kind === s.t.kind && (!t.b || (t.b !== s.t.b && t.b !== s.shop)) && gap(t) >= c.step[0] && gap(t) <= c.step[1]
+    && Math.abs(t.y - s.t.y) <= c.rise && (!city || wayDown(t, s.item))).sort((a, b) => gap(a) - gap(b))[0] ?? null;
+}
+
+// One try's surprises, from a stream of their own seeded by the mission and the try, so the route, limits and physics
+// stay exactly as they were and a retry can bring something new. Each names its stop, its kind, how far out it waits,
+// and where a gust blows or a customer goes.
+export function surprisesFor(l, attempt) {
+  const c = SURPRISE, pick = rng(c.seed + l.n * 977 + attempt * 7919);
+  if (!c.on || l.training || l.challenge || l.n < c.from || l.n > c.to) return [];
+  const legs = l.stops.length, roll = pick(), out = [];
+  const count = roll < c.counts[0] ? 0 : roll < c.counts[0] + c.counts[1] || l.n < c.twoFrom || legs < 2 ? 1 : 2;
+  // the few missions where a customer can step over usually lead with it, so it is met often enough
+  const moves = l.n >= c.first.move ? l.stops.map(s => stepOver(l, s)) : [], movable = moves.flatMap((to, k) => (to ? [k] : []));
+  const lead = count > 0 && movable.length > 0 && pick() < c.move.chance, first = lead ? movable[(pick() * movable.length) | 0] : (pick() * legs) | 0;
+  for (let i = 0; i < count; i++) {
+    const k = i ? (first + 1 + ((pick() * (legs - 1)) | 0)) % legs : first, s = l.stops[k], to = moves[k];
+    const kinds = ['ring', ...(l.n >= c.first.gust && !s.rival ? ['gust'] : []), ...(to ? ['move'] : [])].filter(kind => !out.some(o => o.kind === kind));
+    if (!kinds.length) break;
+    const kind = !i && lead ? 'move' : kinds[(pick() * kinds.length) | 0];
+    // a move waits no later than spare short of the approach, so it always has room to happen
+    const last = kind === 'move' ? Math.min(c.share[1], 1 - (c.approach + c.move.spare) / legOf(s)) : c.share[1];
+    out.push({ stop: k, kind, share: c.share[0] + pick() * (last - c.share[0]), ...(kind === 'gust' ? { dir: pick() < .5 ? -1 : 1 } : kind === 'move' ? { to } : {}) });
+  }
+  return out;
 }
 
 // Levels are fixed: the same shops, orders and customers every time, so what the

@@ -1,7 +1,7 @@
-import { sfx, toggleMute } from './audio.js';
+import { buzz, canBuzz, sfx, toggleMute } from './audio.js';
 import { musicCue } from './music.js';
 import { nudgeShop } from './shop.js';
-import { AIRCRAFT, ALTIMETER, BADGE, BOOST, DEV, DUST, FROST, FX, G, GATES, GROUND as G_LINE, HANGAR, HEALTH, JOY, KEY_HINT, LEVELS, MISSION, PICTURE, POINTER, QUALITY, RESULT, SHAKE, SHOP, SHOTS, SKIP, VIEW, WEATHER, WEATHER_HINT, WIND } from './config.js';
+import { AIRCRAFT, ALTIMETER, BADGE, BOOST, COMBO, DEV, DUST, FROST, FX, G, GATES, GROUND as G_LINE, HANGAR, HEALTH, JOY, KEY_HINT, LEVELS, MISSION, PERFECT, PICTURE, POINTER, QUALITY, RESULT, SHAKE, SHOP, SHOTS, SKIP, VIEW, WEATHER, WEATHER_HINT, WIND } from './config.js';
 import { applyControls, touchUI } from './input.js';
 import { bought, loadProgress, owns, saveSettings, saveSkips, settings, skips } from './storage.js';
 
@@ -50,6 +50,11 @@ function resize() {
   cv.height = Math.round(view.H * view.DPR);
   view.base = Math.min(view.H / VIEW.refH, view.W / VIEW.refW);
   setZoom(1);
+  // the combo badge's numbers for the page: where a notice steps down below it, by how much, and how long it moves
+  const wrap = $('wrap');
+  wrap.classList.toggle('narrow', view.W < COMBO.wideFrom);
+  wrap.style.setProperty('--comboStep', `${COMBO.step}px`);
+  wrap.style.setProperty('--comboAnim', `${COMBO.anim}s`);
   view.dirty = true;
   applyControls();
   measureHud();
@@ -244,8 +249,10 @@ export function shakeOffset(st) {
 }
 
 /* ---------- popups and particles ---------- */
-export function pop(st, x, y, txt, col) {
-  st.pops.push({ x, y, txt, col, t: 0 });
+// size is before the screen's scale; a pop marked pump starts bigger and settles; one marked follow rides along with
+// the aircraft where it was put, for a reward earned at speed that would otherwise be left behind off screen.
+export function pop(st, x, y, txt, col, size = FX.popSize, pump = false, follow = false) {
+  st.pops.push({ x, y, txt, col, size, pump, t: 0, ...(follow ? { fx: x - st.d.x, fy: y - st.d.y } : {}) });
 }
 
 // Cosmetic variation that stays out of the gameplay random stream.
@@ -264,6 +271,15 @@ export function kickDust(st, x, y, speed) {
       vy: -c.riseMin - noise(k + .25) * c.riseRange,
       t: 0, life: c.lifeMin + noise(k + .75) * c.lifeRange,
     });
+  }
+}
+
+// Paper for a perfect drop, from the cosmetic stream, so the wind and the hawks still draw what they would have.
+export function confetti(st, x, y, count) {
+  const c = FX.confetti;
+  for (let i = 0; i < count; i++) {
+    const k = st.dustN++;
+    st.parts.push({ x, y, vx: (noise(k) - .5) * c.spread, vy: -c.minLift - noise(k + .5) * c.lift, t: 0, crumb: 1, col: c.paint[i % c.paint.length] });
   }
 }
 
@@ -314,8 +330,16 @@ export function stepFx(st, dt) {
     q.y += q.vy * dt;
   }
   st.dust = st.dust.filter(q => q.t < q.life);
-  for (const q of st.pops) q.t += dt;
+  for (const q of st.pops) {
+    q.t += dt;
+    if (q.fx != null) {
+      q.x = st.d.x + q.fx;
+      q.y = st.d.y + q.fy;
+    }
+  }
   st.pops = st.pops.filter(q => q.t < FX.popLife);
+  for (const w of st.waves) w.t += dt;
+  st.waves = st.waves.filter(w => w.t < PERFECT.wave.life);
   for (const q of st.parts) {
     q.t += dt;
     if (q.crumb) { q.vy += G * (q.col ? FX.confetti.gravity : 1) * dt; q.x += q.vx * dt; }
@@ -411,6 +435,15 @@ export function drawFx(st) {
       ctx.stroke();
     }
   }
+  // the gold wave of a perfect drop, spreading as it fades
+  for (const w of st.waves) {
+    const c = PERFECT.wave, k = w.t / c.life;
+    ctx.strokeStyle = `rgba(${c.color},${1 - k})`;
+    ctx.lineWidth = c.width * S;
+    ctx.beginPath();
+    ctx.arc(X(w.x), Y(w.y), (c.from + c.grow * k) * S, 0, 7);
+    ctx.stroke();
+  }
   ctx.textAlign = 'center';
   for (const q of st.pops) {
     const p = popSpot(q);
@@ -425,10 +458,13 @@ export function drawFx(st) {
   ctx.globalAlpha = 1;
 }
 
-// Where a pop's words stand on screen as they rise, for drawing them and for labels that keep out of their way.
+// Where a pop's words stand on screen as they rise, for drawing them and for labels that keep out of their way. Words
+// that came up in sight stop under the HUD rather than slide beneath it on a short screen.
 export function popSpot(q) {
-  const size = Math.round(FX.popSize * view.S);
-  return { x: X(q.x), y: Y(q.y - q.t * FX.popRise), size, font: `${size}px Lalezar,Tajawal,sans-serif` };
+  const grow = q.pump ? 1 + (FX.pump - 1) * Math.max(0, 1 - q.t / FX.pumpTime) : 1, size = Math.round((q.size ?? FX.popSize) * grow * view.S);
+  const y = Y(q.y - q.t * FX.popRise);
+  q.seen ??= Y(q.y) > view.top;
+  return { x: X(q.x), y: q.seen ? Math.max(view.top + size, y) : y, size, font: `${size}px Lalezar,Tajawal,sans-serif` };
 }
 
 /* ---------- HUD ---------- */
@@ -449,6 +485,8 @@ const bar = (id, percent) => put(id, Math.round(percent), v => { $(id).firstChil
 function weatherNote(st) {
   const c = WEATHER_HINT, l = st.level;
   if (st.outcome || st.done || l.training) return null;
+  // a surprise or the first combo says its piece at once, ahead of the weather
+  if (st.note && st.t < st.note.until) return [st.note.icon, st.note.text, true];
   if (Math.abs(st.draft || 0) > c.draft) return st.draft < 0 ? ['wind', 'Updraft ↑ lifting you'] : ['wind', 'Downdraft ↓ pulling you down'];
   if (Math.abs(st.wind) > Math.max(c.gustMin, (l.wind || 0) * c.gust)) return ['wind', `Strong gusts ${st.wind > 0 ? '→' : '←'} hold steady`];
   if (st.t < c.intro && l.weather === 'fog') return ['mist', 'Fog. Follow the arrow'];
@@ -462,10 +500,14 @@ export function showWeatherNote(st) {
   if (n) {
     if (n[1] !== note.key) Object.assign(note, { key: n[1], icon: n[0], since: st.t });
     note.last = st.t;
+    note.timed = !!n[2];
   }
-  const on = !!note.key && st.t - note.since >= c.show && st.t - note.last <= c.linger && !st.outcome;
+  // weather lingers a moment as it settles, a surprise's note goes the moment it is over; on a narrow screen a toast
+  // or the hangar's tip takes the same band, and says the more pressing thing
+  const on = !!note.key && st.t - note.since >= (n?.[2] ? 0 : c.show) && st.t - note.last <= (note.timed ? 0 : c.linger) && !st.outcome && (view.W >= COMBO.wideFrom || ($('toast').hidden && $('hangarTip').hidden));
   if (on && note.shown !== note.key) {
     chip.querySelector('use').setAttribute('href', `#i-${note.icon}`);
+    chip.classList.toggle('gold', note.icon === 'ring' || note.icon === 'flame');
     chip.querySelector('span').textContent = note.key;
     note.shown = note.key;
   }
@@ -496,10 +538,45 @@ export function hud(st) {
   const reach = WIND.base + WIND.maxDeliveries * WIND.perDelivery;
   put('wind', Math.round(50 + Math.max(-1, Math.min(1, st.wind / reach)) * 50), v => { $('windNeedle').style.transform = `translateX(${v}%)`; });
   showWeatherNote(st);
+  showCombo(st);
   const item = o && (o.drop ? run[o.drop - 1].item : st.item);
   text('oTitle', st.outcome ? st.outcome.why || 'Delivered' : o ? `${tag}${item.label}${item.urgent ? ' · URGENT' : ''} → ${placeName(o.t)}`
     : st.prep ? `${tag}Preparing ${st.prep.item.label}`
     : st.level.training ? 'Training' : `${tag}Land on the green pad at ${st.stop.shop.shop.name}`);
+}
+
+// The run of clean deliveries, under the HUD on the right. It bumps when it grows and shakes away when it breaks. On a
+// narrow screen a toast or the shop's tip steps down below it, and narrower still it steps aside for the weather note.
+let comboWas = 0, comboGone = 0;
+function showCombo(st) {
+  const c = COMBO, n = st.combo.n, el = $('combo'), wasOn = !!shown.comboOn;
+  const room = view.W >= c.narrow || !$('wxChip').classList.contains('on');
+  // it stays through a passed mission's last moments, where the run has just grown
+  const on = n >= c.showFrom && room && !st.done && !(st.outcome && !st.outcome.passed) && !st.level.training;
+  // a broken run keeps its number while it shakes away
+  if (n >= c.showFrom) {
+    put('combo', n, v => {
+      $('comboN').textContent = v;
+      $('comboX').textContent = `×${c.mult[Math.min(v, c.mult.length - 1)]}`;
+    });
+  }
+  put('comboOn', on, v => {
+    el.classList.toggle('on', v);
+    // a toast stepped down below the badge moves back up only once the badge has gone, never onto it
+    clearTimeout(comboGone);
+    if (v) $('wrap').classList.add('comboOn');
+    else comboGone = setTimeout(() => $('wrap').classList.remove('comboOn'), c.anim * 1000);
+  });
+  // two names for one animation, so each rise restarts it without asking the page for layout
+  if (n > comboWas && on) el.style.animationName = n % 2 ? 'comboBumpA' : 'comboBumpB';
+  else if (n < comboWas && wasOn) el.style.animationName = 'comboLost';
+  comboWas = n;
+  // the first badge a player sees says what it is, once, while the mission is still being flown
+  if (on && !settings.comboSeen && !st.outcome) {
+    settings.comboSeen = true;
+    saveSettings();
+    st.note = { icon: 'flame', text: 'Clean drops in a row raise your tip', until: st.t + c.hint };
+  }
 }
 
 // On a keyboard a level opens with the keys on show, and they fade out of the way.
@@ -535,6 +612,10 @@ export function showLesson(step, title, body, teach = []) {
   $('lessonTitle').textContent = title;
   $('lessonText').textContent = body;
 }
+
+// Whether a toast or the hangar's tip is up where, on a narrow screen, it hides the weather note; a surprise that
+// needs its note waits.
+export const noticeUp = () => view.W < COMBO.wideFrom && !($('toast').hidden && $('hangarTip').hidden);
 
 let toastTimer = 0;
 export function showToast(title, detail, good) {
@@ -732,7 +813,7 @@ function openLevelCard(n) {
   const rows = [
     ...(l.challenge ? [['Challenge', l.challenge.name], ['Rule', l.challenge.note]] : []),
     ...(chased ? [['Aircraft', plane.speed < HANGAR.boostFloor ? `${plane.name} is too slow for an avalanche, even with Boost. Pick a faster one` : `${plane.name} is slow for an avalanche. Boost, or pick a faster one`]] : []),
-    ...jobs, ['If ruined', route ? `up to -$${Math.max(...legs.map(s => s.item.price))}` : `-$${item.price}`],
+    ...jobs, ...(acts.streak() >= COMBO.showFrom ? [['Combo', `${acts.streak()} in a row, next clean tip ×${COMBO.mult[Math.min(acts.streak() + 1, COMBO.mult.length - 1)]}`]] : []), ['If ruined', route ? `up to -$${Math.max(...legs.map(s => s.item.price))}` : `-$${item.price}`],
     ...(l.weather ? [['Weather', WEATHER[l.weather].name]] : []), ['Wind', `up to ${l.wind}`], ['Hawks', l.hawks ? `${l.hawks}${route ? ' per stop' : ''}` : 'None'], ...(l.eagles ? [['Eagles', `${l.eagles}${route ? ', last stop' : ''}, one hit downs you`]] : []),
     ['Rival', l.rival ? `Yes${route ? ', last stop' : ''}, speed ${l.rivalSpeed}` : 'None'], ...(l.calm ? [] : [[l.beach ? 'Boats' : l.desert ? 'Buggies' : l.forest ? 'Jeeps and deer' : l.mountain ? 'Jeeps and goats' : l.snow ? 'Sleds and reindeer' : 'Cars', `${l.street ? (l.desert || l.forest || l.mountain || l.snow ? 'Crossing your drop' : 'On your street') : 'Yes'}, speed ${l.carSpeed}`]]),
     ...(l.beach ? [['Danger', 'Open sea']] : l.desert ? [['Danger', 'Quicksand, sandstorms']] : l.forest ? [['Danger', 'Tall pines, the river']] : l.mountain ? [['Danger', 'Updrafts, downdrafts, the cable car']] : l.snow ? [['Danger', 'Thin ice. The cold drains the battery']] : []),
@@ -769,14 +850,19 @@ export function showResult(o, level, hasNext) {
   hero.innerHTML = o.training ? `<div class="seal ok"><svg class="ico"><use href="#i-check"/></svg></div>`
     : [0, 1, 2].map(i => `<svg style="--n:${i}" viewBox="0 0 48 48"><use href="#i-star${i < earned ? '' : '-off'}"/></svg>`).join('');
   hero.setAttribute('aria-label', won ? `${o.stars} of 3 stars` : '');
-  const rows = won ? [['Delivery tips', `+$${o.tip - o.beat}`], ...(o.beat ? [['Rival beaten', `+$${o.beat}`]] : []), ['Order condition', `${Math.round(o.integ)}%`], ['Flight time', clockText(o.secs)]]
+  const rows = won ? [['Delivery tips', `+$${o.tip - o.beat - o.bonus}`], ...(o.bonus ? [['Combo and bonuses', `+$${o.bonus}`]] : []), ...(o.beat ? [['Rival beaten', `+$${o.beat}`]] : []),
+    ['Order condition', `${Math.round(o.integ)}%`], ['Flight time', clockText(o.secs)]]
     : o.passed ? []
     : [...(legs > 1 ? [['Reached', `Stop ${o.reached + 1} of ${legs}`]] : []), ...(o.cost ? [['Order lost', `-$${o.cost}`]] : [])];
   $('resultStats').innerHTML = rows.map(([k, v], i) => `<dt style="--n:${i}">${k}</dt><dd style="--n:${i}">${v}</dd>`).join('');
   $('resultStats').hidden = !rows.length;
   $('resultTotal').hidden = !won;
   $('resultSheet').hidden = !rows.length;
-  $('resultWhy').textContent = o.training ? 'You are ready for Mission 1' : o.passed ? '' : o.why;
+  // a won mission's line under the stars names its highlights, in gold; each keeps its number with it, and a card too
+  // narrow for both carries the dot down with the second
+  const shine = won ? [o.perfect && (o.perfect > 1 ? `PERFECT\u00a0×${o.perfect}` : 'PERFECT'), o.combo >= COMBO.showFrom && `COMBO\u00a0${o.combo}`].filter(Boolean).join(' ·\u00a0') : '';
+  $('resultWhy').textContent = o.training ? 'You are ready for Mission 1' : o.passed ? shine : o.why;
+  $('resultWhy').classList.toggle('shine', !!shine);
   $('resultTip').textContent = o.passed ? '' : RESULT.tips[o.why] || '';
   for (const id of ['resultMap', 'resultRetry']) $(id).className = id === lead ? 'go wide' : 'ghost round';
   $('resultNext').hidden = !next;
@@ -790,10 +876,10 @@ export function showResult(o, level, hasNext) {
 
 // The map button pauses. Leaving with an order in the air costs what ruining it would.
 function openPause() {
-  const cost = acts.stake(), level = acts.level(), { money, del } = loadProgress();
+  const cost = acts.stake(), level = acts.level(), { money, del } = loadProgress(), combo = acts.combo() >= COMBO.showFrom;
   $('pauseTitle').textContent = level.training ? 'Training' : `Mission ${level.n}`;
   $('pauseStats').textContent = `$${money} · ${del} ${del === 1 ? 'delivery' : 'deliveries'}`;
-  $('pauseWhy').textContent = cost ? `Leaving loses the order: -$${cost}` : '';
+  $('pauseWhy').textContent = cost ? `Leaving loses the order: -$${cost}${combo ? ' and your combo' : ''}` : combo ? 'Leaving ends your combo' : '';
   $('pauseCard').hidden = false;
 }
 
@@ -814,7 +900,10 @@ export function initLevels(levels, handlers) {
     acts.leave();
     showLevels();
   });
-  $('levelsGear').addEventListener('click', () => { $('sheet').hidden = false; });
+  $('levelsGear').addEventListener('click', () => {
+    $('vibeSection').hidden = !(touchUI() && canBuzz());
+    $('sheet').hidden = false;
+  });
   $('toMap').addEventListener('click', openPause);
   $('pauseBack').addEventListener('click', () => { $('pauseCard').hidden = true; });
   $('pauseRetry').addEventListener('click', acts.retry);
@@ -881,23 +970,22 @@ function buildCamera() {
   });
 }
 
-function markMusic() {
-  for (const b of $('musicModes').children) b.setAttribute('aria-pressed', String(settings.music !== false) === b.dataset.value);
-}
-
-function buildMusic() {
+// An On and Off pair for one setting; then runs after a change.
+function buildSwitch(id, key, then = () => {}) {
+  const mark = () => { for (const b of $(id).children) b.setAttribute('aria-pressed', String(settings[key] !== false) === b.dataset.value); };
   for (const [value, label] of [['true', 'On'], ['false', 'Off']]) {
     const b = document.createElement('button');
     b.textContent = label;
     b.dataset.value = value;
     b.addEventListener('click', () => {
-      settings.music = value === 'true';
+      settings[key] = value === 'true';
       saveSettings();
-      markMusic();
+      mark();
+      then(settings[key]);
     });
-    $('musicModes').appendChild(b);
+    $(id).appendChild(b);
   }
-  markMusic();
+  mark();
 }
 
 function buildPicture() {
@@ -1029,9 +1117,15 @@ export function initSheet() {
   buildPicture();
   buildCamera();
   buildSideways();
-  buildMusic();
+  buildSwitch('musicModes', 'music');
+  // a buzz says what On means
+  buildSwitch('vibeModes', 'vibration', on => on && buzz(PERFECT.buzz));
   showDev();
-  const openSheet = () => { $('sheet').hidden = false; };
+  const openSheet = () => {
+    // only a phone that can buzz is offered the switch
+    $('vibeSection').hidden = !(touchUI() && canBuzz());
+    $('sheet').hidden = false;
+  };
   $('gear').addEventListener('click', openSheet);
   $('hangarTip').addEventListener('click', openSheet);
   $('mute').classList.toggle('off', settings.muted);

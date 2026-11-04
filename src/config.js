@@ -777,6 +777,8 @@ export const DELIVERY = {
   starBox: 70,
   starTimeShare: .6,
   urgentTip: 1.5,
+  // the notice naming the next stop waits this long after a delivery, so the tip and a perfect drop read first
+  noticeWait: 1,
 };
 
 export const RESTAURANT = {
@@ -826,6 +828,9 @@ export const FX = {
   popLife: 1.8,
   popSize: 20,
   popRise: 40,
+  // a pop marked pump starts pump times its size and settles within pumpTime seconds
+  pump: 1.4,
+  pumpTime: .15,
   steamLife: 1,
   crumbLife: 1.2,
   steamDrift: .3,
@@ -1002,4 +1007,65 @@ export const CITY = {
   far2HMin: 80,
   far2HRange: 170,
   far2MinaretChance: .12,
+};
+
+// A run of clean deliveries raises the tip. A delivery is clean when nothing struck the aircraft or the order since it
+// was loaded (nothing that makes an impact sound) and it arrives at minInteg or better. mult is the tip factor by the
+// run's length, the last one held from there on. The run lasts the session, through every mission passed, and is never
+// saved; a hit, a ruined order or a mission not passed ends it. The badge shows from showFrom, and its chime climbs by
+// notes (semitones) as the run grows. hint is how long the first badge's note explains it. On a screen narrower than
+// wideFrom a toast or the shop's tip steps down by step pixels below the badge; narrower than narrow the badge steps
+// aside while the weather note shows. anim is how long its bump and its shake take, in seconds; a toast keeps its place
+// until a broken run's badge has shaken away.
+export const COMBO = { minInteg: 85, mult: [1, 1, 1.1, 1.2], showFrom: 2, notes: [0, 2, 4, 5, 7, 9, 12], hint: 3.5, wideFrom: 620, narrow: 380, step: 24, anim: .42 };
+
+// A perfect drop: a clean order at minInteg or better, handed over within centre of the customer across, through a
+// handover whose order never swung sideways faster than swing nor dropped faster than fall, under an aircraft never
+// faster than drone. Time then runs at slowRate for slowSecs of real time, easing back to full from easeFrom of the way;
+// confetti bursts (half on the low picture) and a gold wave spreads from the customer, the words pop at popSize popLift
+// over the aircraft, and a phone buzzes for buzz milliseconds. cue is the pair of ticks either side of the customer while
+// the aircraft is over them, gold only while this drop would still count as perfect; tick and width are in pixels.
+export const PERFECT = {
+  minInteg: 95, centre: 10, swing: 40, fall: 150, drone: 60,
+  slowSecs: .5, slowRate: .3, easeFrom: .6, confetti: 30, buzz: 40, popSize: 26, popLift: 80, color: '#7fe0a8',
+  wave: { life: .55, from: 14, grow: 80, width: 4, color: '255,210,80' },
+  cue: { tick: 12, width: 3, lift: 6, gold: '#ffd23d', dim: 'rgba(255,255,255,.45)' },
+};
+
+// Close calls, only with an order on the rope and the aircraft in the player's hands. A pass starts when the aircraft
+// or the order comes within gap of anything solid (not the ground, not the shop the order came from) while the aircraft
+// flies at speed or faster, and counts once both are back past clear; a touch, a hit, more than maxNear seconds inside
+// gap or maxPass seconds in all spends it until the way is clear again. The order passing within cableX by cableY of a
+// cable without touching it counts the same, and so does the aircraft or the order within carGap over a moving vehicle
+// (looked at only below carHigh over the street), a hawk's dive that came within hawkGap of the order and missed, and an
+// eagle's stoop within eagleGap of the aircraft that missed. Each banks bonus into the order's tip, perMission times a
+// mission at most, never twice within cooldown seconds. The words ride popLift over the aircraft, clear of its order
+// timer, since the danger is already behind it when the pass counts.
+export const CLOSE = { gap: 12, clear: 30, speed: 240, maxNear: .8, maxPass: 1.5, cableX: 34, cableY: 30, carGap: 24, carHigh: 90, hawkGap: 44, eagleGap: 60, bonus: 2, perMission: 2, cooldown: 5, popLift: 80, color: '#ffd879' };
+
+// Surprises dress generated missions from `from` to `to` (none in challenges or training; on switches them all off for
+// comparisons). Each try of a mission draws its own from a stream seeded by the mission and the try, so the route,
+// limits and physics stay exactly as they were and a retry can bring something new: none, one or two by counts, two
+// only from twoFrom on a route of two stops or more, on different stops. Kinds open in turn: the ring from `from`, the
+// gust and the move from first. Each waits until its stop's order is share of the way out, at least after seconds into
+// the leg, with minLeft seconds still on the clock and the customer further than approach; past the approach it lapses.
+// It never fires during prep, on Hold or Land, or while a hawk dives or an eagle hunts, and one runs at a time.
+// ring: a golden ring ahead of the aircraft and rise above it, lifted clear of anything within span by clear, kept
+// keepOff from hawks, eagles and cables, for life seconds; flying through it within reach banks bonus, sparkles and
+// buzzes, and the words ride popLift over the aircraft. note is how long the weather note announces it. gust: warn
+// seconds of notice, then the wind swings by share of the mission's top wind for secs at follow, never past top of it,
+// dying down near the customer. A wind already blowing the gust's way harder than flip of the top turns it the other
+// way, so it is always felt. It waits for open air, the aircraft clear above anything within open, and on a narrow
+// screen for a toast to clear, so its warning is always seen. move: a customer on a rooftop or a boat (kinds) steps
+// over to the closest spot of the same kind a step away and no more than rise higher or lower, with a clear way down in
+// the city, on a leg with room past the approach for it to happen, and waits no later than spare short of the approach.
+// A mission that allows it leads with it at chance. The clock gains base seconds plus the step at MISSION.speed times
+// pace; the tip and the time star do not count the extra way it adds at that pace, nor the cooling of a hot order over
+// it. The old spot and the way to the new one show for flash seconds once the old spot is on screen, or seenBy seconds
+// after the move at the latest.
+export const SURPRISE = {
+  on: true, seed: 7070, from: 11, to: 40, twoFrom: 21, counts: [.3, .55, .15], first: { gust: 14, move: 21 }, share: [.25, .6], after: 3, minLeft: 12, approach: 700,
+  ring: { ahead: 300, rise: 80, clear: 120, span: 100, reach: 46, life: 4, fade: .25, blink: 1, label: 1.2, note: 2, bonus: 3, keepOff: 160, line: 4, pulse: 4, buzz: 20, sparkle: 10, popLift: 80, color: '255,194,61' },
+  gust: { warn: 1.2, secs: 2.2, share: .8, top: .9, flip: .4, follow: 2, open: 150, clear: 140 },
+  move: { kinds: ['roof', 'boat'], step: [120, 450], rise: 160, room: 600, spare: 100, base: 5, pace: 1.5, chance: .7, flash: 2.5, seenBy: 8 },
 };

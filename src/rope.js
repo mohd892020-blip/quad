@@ -66,6 +66,7 @@ export function stepRope(st, dt) {
       if (knock > c.hitSpeed) {
         st.integ -= (knock - c.hitSpeed) * c.hitDamage * item.fragile;
         if (knock > c.bigHitSpeed) {
+          st.hitAt = st.t;
           st.shake = Math.max(st.shake, c.bigHitShake);
           kickDust(st, bx.x, bx.y, knock * .5);
           sfx('box');
@@ -84,7 +85,10 @@ export function stepRope(st, dt) {
       if (Math.abs(p.x - bx.x) < c.lineReachX && Math.abs(p.y - bx.y) < c.lineReachY) {
         st.integ -= dt * c.lineDamage * item.fragile * (L.power ? CITY.powerDamage : 1);
         bx.px += (bx.x - bx.px) * c.lineDrag;
-        if (L.power) sfx('spark');
+        if (L.power) {
+          sfx('spark');
+          st.hitAt = st.t;
+        }
         break;
       }
     }

@@ -1,9 +1,13 @@
 package com.flyingpizza.game;
 
 import android.app.Activity;
+import android.content.Context;
 import android.content.pm.ActivityInfo;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.SystemClock;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
 import android.view.View;
 import android.view.WindowManager;
 import android.webkit.JavascriptInterface;
@@ -49,6 +53,15 @@ public class MainActivity extends Activity {
             setRequestedOrientation(on ? ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE : ActivityInfo.SCREEN_ORIENTATION_FULL_USER);
           }
         });
+      }
+
+      // a short buzz for a perfect drop or a bonus ring; the page only asks while the player has Vibration on
+      @JavascriptInterface
+      public void buzz(int ms) {
+        Vibrator v = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+        if (v == null || !v.hasVibrator()) return;
+        if (Build.VERSION.SDK_INT >= 26) v.vibrate(VibrationEffect.createOneShot(ms, VibrationEffect.DEFAULT_AMPLITUDE));
+        else v.vibrate(ms);
       }
     }, "PizzaScreen");
     setContentView(web);

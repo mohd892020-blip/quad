@@ -182,13 +182,30 @@ const SOUNDS = {
   gate: t => tone(1180, 1480, t, .1, .35),
   creak: t => tone(240, 170, t, .14, .3, 'sawtooth'),
   thunder: t => { burst(t + .08, .9, .6, 170); tone(72, 38, t, .7, .4, 'sine'); },
+  // a delivery plays deliver, then the combo chime (k raises it with the run), then the perfect sparkle: six voices at most
+  combo: (t, k) => tone(784 * k, 1175 * k, t + .2, .16, .3),
+  comboLost: t => tone(523, 262, t, .3, .22, 'sine'),
+  perfect: t => { tone(1047, 1047, t + .3, .1, .35); tone(1319, 1319, t + .38, .1, .35); tone(1568, 1568, t + .46, .34, .42); },
+  gust: t => burst(t, .9, .3, 600, 'bandpass'),
+  ring: t => { tone(1320, 1760, t, .12, .35); tone(1760, 2640, t + .08, .2, .3); },
+  close: t => { burst(t, .14, .35, 1800, 'bandpass'); tone(880, 1320, t + .05, .1, .28); },
 };
 
-// Short one-shots; repeats of one sound inside sfxGap are dropped so contact does not buzz.
-export function sfx(name) {
+// A short buzz where the phone has one and the player wants it; the app hands it to Android itself.
+export function buzz(ms) {
+  if (settings.vibration === false) return;
+  try {
+    if (window.PizzaScreen?.buzz) window.PizzaScreen.buzz(ms);
+    else navigator.vibrate?.(ms);
+  } catch (_) {}
+}
+export const canBuzz = () => !!(window.PizzaScreen?.buzz || navigator.vibrate);
+
+// Short one-shots; repeats of one sound inside sfxGap are dropped so contact does not buzz. k shifts a sound's pitch.
+export function sfx(name, k = 1) {
   if (!ac || ac.state !== 'running') return;
   const t = ac.currentTime;
   if (t - (lastPlayed[name] ?? -1) < AUDIO.sfxGap) return;
   lastPlayed[name] = t;
-  SOUNDS[name](t);
+  SOUNDS[name](t, k);
 }
