@@ -111,7 +111,8 @@ function rimOf(look, ink, side, lay) {
 export function drawStandout(st, a, look, flat, live) {
   const c = CONTRAST, p = st.standout, sx = X(st.d.x), sy = Y(st.d.y), S = view.S * c.scale, D = view.DPR;
   // the feet stay where the body touches down, however large the aircraft is drawn
-  const foot = (1 - 1 / c.scale) * DRONE.radius, side = Math.ceil(c.box * S * D), mid = side / 2, size = side / D, k = S * D;
+  // the outline is cut once for the closest shot and only scaled as the camera zooms, so a glide never recuts it
+  const sharp = view.sharp * c.scale, foot = (1 - 1 / c.scale) * DRONE.radius, side = Math.ceil(c.box * sharp * D), mid = side / 2, size = side / D * S / sharp, k = sharp * D;
   const lay = (g, tilt, paint) => {
     g.setTransform(k, 0, 0, k, mid, mid);
     g.rotate(tilt);

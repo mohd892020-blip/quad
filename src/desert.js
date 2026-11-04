@@ -1,6 +1,6 @@
 import { BOX, CITY, DESERT, DRONE, GROUND } from './config.js';
 import { drawPalm, kiosk } from './seaside.js';
-import { ctx, glow, shade, view, X, Y } from './ui.js';
+import { ctx, glow, ridgePoints, shade, view, X, Y } from './ui.js';
 import { world, zoneAt } from './world.js';
 
 // The open desert past the coast: dunes, rock and quicksand, with only three stalls built on it.
@@ -46,17 +46,17 @@ const lit = (hex, time) => shade(hex, time.light);
 
 // One range of dunes. par slows its drift with the camera; rise lifts it out of the beach.
 function dune(par, height, swell, col) {
-  const { W, S, cam } = view, c = DESERT, base = Y(GROUND), left = Math.max(0, X(c.from)), step = c.duneStep * S;
+  const { W, S, cam } = view, c = DESERT, base = Y(GROUND), left = Math.max(0, X(c.from)), right = Math.min(W, X(c.to));
+  if (right <= left) return;
+  const pts = ridgePoints(par, c.duneStep, left, right);
   ctx.fillStyle = col;
   ctx.beginPath();
-  ctx.moveTo(left, base);
-  const right = Math.min(W, X(c.to));
-  if (right <= left) return;
-  for (let sx = left; sx < right + step; sx += step) {
-    const x = cam.x + sx / S, u = cam.x * par + sx / S, rise = Math.min(1, (x - c.from) / c.duneRise);
+  ctx.moveTo(pts[0][0], base);
+  for (const [sx, u] of pts) {
+    const x = cam.x + sx / S, rise = Math.max(0, Math.min(1, (x - c.from) / c.duneRise));
     ctx.lineTo(sx, base - rise * (height + swell * Math.sin(u / c.duneLong) + swell * .4 * Math.sin(u / c.duneShort)) * S);
   }
-  ctx.lineTo(right, base);
+  ctx.lineTo(pts[pts.length - 1][0], base);
   ctx.fill();
 }
 

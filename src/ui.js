@@ -1,6 +1,6 @@
 import { sfx, toggleMute } from './audio.js';
 import { musicCue } from './music.js';
-import { AIRCRAFT, BADGE, BOOST, DEV, DUST, FROST, FX, G, GATES, HANGAR, HEALTH, JOY, KEY_HINT, LEVELS, MISSION, PICTURE, POINTER, QUALITY, RESULT, SHAKE, SHOP, SHOTS, SKIP, VIEW, WEATHER, WIND } from './config.js';
+import { AIRCRAFT, BADGE, BOOST, DEV, DUST, FROST, FX, G, GATES, HANGAR, HEALTH, JOY, KEY_HINT, LEVELS, MISSION, PICTURE, POINTER, QUALITY, RESULT, SHAKE, SHOP, SHOTS, SKIP, VIEW, WEATHER, WEATHER_HINT, WIND } from './config.js';
 import { applyControls, touchUI } from './input.js';
 import { bought, loadProgress, owns, saveSettings, saveSkips, settings, skips } from './storage.js';
 
@@ -47,17 +47,17 @@ function resize() {
   cv.width = Math.round(view.W * view.DPR);
   cv.height = Math.round(view.H * view.DPR);
   view.base = Math.min(view.H / VIEW.refH, view.W / VIEW.refW);
-  setZoom(1, 1);
+  setZoom(1);
   view.dirty = true;
   applyControls();
   measureHud();
 }
 
-// The camera's zoom scales the whole picture. Cached images are painted at the settled zoom of the shot, so a glide
-// between shots only scales them and never repaints them.
-export function setZoom(z, settled) {
+// The camera's zoom scales the whole picture. Cached images are painted for the closest shot, so a glide between
+// shots only scales them and never repaints them.
+export function setZoom(z) {
   view.S = view.base * z;
-  view.sharp = view.base * settled;
+  view.sharp = view.base * SHOTS.sharpZoom;
   view.viewW = view.W / view.S;
   view.viewH = view.H / view.S;
 }
@@ -100,6 +100,17 @@ export function lowerQuality(steps) {
   while (steps-- && moveTier(1));
 }
 export const raiseQuality = () => moveTier(-1);
+
+// Points along a far ridge sit at fixed places on the ridge, not on the screen, so its peaks keep their shape as the
+// camera moves instead of shimmering. Each is [screen x, place along the ridge], from left to past right.
+export function ridgePoints(par, stepU, left, right) {
+  const { S, cam } = view, start = cam.x * par, pts = [];
+  for (let u = Math.floor((start + left / S) / stepU) * stepU; ; u += stepU) {
+    const sx = (u - start) * S;
+    pts.push([sx, u]);
+    if (sx >= right) return pts;
+  }
+}
 
 export const X = x => (x - view.cam.x) * view.S;
 export const Y = y => (y - view.cam.y) * view.S;
@@ -341,6 +352,38 @@ function put(key, value, write) {
 const text = (id, value) => put(id, value, v => { $(id).textContent = v; });
 const bar = (id, percent) => put(id, Math.round(percent), v => { $(id).firstChild.style.transform = `scaleX(${v / 100})`; });
 
+// What the weather is doing to the flight, so a hard hold reads as the sky's doing and not the player's.
+function weatherNote(st) {
+  const c = WEATHER_HINT, l = st.level;
+  if (st.outcome || st.done || l.training) return null;
+  if (Math.abs(st.draft || 0) > c.draft) return st.draft < 0 ? ['wind', 'Updraft ↑ lifting you'] : ['wind', 'Downdraft ↓ pulling you down'];
+  if (Math.abs(st.wind) > Math.max(c.gustMin, (l.wind || 0) * c.gust)) return ['wind', `Strong gusts ${st.wind > 0 ? '→' : '←'} hold steady`];
+  if (st.t < c.intro && l.weather === 'fog') return ['mist', 'Fog. Follow the arrow'];
+  if (st.t < c.intro && l.cold > 1) return ['cold', 'Cold air. The battery drains faster'];
+  return null;
+}
+
+const note = { key: null, since: 0, last: -Infinity, shown: null };
+export function showWeatherNote(st) {
+  const n = weatherNote(st), c = WEATHER_HINT, chip = $('wxChip');
+  if (n) {
+    if (n[1] !== note.key) Object.assign(note, { key: n[1], icon: n[0], since: st.t });
+    note.last = st.t;
+  }
+  const on = !!note.key && st.t - note.since >= c.show && st.t - note.last <= c.linger && !st.outcome;
+  if (on && note.shown !== note.key) {
+    chip.querySelector('use').setAttribute('href', `#i-${note.icon}`);
+    chip.querySelector('span').textContent = note.key;
+    note.shown = note.key;
+  }
+  chip.classList.toggle('on', on);
+}
+
+export function resetWeatherNote() {
+  Object.assign(note, { key: null, since: 0, last: -Infinity, shown: null });
+  $('wxChip').classList.remove('on');
+}
+
 export function hud(st) {
   const legs = st.level.stops.length, o = st.has ? st.order : null, run = st.stop.parcels;
   // a narrow phone marks the ring count instead of naming it, so the customer still fits
@@ -359,6 +402,7 @@ export function hud(st) {
   if (Math.abs(st.d.vx) > BOOST.flipSpeed) put('boostBack', st.d.vx < 0, v => { $('boost').classList.toggle('back', v); });
   const reach = WIND.base + WIND.maxDeliveries * WIND.perDelivery;
   put('wind', Math.round(50 + Math.max(-1, Math.min(1, st.wind / reach)) * 50), v => { $('windNeedle').style.transform = `translateX(${v}%)`; });
+  showWeatherNote(st);
   const item = o && (o.drop ? run[o.drop - 1].item : st.item);
   text('oTitle', st.outcome ? st.outcome.why || 'Delivered' : o ? `${tag}${item.label}${item.urgent ? ' · URGENT' : ''} → ${placeName(o.t)}`
     : st.prep ? `${tag}Preparing ${st.prep.item.label}`
@@ -697,7 +741,11 @@ function markPicture() {
 
 // The camera button and the C key step through the shots, and the choice is kept for the next mission.
 function markCamera() {
-  for (const b of $('camModes').children) b.setAttribute('aria-pressed', String(b.dataset.value === (SHOTS[settings.camera]?.name ? settings.camera : SHOTS.start)));
+  const shot = SHOTS[settings.camera]?.name ? settings.camera : SHOTS.start;
+  for (const b of $('camModes').children) b.setAttribute('aria-pressed', String(b.dataset.value === shot));
+  // the button shows the shot it is on
+  $('camBtn').querySelector('use').setAttribute('href', `#i-shot-${shot}`);
+  $('camBtn').setAttribute('aria-label', `Camera: ${SHOTS[shot].name}. C to change`);
 }
 
 function showShot(name) {

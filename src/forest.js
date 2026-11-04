@@ -1,6 +1,6 @@
 import { BOX, DRONE, FOREST, GROUND } from './config.js';
 import { kiosk } from './seaside.js';
-import { ctx, glow, shade, view, X, Y } from './ui.js';
+import { ctx, glow, ridgePoints, shade, view, X, Y } from './ui.js';
 import { rng, world, zoneAt } from './world.js';
 
 // The forest past the desert: tall pines that sway with the wind, sod-roofed cabins, houses up in the trees, a lookout
@@ -80,17 +80,18 @@ const lit = (hex, time) => shade(hex, time.light);
 
 // A range of hills or treetops behind the forest. par slows its drift; rise lifts it out of the plain at the edge.
 function ridge(par, height, swell, col, teeth) {
-  const { W, S, cam } = view, c = FOREST, base = Y(GROUND), left = Math.max(0, X(c.from)), right = Math.min(W, X(c.to)), step = c.ridgeStep * S;
+  const { W, S, cam } = view, c = FOREST, base = Y(GROUND), left = Math.max(0, X(c.from)), right = Math.min(W, X(c.to));
   if (right <= left) return;
+  const pts = ridgePoints(par, c.ridgeStep, left, right);
   ctx.fillStyle = col;
   ctx.beginPath();
-  ctx.moveTo(left, base);
-  for (let sx = left; sx <= right + step; sx += step) {
-    const x = cam.x + sx / S, u = cam.x * par + sx / S, rise = Math.min(1, (x - c.from) / c.rise, (c.to - x) / c.rise);
+  ctx.moveTo(pts[0][0], base);
+  for (const [sx, u] of pts) {
+    const x = cam.x + sx / S, rise = Math.min(1, (x - c.from) / c.rise, (c.to - x) / c.rise);
     const tooth = teeth ? (Math.abs(((u / teeth) % 2 + 2) % 2 - 1)) * teeth * .9 : 0;
-    ctx.lineTo(Math.min(sx, right), base - Math.max(0, rise) * (height + swell * Math.sin(u / c.ridgeLong) + tooth) * S);
+    ctx.lineTo(sx, base - Math.max(0, rise) * (height + swell * Math.sin(u / c.ridgeLong) + tooth) * S);
   }
-  ctx.lineTo(right, base);
+  ctx.lineTo(pts[pts.length - 1][0], base);
   ctx.fill();
 }
 

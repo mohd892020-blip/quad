@@ -243,6 +243,7 @@ function fogImages(tone) {
   let g = hole.getContext('2d');
   const veil = g.createRadialGradient(n / 2, n / 2, n / 2 * f.core, n / 2, n / 2, n / 2);
   veil.addColorStop(0, `rgba(${tone},${f.near})`);
+  for (const [at, share] of f.ease) veil.addColorStop(at, `rgba(${tone},${f.near + (f.thick - f.near) * share})`);
   veil.addColorStop(1, `rgba(${tone},${f.thick})`);
   g.clearRect(0, 0, n, n);
   g.fillStyle = veil;
@@ -266,12 +267,12 @@ export function drawFog(st) {
   // thick everywhere but the square around the aircraft, where the clearing fades in. The square sits on whole pixels
   // and the image is read from inside its border, so no seam shows where the two meet.
   ctx.fillStyle = `rgba(${tone},${f.thick})`;
-  const L = Math.round(x - r), T = Math.round(y - r), side = Math.round(r * 2), R = L + side, B = T + side;
+  const L = Math.round(x - r * f.wide), T = Math.round(y - r), across = Math.round(r * 2 * f.wide), side = Math.round(r * 2), R = L + across, B = T + side;
   ctx.fillRect(-20, -20, W + 40, Math.max(0, T + 20));
   ctx.fillRect(-20, B, W + 40, Math.max(0, H + 20 - B));
   ctx.fillRect(-20, T, Math.max(0, L + 20), side);
   ctx.fillRect(R, T, Math.max(0, W + 20 - R), side);
-  ctx.drawImage(hole, 1, 1, f.sprite - 2, f.sprite - 2, L, T, side, side);
+  ctx.drawImage(hole, 1, 1, f.sprite - 2, f.sprite - 2, L, T, across, side);
   const gy = Y(GROUND), top = Y(GROUND - f.lowH);
   if (top < H) {
     ctx.drawImage(band, -20, top, W + 40, gy - top);

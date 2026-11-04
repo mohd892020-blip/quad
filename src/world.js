@@ -495,7 +495,7 @@ function paintBuilding(g, b) {
   paintRoof(g, b);
 }
 
-// painted at the camera's settled zoom, so a glide between shots never repaints them
+// painted for the camera's closest shot, so a glide between shots never repaints them
 const spriteK = () => view.sharp * Math.min(view.DPR, SPRITE.maxDensity);
 
 // Each visible building is kept as a ready image, so a frame only blits it.

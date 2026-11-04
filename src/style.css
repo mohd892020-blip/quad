@@ -404,4 +404,7 @@ button:focus:not(:focus-visible),[tabindex]:focus:not(:focus-visible){outline:no
 #adCard .card{background:linear-gradient(160deg,#3b3480,#221d4d);-webkit-backdrop-filter:none;backdrop-filter:none}
 #resultSkip{animation:rowIn .34s ease-out 1.25s backwards}
 #hud #camBtn .ico{width:18px;height:18px}
-#camChip{position:absolute;top:calc(100% + 14px);left:50%;transform:translateX(-50%);padding:5px 14px;border-radius:10px;background:var(--strip);color:var(--ink);font-family:var(--display);font-size:18px;letter-spacing:.14em;white-space:nowrap;pointer-events:none}
+#camChip{position:absolute;top:calc(100% + 54px);left:50%;transform:translateX(-50%);padding:5px 14px;border-radius:10px;background:var(--strip);color:var(--ink);font-family:var(--display);font-size:18px;letter-spacing:.14em;white-space:nowrap;pointer-events:none}
+#wxChip{position:absolute;top:calc(100% + 10px);left:max(12px,env(safe-area-inset-left,0px));display:flex;align-items:center;gap:6px;padding:5px 11px 5px 8px;border-radius:10px;background:var(--strip);color:var(--ink);font-size:12px;font-weight:700;white-space:nowrap;pointer-events:none;opacity:0;transform:translateY(-4px);transition:opacity .45s ease,transform .45s ease}
+#wxChip.on{opacity:1;transform:none}
+#wxChip .ico{width:16px;height:16px;color:#9fd8ff}

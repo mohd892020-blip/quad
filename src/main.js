@@ -4,7 +4,7 @@ import { beginChallenge, drawChallenge, drawWeather, stepChallenge } from './cha
 import { stepContrast } from './contrast.js';
 import { drawCloudsBack, drawCloudsFront, drawFallBehind, drawFallFront, drawFog, drawHighClouds, drawOvercast, stepClouds } from './weather.js';
 import { updateMusic } from './music.js';
-import { BEACH, CAMERA, CITY_SEED, DRONE, DUST, FIXED_DT, GROUND, HANGAR, HUD_INTERVAL, MAX_FRAME_DT, MUSIC, QUALITY } from './config.js';
+import { BEACH, CAMERA, CITY_SEED, CLOCK, DRONE, DUST, FIXED_DT, GROUND, HANGAR, HUD_INTERVAL, MAX_FRAME_DT, MUSIC, QUALITY } from './config.js';
 import { settings as picked } from './storage.js';
 import { initLeague } from './league.js';
 import { buildLevels } from './levels.js';
@@ -20,15 +20,15 @@ import { initShop } from './shop.js';
 import { drawSandstorm, touchesSink } from './desert.js';
 import { touchesRiver } from './forest.js';
 import { stepDraft, touchesIce } from './alpine.js';
-import { drawShotBars, stepCamera } from './camera.js';
+import { stepCamera } from './camera.js';
 import { drawForeground } from './skyline.js';
 import { touchesSea } from './seaside.js';
 import { loadProgress, settings } from './storage.js';
 import {
   ctx, drawFx, drawMarks, frost, hideModals, hideOverlay, hud, initLevels, initSheet, kickDust, levelsOpen, lowerQuality, measureHud, modalOpen, onDevActions, onStart,
-  previewCanvas, raiseQuality, setZoom, shakeOffset, sheetOpen, showActions, showHangarTip, showKeyHints, showLesson, showLevels, showResult, stepFx, view,
+  previewCanvas, raiseQuality, resetWeatherNote, setZoom, shakeOffset, sheetOpen, showActions, showHangarTip, showKeyHints, showLesson, showLevels, showResult, stepFx, view,
 } from './ui.js';
-import { world, drawCity, drawMap, drawSky, dropSprites, genWorld, stepClock, stepWind } from './world.js';
+import { world, drawCity, drawMap, drawSky, dropSprites, genWorld, setClock, stepClock, stepWind } from './world.js';
 
 let st = null, hudT = 0, last = performance.now(), levels = [];
 const pace = { t: 0, n: 0, even: 0, last: 0, easy: 0, raised: false, tried: false };
@@ -49,7 +49,9 @@ export function step(dt) {
     stepFx(st, dt);
     return;
   }
-  const zone = zones(st), pilot = controls();
+  // once a mission has failed the aircraft holds still where it is until the card shows
+  const held = st.outcome && !st.outcome.passed && !st.falling;
+  const zone = zones(st), pilot = held ? PARKED : controls();
   if (st.prep?.opening) restrain(st, keys);
   keys.sink = keys.dn || (keys.rd && !zone.rope) ? 1 : 0;
   stepHold(st, pilot, zone.hold);
@@ -57,7 +59,8 @@ export function step(dt) {
   stepRopeLength(st, pilot, zone, dt);
   stepBoost(st, pilot, dt);
   const fall = st.d.vy;
-  const grounded = stepDrone(st, pilot, dt);
+  if (held) st.d.vx = st.d.vy = 0;
+  const grounded = held ? st.onGround : stepDrone(st, pilot, dt);
   if (grounded && !st.onGround && fall > DUST.minSpeed) kickDust(st, st.d.x, st.d.y + DRONE.radius, fall);
   st.onGround = grounded;
   if (grounded && st.falling) explode(st);
@@ -106,7 +109,7 @@ function blended() {
 function render() {
   const s = blended();
   ctx.setTransform(view.DPR, 0, 0, view.DPR, 0, 0);
-  setZoom(s.cam.z || 1, st.cam.sharp || 1);
+  setZoom(s.cam.z || 1);
   view.cam = s.cam;
   drawSky(s);
   drawHighClouds(s);
@@ -138,7 +141,6 @@ function render() {
   drawSandstorm(s);
   drawWeather(s);
   ctx.restore();
-  drawShotBars(s);
   drawPointer(s);
   drawBatteryCue(s);
   drawOrderTime(s);
@@ -219,6 +221,9 @@ function loop(now) {
 
 function start(level) {
   st = newGame(level);
+  resetWeatherNote();
+  // most missions open in daylight; a few keep the sunset or the night
+  setClock((CLOCK.night.includes(level.n) ? 1 : CLOCK.sunset.includes(level.n) ? 0 : 2) * (CLOCK.hold + CLOCK.fade));
   hideModals();
   last = performance.now();
   pace.t = pace.n = pace.even = 0;
@@ -259,7 +264,7 @@ function idle(now = demo.at) {
   if (!levelsOpen()) {
     watchPace(frame);
     ctx.setTransform(view.DPR, 0, 0, view.DPR, 0, 0);
-    setZoom(1, 1);
+    setZoom(1);
     demo.x += CAMERA.idleSpeed * dt;
     const fake = {
       cam: { x: demo.x - CAMERA.idleLead, y: GROUND + CAMERA.floorBelow - view.viewH },

@@ -1,7 +1,7 @@
 import { BOX, DRONE, GROUND, MOUNTAIN, SNOW } from './config.js';
 import { drawPine, growPines } from './forest.js';
 import { kiosk } from './seaside.js';
-import { ctx, glow, shade, view, X, Y } from './ui.js';
+import { ctx, glow, ridgePoints, shade, view, X, Y } from './ui.js';
 import { mixHex, world, zoneAt } from './world.js';
 
 // The high country past the forest. The mountains have crags to deliver onto, stone huts, a cable car, and currents of
@@ -90,21 +90,21 @@ const lit = (hex, time) => shade(hex, time.light);
 // A mountain range: a long swell with sharp teeth, rising out of the land before it. The rock pales into the haze
 // toward its foot.
 function range(c, par, height, swell, teeth, col, cap, haze) {
-  const { W, S, cam } = view, base = Y(GROUND), left = Math.max(0, X(c.from)), right = Math.min(W, X(c.to)), step = c.ridgeStep * S;
+  const { W, S, cam } = view, base = Y(GROUND), left = Math.max(0, X(c.from)), right = Math.min(W, X(c.to));
   if (right <= left) return;
-  const at = sx => {
-    const x = cam.x + sx / S, u = cam.x * par + sx / S, rise = Math.max(0, Math.min(1, (x - c.from) / c.rise, (c.to - x) / c.rise));
+  const pts = ridgePoints(par, c.ridgeStep, left, right).map(([sx, u]) => {
+    const x = cam.x + sx / S, rise = Math.max(0, Math.min(1, (x - c.from) / c.rise, (c.to - x) / c.rise));
     const tooth = Math.abs(((u / teeth) % 2 + 2) % 2 - 1) * teeth * 1.6 + Math.sin(u / (teeth * 2.7)) * teeth * .5;
-    return [rise * (height + swell * Math.sin(u / c.ridgeLong) + tooth), u];
-  };
+    return [sx, rise * (height + swell * Math.sin(u / c.ridgeLong) + tooth), u];
+  });
   const fade = ctx.createLinearGradient(0, base - (height + swell + teeth * 2) * S, 0, base);
   fade.addColorStop(0, col);
   fade.addColorStop(1, mixHex(col, haze, c.haze));
   ctx.fillStyle = fade;
   ctx.beginPath();
-  ctx.moveTo(left, base);
-  for (let sx = left; sx <= right + step; sx += step) ctx.lineTo(Math.min(sx, right), base - at(sx)[0] * S);
-  ctx.lineTo(right, base);
+  ctx.moveTo(pts[0][0], base);
+  for (const [sx, h] of pts) ctx.lineTo(sx, base - h * S);
+  ctx.lineTo(pts[pts.length - 1][0], base);
   ctx.fill();
   if (!cap) return;
   // snow lies in a ragged band along the ridge wherever it rises above the snow line
@@ -122,8 +122,7 @@ function range(c, par, height, swell, teeth, col, cap, haze) {
     top = [];
     low = [];
   };
-  for (let sx = left; sx <= right + step; sx += step) {
-    const x = Math.min(sx, right), [h, u] = at(x);
+  for (const [x, h, u] of pts) {
     if (h > line) {
       const depth = Math.min(h - line, c.capDepth * (.6 + .25 * Math.sin(u / 11) + .15 * Math.sin(u / 4.3)));
       top.push([x, base - h * S]);

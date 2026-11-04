@@ -46,7 +46,8 @@ export const CLOUDS = {
 // of the wind carries them, lean the slant the wind gives the rain, pad how far past the screen they wrap, lowShare
 // what is left of them on the low picture. overcast veils the sky in dim, darkened by the time of day's light. Fog clears to near within
 // clear of the aircraft (fully inside core of that) and closes to thick past it, lies low up to lowH, and drifts in
-// banks bankW wide at bankDepth of the camera's motion; sprite is the size its gradients are painted at. Low cloud fills amount of the cloud slots.
+// banks bankW wide at bankDepth of the camera's motion; sprite is the size its gradients are painted at. The clearing
+// is wide times broader than tall, and thickens through ease (share of the way out, share of the way to thick). Low cloud fills amount of the cloud slots.
 export const WEATHER = {
   kinds: ['rain', 'fog', 'clouds', 'snow'], dim: '150,156,170',
   snow: {
@@ -58,7 +59,8 @@ export const WEATHER = {
     pad: 40, lowShare: .5, color: '205,220,255', alpha: [.22, .32, .45], overcast: .42, splashes: 28, splashRate: 1.6, splashSize: 7, splashAlpha: .5,
   },
   fog: {
-    name: 'Fog. Follow the arrow', missions: [11, 16, 26, 36], sprite: 128, clear: 240, core: .35, near: .06, thick: .82, low: .45, lowH: 170, banks: 7, bankW: 520, bankFlat: .32,
+    name: 'Fog. Follow the arrow', missions: [11, 16, 26, 36], sprite: 128, clear: 330, wide: 1.45, core: .05, near: .22, thick: .7,
+    ease: [[.35, .06], [.6, .32], [.82, .74]], low: .45, lowH: 170, banks: 7, bankW: 520, bankFlat: .32,
     bankAlpha: .35, drift: 14, bankDepth: .8, bankLow: 30, bankHigh: 320, overcast: .3,
   },
   clouds: { name: 'Low cloud', missions: [4, 9, 22, 35], amount: .97, overcast: .22 },
@@ -94,6 +96,11 @@ export const SKYLINE = {
     color: '#1d1824', tint: .4, alpha: .86, fade: .22, near: 90, sway: 4, swayWind: .02, swayRate: 1.3,
   },
 };
+
+// Gentle notes on what the weather does to the flight: gusts past gust of the mission's wind (and at least gustMin),
+// a draft past draft, and for the first intro seconds the fog or the cold. A note shows once it has held for show
+// seconds and lingers linger seconds after.
+export const WEATHER_HINT = { gust: .75, gustMin: 120, draft: 110, show: .5, linger: 1.5, intro: 6 };
 
 // The player's choice of picture. Sharp draws at the screen's own density and gives way, never below sharpFloor, only
 // when frames are awful. Auto finds the sharpest the device keeps up with. Saver stays on the low tier.
@@ -698,7 +705,8 @@ export const SHOPS = [
 
 // One day: each time holds, then fades into the next. lit = window colours for off, dim and bright.
 // Sky stops must line up across times so they can blend; discCut is how much of the disc is shaded.
-export const CLOCK = { hold: 120, fade: 20, steps: 16, startAt: 2 };
+// Missions open in daylight and the day turns on from there; the missions in sunset and night open at those hours.
+export const CLOCK = { hold: 120, fade: 20, steps: 16, startAt: 2, sunset: [9, 18, 27, 36, 45], night: [19, 29, 39, 49] };
 export const TIMES = [
   {
     name: 'Sunset', sky: [[0, '#140f2a'], [.45, '#3b2452'], [.8, '#b4505a'], [1, '#f0a259']],
@@ -783,18 +791,18 @@ export const CAMERA = {
 // The camera's shots. zoom scales the picture, leadX and leadY place the aircraft across and down the screen, ahead
 // leads the shot by that many seconds of flight, follow is how fast it catches up, and breathe drifts the zoom by that
 // share at breatheRate. The player steps through order; intro holds while a mission's first order is made, outro
-// pushes in on a delivery. A change of shot glides over blend seconds while bars of that share of the screen close in
-// and open again. Auto cuts to close within near of the shop or customer, to wide above fast px/s, and holds a shot
+// pushes in on a delivery. A change of shot glides over blend seconds. Cached images are painted for the closest
+// shot, sharpZoom, so no change of shot ever repaints them. Auto cuts to close within near of the shop or customer, to wide above fast px/s, and holds a shot
 // at least hold seconds. chip is how long the shot's name shows after a change.
 export const SHOTS = {
-  order: ['chase', 'wide', 'close', 'cinema', 'auto'], start: 'chase', blend: 1.1, bars: .06, barColor: 'rgba(8,6,18,.85)', chip: 1.6,
+  order: ['chase', 'wide', 'close', 'cinema', 'auto'], start: 'chase', blend: 1.1, sharpZoom: 1.15, chip: 1.6,
   chase: { name: 'Chase', zoom: 1, leadX: .45, ahead: .35, leadY: .42, follow: 3 },
   wide: { name: 'Wide', zoom: .72, leadX: .5, ahead: .55, leadY: .46, follow: 2.4 },
-  close: { name: 'Close', zoom: 1.3, leadX: .46, ahead: .2, leadY: .38, follow: 4 },
+  close: { name: 'Close', zoom: 1.15, leadX: .46, ahead: .2, leadY: .38, follow: 4 },
   cinema: { name: 'Cinema', zoom: .88, leadX: .36, ahead: .8, leadY: .32, follow: 1.4, breathe: .025, breatheRate: .45 },
   auto: { name: 'Auto', near: 380, fast: 250, hold: 2.2 },
   intro: { zoom: .74, leadX: .42, ahead: 0, leadY: .5, follow: 2 },
-  outro: { zoom: 1.2, leadX: .5, ahead: 0, leadY: .45, follow: 1.6 },
+  outro: { zoom: 1.08, leadX: .5, ahead: 0, leadY: .45, follow: 1.6 },
 };
 
 // popSize is the words that pop up, before the screen's scale, and popRise how fast they climb.
