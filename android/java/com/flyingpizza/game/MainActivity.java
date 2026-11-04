@@ -43,7 +43,12 @@ public class MainActivity extends Activity {
     web.addJavascriptInterface(new Object() {
       @JavascriptInterface
       public void sideways(final boolean on) {
-        runOnUiThread(() -> setRequestedOrientation(on ? ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE : ActivityInfo.SCREEN_ORIENTATION_FULL_USER));
+        runOnUiThread(new Runnable() {
+          @Override
+          public void run() {
+            setRequestedOrientation(on ? ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE : ActivityInfo.SCREEN_ORIENTATION_FULL_USER);
+          }
+        });
       }
     }, "PizzaScreen");
     setContentView(web);
