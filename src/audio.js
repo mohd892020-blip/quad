@@ -189,6 +189,8 @@ const SOUNDS = {
   gust: t => burst(t, .9, .3, 600, 'bandpass'),
   ring: t => { tone(1320, 1760, t, .12, .35); tone(1760, 2640, t + .08, .2, .3); },
   close: t => { burst(t, .14, .35, 1800, 'bandpass'); tone(880, 1320, t + .05, .1, .28); },
+  // a claimed gift: four notes climbing, four voices
+  gift: t => { tone(784, 784, t, .1, .35); tone(1047, 1047, t + .08, .1, .35); tone(1319, 1319, t + .16, .1, .35); tone(1568, 2093, t + .24, .38, .42); },
 };
 
 // A short buzz where the phone has one and the player wants it; the app hands it to Android itself.

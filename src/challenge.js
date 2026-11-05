@@ -11,7 +11,9 @@ export function beginChallenge(st) {
   const { challenge, noBoost, stops } = st.level, t = stops[0].t;
   showBoost(!noBoost);
   if (t.ferry) t.x = t.home;
-  if (challenge) showToast(challenge.name, challenge.note, true);
+  // a challenge, or today's mission, names its rule as it starts
+  const intro = challenge ?? st.level.daily?.theme;
+  if (intro) showToast(intro.name, intro.note, true);
 }
 
 // Gusts swap sides every couple of seconds, far quicker than the wind of any other mission.

@@ -57,7 +57,9 @@ export function nudgeShop() {
   const names = pick.map(i => i.name).join(' or ') + (fresh.length > pick.length ? ' and more' : '');
   note.textContent = `You have $${money}. Enough for ${names} in the Shop`;
   note.hidden = false;
-  // the bubble hangs under the Shop button, kept on screen
+  // the bubble hangs under the Shop button, kept on screen; it is measured from the left edge, since a fixed bubble left
+  // where a turned phone's screen now ends would be measured squeezed
+  note.style.left = '0px';
   const b = btn.getBoundingClientRect(), w = note.offsetWidth, mid = b.left + b.width / 2, left = Math.max(12, Math.min(innerWidth - w - 12, mid - w / 2));
   note.style.left = `${left}px`;
   note.style.top = `${b.bottom + 10}px`;
@@ -115,4 +117,6 @@ export function initShop() {
     nudgeShop();
   });
   $('shop').addEventListener('click', act);
+  // a turned phone moves the Shop button, so the note under it follows
+  addEventListener('resize', () => { if (!$('levels').hidden) nudgeShop(); });
 }

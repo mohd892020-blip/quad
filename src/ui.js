@@ -1,7 +1,8 @@
 import { buzz, canBuzz, sfx, toggleMute } from './audio.js';
 import { musicCue } from './music.js';
 import { nudgeShop } from './shop.js';
-import { AIRCRAFT, ALTIMETER, BADGE, BOOST, COMBO, DEV, DUST, FROST, FX, G, GATES, GROUND as G_LINE, HANGAR, HEALTH, JOY, KEY_HINT, LEVELS, MISSION, PERFECT, PICTURE, POINTER, QUALITY, RESULT, SHAKE, SHOP, SHOTS, SKIP, VIEW, WEATHER, WEATHER_HINT, WIND } from './config.js';
+import { showToday } from './daily.js';
+import { AIRCRAFT, ALTIMETER, BADGE, BOOST, COMBO, DAILY, DEV, DUST, FROST, FX, G, GATES, GIFTS, GROUND as G_LINE, HANGAR, HEALTH, JOY, KEY_HINT, LEVELS, MISSION, PERFECT, PICTURE, POINTER, QUALITY, RESULT, SHAKE, SHOP, SHOTS, SKIP, VIEW, WEATHER, WEATHER_HINT, WIND } from './config.js';
 import { applyControls, touchUI } from './input.js';
 import { bought, loadProgress, owns, saveSettings, saveSkips, settings, skips } from './storage.js';
 
@@ -663,7 +664,7 @@ export function showActions(zone, anchored, landing, boosting) {
 
 /* ---------- settings ---------- */
 export const sheetOpen = () => !$('sheet').hidden;
-const MODALS = ['levels', 'levelCard', 'resultCard', 'pauseCard', 'shop', 'league', 'adCard'];
+const MODALS = ['levels', 'levelCard', 'resultCard', 'pauseCard', 'shop', 'league', 'adCard', 'gifts'];
 export const modalOpen = () => sheetOpen() || MODALS.some(id => !$(id).hidden);
 // The level map is opaque, so nothing behind it needs drawing.
 export const levelsOpen = () => !$('levels').hidden;
@@ -685,7 +686,7 @@ export function frost(on) {
 
 /* ---------- levels ---------- */
 let levelList = [], acts = {}, picked = null, resultLevel = null;
-const starText = n => '★'.repeat(n) + '☆'.repeat(3 - n);
+export const starText = n => '★'.repeat(n) + '☆'.repeat(3 - n);
 export const clockText = s => `${Math.floor(Math.ceil(s) / 60)}:${String(Math.ceil(s) % 60).padStart(2, '0')}`;
 // The first level without a star is the furthest one open.
 function reachedLevel(stars) {
@@ -791,16 +792,16 @@ export function showLevels() {
   path.innerHTML = `<svg viewBox="0 0 100 ${height}" preserveAspectRatio="none" aria-hidden="true"><polyline points="${road}"/></svg>${nodes}`;
   $('levelsMoney').textContent = `$${money}`;
   $('levels').hidden = false;
+  // the Today card changes the bar's height, so it comes before the shop note is placed
+  showToday(true);
   nudgeShop();
   const scroll = $('levelsScroll');
   scroll.scrollTop = height - open * gap - (scroll.clientHeight || 0) / 2;
 }
 
-function openLevelCard(n) {
-  const l = levelList[n - 1], { stars } = loadProgress(), open = reachedLevel(stars), legs = l.stops, route = legs.length > 1;
-  picked = l;
-  $('levelTitle').textContent = `Mission ${n}`;
-  $('levelBest').textContent = stars[n] ? starText(stars[n]) : '☆☆☆';
+// What a mission asks and what can end it, for its card: the job, the run, the cost of a ruined order, the dangers.
+function missionRows(l) {
+  const legs = l.stops, route = legs.length > 1;
   const order = i => (i.urgent ? `${i.label} · urgent` : i.label), to = s => `${placeName(s.t)}, ${Math.round(s.dist / 10)} m`;
   const { item, shop, limit, parcels } = legs[0];
   const jobs = parcels
@@ -810,20 +811,34 @@ function openLevelCard(n) {
     : [['Order', order(item)], ['Shop', `${shop.shop.name}, ${shop.zone.name}`], ['Customer', to(legs[0])], ['Time', clockText(limit)]];
   // a slow aircraft is told before an avalanche, while there is still time to pick another
   const plane = AIRCRAFT.find(a => a.key === settings.plane) ?? AIRCRAFT[0], chased = legs.some(s => s.twist === 'avalanche') && plane.speed < HANGAR.chaseSpeed;
-  const rows = [
-    ...(l.challenge ? [['Challenge', l.challenge.name], ['Rule', l.challenge.note]] : []),
+  return [
     ...(chased ? [['Aircraft', plane.speed < HANGAR.boostFloor ? `${plane.name} is too slow for an avalanche, even with Boost. Pick a faster one` : `${plane.name} is slow for an avalanche. Boost, or pick a faster one`]] : []),
-    ...jobs, ...(acts.streak() >= COMBO.showFrom ? [['Combo', `${acts.streak()} in a row, next clean tip ×${COMBO.mult[Math.min(acts.streak() + 1, COMBO.mult.length - 1)]}`]] : []), ['If ruined', route ? `up to -$${Math.max(...legs.map(s => s.item.price))}` : `-$${item.price}`],
+    ...jobs, ...(acts.streak() >= COMBO.showFrom ? [['Combo', `${acts.streak()} in a row, next clean tip ×${COMBO.mult[Math.min(acts.streak() + 1, COMBO.mult.length - 1)]}`]] : []),
+    ['If ruined', l.daily ? 'Nothing. Retries are free' : route ? `up to -$${Math.max(...legs.map(s => s.item.price))}` : `-$${item.price}`],
     ...(l.weather ? [['Weather', WEATHER[l.weather].name]] : []), ['Wind', `up to ${l.wind}`], ['Hawks', l.hawks ? `${l.hawks}${route ? ' per stop' : ''}` : 'None'], ...(l.eagles ? [['Eagles', `${l.eagles}${route ? ', last stop' : ''}, one hit downs you`]] : []),
     ['Rival', l.rival ? `Yes${route ? ', last stop' : ''}, speed ${l.rivalSpeed}` : 'None'], ...(l.calm ? [] : [[l.beach ? 'Boats' : l.desert ? 'Buggies' : l.forest ? 'Jeeps and deer' : l.mountain ? 'Jeeps and goats' : l.snow ? 'Sleds and reindeer' : 'Cars', `${l.street ? (l.desert || l.forest || l.mountain || l.snow ? 'Crossing your drop' : 'On your street') : 'Yes'}, speed ${l.carSpeed}`]]),
     ...(l.beach ? [['Danger', 'Open sea']] : l.desert ? [['Danger', 'Quicksand, sandstorms']] : l.forest ? [['Danger', 'Tall pines, the river']] : l.mountain ? [['Danger', 'Updrafts, downdrafts, the cable car']] : l.snow ? [['Danger', 'Thin ice. The cold drains the battery']] : []),
   ];
-  $('levelRows').innerHTML = rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');
-  const locked = n > open && !settings.dev;
+}
+
+// A mission's card, from the map or today's mission: head rows first, then the job and its dangers, then tail rows; go
+// is the Start button's word, and lock names the mission to pass first.
+export function openMissionCard(l, { kicker = '', title, best = 0, head = [], tail = [], go = 'Start', lock = 0 }) {
+  picked = l;
+  $('levelKicker').hidden = !kicker;
+  $('levelKicker').textContent = kicker;
+  $('levelTitle').textContent = title;
+  $('levelBest').textContent = starText(best);
+  $('levelRows').innerHTML = [...head, ...missionRows(l), ...tail].map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');
+  const locked = !!lock && !settings.dev;
   $('levelPlay').disabled = locked;
-  $('levelPlay').classList.toggle('devMark', n > open && !locked);
-  $('levelPlay').textContent = locked ? `Finish mission ${open} first` : 'Start';
+  $('levelPlay').classList.toggle('devMark', !!lock && !locked);
+  $('levelPlay').textContent = locked ? `Finish mission ${lock} first` : go;
   $('levelCard').hidden = false;
+}
+function openLevelCard(n) {
+  const l = levelList[n - 1], { stars } = loadProgress(), open = reachedLevel(stars);
+  openMissionCard(l, { title: `Mission ${n}`, best: stars[n] || 0, head: l.challenge ? [['Challenge', l.challenge.name], ['Rule', l.challenge.note]] : [], lock: n > open ? open : 0 });
 }
 
 // The money runs up to its total once the stars have landed.
@@ -840,18 +855,29 @@ function countUp(el, to) {
   tally = requestAnimationFrame(tick);
 }
 
+// A passed mission's line under the money: today's reward already taken, or what just opened on the map.
+function passTip(o, level) {
+  const { daily, gifts } = loadProgress();
+  if (level.daily) return o.reward ? '' : "Today's reward is already yours. A new mission comes at midnight";
+  if (o.training) return '';
+  if (level.n === DAILY.unlock && daily.day < 0) return "Today's Mission is open on the map";
+  if (level.n === GIFTS.unlock && gifts.day < 0) return 'A daily gift is waiting on the map';
+  return '';
+}
+
 export function showResult(o, level, hasNext) {
   resultLevel = level;
-  const card = $('resultCard'), won = o.passed && !o.training, legs = level.stops.length, next = o.passed && hasNext, lead = o.training ? 'resultMap' : next ? 'resultNext' : 'resultRetry';
+  const card = $('resultCard'), won = o.passed && !o.training, legs = level.stops.length, next = o.passed && hasNext, daily = !!level.daily;
+  const lead = o.training || (daily && o.passed) ? 'resultMap' : next ? 'resultNext' : 'resultRetry';
   card.classList.toggle('bad', !o.passed);
-  $('resultKicker').textContent = o.training ? 'Flight school' : `Mission ${level.n}`;
+  $('resultKicker').textContent = o.training ? 'Flight school' : daily ? "Today's Mission" : `Mission ${level.n}`;
   $('resultTitle').textContent = o.training ? 'TRAINING COMPLETE' : o.passed ? 'MISSION COMPLETE' : 'MISSION FAILED';
   const hero = $('resultStars'), earned = o.training ? 0 : o.stars || 0;
   hero.innerHTML = o.training ? `<div class="seal ok"><svg class="ico"><use href="#i-check"/></svg></div>`
     : [0, 1, 2].map(i => `<svg style="--n:${i}" viewBox="0 0 48 48"><use href="#i-star${i < earned ? '' : '-off'}"/></svg>`).join('');
   hero.setAttribute('aria-label', won ? `${o.stars} of 3 stars` : '');
   const rows = won ? [['Delivery tips', `+$${o.tip - o.beat - o.bonus}`], ...(o.bonus ? [['Combo and bonuses', `+$${o.bonus}`]] : []), ...(o.beat ? [['Rival beaten', `+$${o.beat}`]] : []),
-    ['Order condition', `${Math.round(o.integ)}%`], ['Flight time', clockText(o.secs)]]
+    ...(o.reward ? [['Daily reward', `+$${o.reward}`]] : []), ['Order condition', `${Math.round(o.integ)}%`], ['Flight time', clockText(o.secs)]]
     : o.passed ? []
     : [...(legs > 1 ? [['Reached', `Stop ${o.reached + 1} of ${legs}`]] : []), ...(o.cost ? [['Order lost', `-$${o.cost}`]] : [])];
   $('resultStats').innerHTML = rows.map(([k, v], i) => `<dt style="--n:${i}">${k}</dt><dd style="--n:${i}">${v}</dd>`).join('');
@@ -860,24 +886,25 @@ export function showResult(o, level, hasNext) {
   $('resultSheet').hidden = !rows.length;
   // a won mission's line under the stars names its highlights, in gold; each keeps its number with it, and a card too
   // narrow for both carries the dot down with the second
-  const shine = won ? [o.perfect && (o.perfect > 1 ? `PERFECT\u00a0×${o.perfect}` : 'PERFECT'), o.combo >= COMBO.showFrom && `COMBO\u00a0${o.combo}`].filter(Boolean).join(' ·\u00a0') : '';
+  const shine = won ? [o.reward && (o.run > 1 ? `${o.run}-DAY\u00a0STREAK` : 'DAILY\u00a0DONE'), o.perfect && (o.perfect > 1 ? `PERFECT\u00a0×${o.perfect}` : 'PERFECT'), o.combo >= COMBO.showFrom && `COMBO\u00a0${o.combo}`].filter(Boolean).join(' ·\u00a0') : '';
   $('resultWhy').textContent = o.training ? 'You are ready for Mission 1' : o.passed ? shine : o.why;
   $('resultWhy').classList.toggle('shine', !!shine);
-  $('resultTip').textContent = o.passed ? '' : RESULT.tips[o.why] || '';
+  $('resultTip').textContent = o.passed ? passTip(o, level) : RESULT.tips[o.why] || '';
+  $('resultTip').classList.toggle('note', o.passed);
   for (const id of ['resultMap', 'resultRetry']) $(id).className = id === lead ? 'go wide' : 'ghost round';
   $('resultNext').hidden = !next;
-  if (o.passed || o.training) $('resultSkip').hidden = true;
+  if (o.passed || o.training || daily) $('resultSkip').hidden = true;
   else showSkip(level.n);
   card.hidden = false;
   sfx(o.passed ? 'win' : 'lose');
   musicCue(o.passed ? 'win' : 'lose');
-  if (won) countUp($('resultMoney'), o.tip);
+  if (won) countUp($('resultMoney'), o.tip + (o.reward || 0));
 }
 
 // The map button pauses. Leaving with an order in the air costs what ruining it would.
 function openPause() {
   const cost = acts.stake(), level = acts.level(), { money, del } = loadProgress(), combo = acts.combo() >= COMBO.showFrom;
-  $('pauseTitle').textContent = level.training ? 'Training' : `Mission ${level.n}`;
+  $('pauseTitle').textContent = level.training ? 'Training' : level.daily ? "Today's Mission" : `Mission ${level.n}`;
   $('pauseStats').textContent = `$${money} · ${del} ${del === 1 ? 'delivery' : 'deliveries'}`;
   $('pauseWhy').textContent = cost ? `Leaving loses the order: -$${cost}${combo ? ' and your combo' : ''}` : combo ? 'Leaving ends your combo' : '';
   $('pauseCard').hidden = false;

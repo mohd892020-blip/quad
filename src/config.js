@@ -1069,3 +1069,43 @@ export const SURPRISE = {
   gust: { warn: 1.2, secs: 2.2, share: .8, top: .9, flip: .4, follow: 2, open: 150, clear: 140 },
   move: { kinds: ['roof', 'boat'], step: [120, 450], rise: 160, room: 600, spare: 100, base: 5, pace: 1.5, chance: .7, flash: 2.5, seenBy: 8 },
 };
+
+// Today's mission: one a day, built from the device's local date (its day number, see storage.js), so every player gets
+// the same one on that date. Each weekday has its theme (Monday first), so seven days in a row never repeat one, and the
+// region steps on one a day through regions. It flies at tier: the reach, hawks, wind, traffic and rival speed of that
+// mission, with the theme's stops or two at chance two, in daylight at chance day else at sunset (the night theme at
+// night), and weather from its region's skies at chance weather (the snowfield always snows). Fair for everyone: a clear
+// way down and open sky over every customer, never one of the avoid kinds (down among the traffic, behind a balcony rail,
+// on the ice), never the same customer twice, a heavy order never more than heavyTop over the street, an order that
+// catches the wind never on a perch, in a race, under a cut clock or where a region's wind boost is over calm, an urgent
+// order never under a cut clock, and a race leg at least rivalMin long. A date draws from its own stream (seed + day *
+// mix + try * retry), so missions 1-55 never move; it takes up to tries draws in its region, then the same in the city.
+// reward pays the date's first pass: base, plus step for each day in a row after the first, at most cap steps. It opens
+// once mission unlock is passed; the map's countdowns refresh every tick seconds.
+export const DAILY = {
+  unlock: 5, seed: 6061, mix: 7919, retry: 104729, tries: 8, tier: 6, two: .5, day: .6, weather: .4, calm: 1.2, heavyTop: 240, rivalMin: 1500, tick: 1,
+  regions: ['city', 'beach', 'desert', 'forest', 'mountain', 'snow'],
+  places: { city: 'City', beach: 'Seaside', desert: 'Desert', forest: 'Forest', mountain: 'Mountains', snow: 'Snowfield' },
+  skies: { city: ['rain', 'clouds'], beach: ['clouds'], desert: [], forest: ['fog'], mountain: ['snow'], snow: ['snow'] },
+  avoid: ['bal', 'street', 'camp', 'oasis', 'clearing', 'basecamp', 'igloo', 'ice'], perches: ['boat', 'station'],
+  // each note says its theme's numbers in words, so a changed clock, hawks or stops needs its note changed too; a no-break
+  // space keeps a short last word off a line of its own on a narrow phone
+  themes: [
+    { key: 'rush', name: 'Rush Hour', note: 'Every clock is 20% shorter', sign: 'clock', clock: .8 },
+    { key: 'big', name: 'Big Order', note: 'Two orders tied on one rope, for one customer', sign: 'double', pair: [1.6, 2.2], stops: 1 },
+    { key: 'hawks', name: 'Hawk Alley', note: 'One more hawk on every leg', sign: 'hawk', hawks: 1 },
+    { key: 'tour', name: 'Grand Tour', note: 'Three stops, one after another', sign: 'route', stops: 3 },
+    { key: 'race', name: 'Race Day', note: 'A rival races you to the last customer', sign: 'rival', rival: true },
+    { key: 'care', name: 'Soft Touch', note: 'The most delicate order on the menu. Turn\u00a0gently', sign: 'glass', fragile: 1.2, stops: 1 },
+    { key: 'night', name: 'Night Shift', note: 'Two stops under the stars', sign: 'blackout', stops: 2, night: true },
+  ],
+  reward: { base: 20, step: 5, cap: 2 },
+};
+
+// The gift calendar: what each of the week's seven gifts pays, the last the big one. The next gift waits on any date after
+// the last one claimed, so a missed day only waits and a date at or before the last claim never pays; after the seventh the
+// week starts again. It opens once mission unlock is passed, and by itself once, on the first map visit of a date with a
+// gift waiting. A claim throws paper pieces from its tile (paper[1] on the big day, half on the low picture) up to spread
+// pixels out, the nearest at inner of that, lifted lift higher and turned up to spin degrees, and buzzes buzz[0]
+// milliseconds (buzz[1] on the big day).
+export const GIFTS = { unlock: 1, days: [10, 12, 15, 18, 20, 25, 100], paper: [24, 48], spread: 110, inner: .45, lift: 30, spin: 720, buzz: [40, 90] };

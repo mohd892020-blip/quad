@@ -7,7 +7,7 @@ import {
   AIRCRAFT, BATTERY, BOX, CAMERA, CARGO, COMBO, CONTRAST, DELIVERY, DEV, DOUBLE, DRONE, FIXED_DT, FX, HANGAR, HEALTH, LAND, LEVELS, MISSION, ORDER_TIME, ORDERS, PERFECT, POINTER, PREP, RESTAURANT, RIVAL, ROPE, SKIP, ROPE_CTL, SURPRISE, WIND,
 } from './config.js';
 import { currentModel } from './drone.js';
-import { loadProgress, noteResult, owns, saveProgress, settings } from './storage.js';
+import { loadProgress, noteResult, owns, payDaily, saveProgress, settings } from './storage.js';
 import { addMark, blast, clockText, confetti, ctx, glow, hud, placeName, pop, puff, showToast, view, X, Y } from './ui.js';
 import { mixHex, nearby, nearestShop, shopPad, world } from './world.js';
 
@@ -66,7 +66,7 @@ export function timeLimit(item, dist) {
 }
 
 export function startMission(st, shop, item) {
-  const { t, parcels } = st.stop, p = shopPad(shop), limit = st.level.training ? Infinity : parcels || st.level.challenge ? st.stop.limit : timeLimit(item, Math.abs(t.x - st.d.x));
+  const { t, parcels } = st.stop, p = shopPad(shop), limit = st.level.training ? Infinity : parcels || st.level.challenge ? st.stop.limit : timeLimit(item, Math.abs(t.x - st.d.x)) * (st.level.daily?.theme.clock ?? 1);
   st.item = item;
   const surprises = st.plan.filter(s => s.stop === st.stopAt).sort((a, b) => a.share - b.share);
   // bonus: close calls and rings banked on the way, paid with the tip; added: seconds a moved customer put on the clock;
@@ -116,7 +116,7 @@ function endMission(st) {
 function finish(st, outcome) {
   if (st.outcome || st.done) return;
   // a quick restart is not a real try, so it never counts toward a skip
-  if (!st.level.training) noteResult(st.level.n, outcome.passed, st.t >= SKIP.realSecs || st.picked);
+  if (!st.level.training && !st.level.daily) noteResult(st.level.n, outcome.passed, st.t >= SKIP.realSecs || st.picked);
   st.outcome = { ...outcome, at: st.t + (outcome.passed ? LEVELS.passDelay : LEVELS.resultDelay) };
 }
 
@@ -130,7 +130,7 @@ function cheer(st, { x, y }) {
 
 // charged: the player wrecked the goods, so they pay the shop for them.
 export function failMission(st, why, charged = false) {
-  const training = st.level.training, cost = charged && st.item && !training ? Math.min(st.money, st.item.price) : 0, reason = why.toUpperCase();
+  const training = st.level.training, cost = charged && st.item && !training && !st.level.daily ? Math.min(st.money, st.item.price) : 0, reason = why.toUpperCase();
   // a mission already decided stands: a car or a blast in a passed mission's last moments takes nothing from the run
   if (!st.outcome && !st.done) breakStreak(st);
   st.money -= cost;
@@ -219,9 +219,12 @@ function passMission(st) {
     st.stop = next;
     saveProgress(st.del, st.money);
   } else {
-    saveProgress(st.del, st.money, st.level.n, made.stars);
+    // today's mission pays its reward on the date's first pass and keeps its stars apart, so they count for nothing else
+    const daily = st.level.daily ? payDaily(st.level.daily.day, st.del, st.money, made.stars) : null;
+    if (daily) st.money += daily.reward;
+    else saveProgress(st.del, st.money, st.level.n, made.stars);
     cheer(st, o.t);
-    finish(st, { passed: true, ...made, combo: streak.n });
+    finish(st, { passed: true, ...made, combo: streak.n, ...daily });
   }
   hud(st);
 }

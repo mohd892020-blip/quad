@@ -94,7 +94,7 @@ kbd{display:inline-grid;place-items:center;min-width:24px;height:24px;box-sizing
 @media (max-height:480px){#toast{max-width:min(70vw,560px)}}
 #cardStart{display:grid;gap:14px;justify-items:center}
 /* these open over the mission map, which is sharp and busy, so their glass is solid */
-#levelCard .card,#shop .card,#league .card,#sheet .card{--tint:#3d3580}
+#levelCard .card,#shop .card,#league .card,#sheet .card,#gifts .card{--tint:#3d3580}
 #boost{width:64px;height:64px;font-size:15px;align-self:flex-end}
 @media (max-width:420px){#joy{width:140px}}
 @media (max-height:480px){#actions{right:calc(200px + max(16px,env(safe-area-inset-right,0px)))}}
@@ -143,10 +143,11 @@ body:not(.dev) .devOnly{display:none!important}
 #planeStats b{display:block;height:100%;background:var(--cheese)}
 #planeStats em{font-style:normal}
 #levels{position:absolute;top:0;right:0;bottom:0;left:0;z-index:4;display:flex;flex-direction:column;background:radial-gradient(60% 40% at 12% 22%,rgba(255,112,84,.34),transparent 72%),radial-gradient(60% 46% at 92% 62%,rgba(84,170,255,.32),transparent 72%),radial-gradient(70% 40% at 28% 96%,rgba(255,196,90,.3),transparent 72%),linear-gradient(#241a4d,#3b2452 45%,#6e3358)}
-#levelsBar{display:flex;align-items:center;gap:10px;padding:calc(8px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 8px max(16px,env(safe-area-inset-left,0px));background:var(--panel)}
-#levelsBar b{font-family:var(--display);font-weight:400;font-size:24px;color:var(--cheese);line-height:1}
-#levelsBar span{font-family:var(--display);font-size:20px;color:var(--ink);margin-right:auto}
-#levelsGear{background:transparent;border:1px solid rgba(255,243,223,.3);border-radius:10px}
+#levelsBar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;padding:calc(8px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 8px max(16px,env(safe-area-inset-left,0px));background:var(--panel)}
+#levelsBar>b{font-family:var(--display);font-weight:400;font-size:24px;color:var(--cheese);line-height:1}
+#levelsMoney{font-family:var(--display);font-size:20px;color:var(--ink)}
+#openShop{margin-left:auto}
+#levelsGear,#giftBtn{background:transparent;border:1px solid rgba(255,243,223,.3);border-radius:10px}
 #levelsScroll{flex:1;min-height:0;overflow-y:auto;touch-action:pan-y;overscroll-behavior:contain}
 #levelsPath{position:relative;max-width:520px;margin-left:auto;margin-right:auto}
 #levelsPath>svg{position:absolute;top:0;right:0;bottom:0;left:0;width:100%;height:100%}
@@ -211,7 +212,7 @@ body:not(.dev) .devOnly{display:none!important}
 }
 .barBtn{font-family:var(--body);font-weight:800;font-size:14px;min-height:40px;padding:0 12px;border-radius:20px;border:2px solid var(--cheese);background:transparent;color:var(--cheese);cursor:pointer}
 .barBtn:focus-visible{outline:3px solid var(--cheese);outline-offset:3px}
-@media (max-width:430px){#levelsBar b{display:none}}
+@media (max-width:430px){#levelsBar>b{display:none}}
 #shop .card,#league .card{text-align:start}
 .shopHead{display:flex;justify-content:space-between;align-items:center;position:relative;z-index:1}
 .shopHead b{font-family:var(--display);font-weight:400;font-size:26px;color:var(--cheese)}
@@ -435,3 +436,57 @@ button:focus:not(:focus-visible),[tabindex]:focus:not(:focus-visible){outline:no
 #wrap.narrow.comboOn #toast,#wrap.narrow.comboOn #hangarTip{margin-top:var(--comboStep)}
 #wxChip.gold .ico{color:var(--cheese)}
 #resultCard:not(.bad) #resultWhy.shine{color:#ffd879;font-size:clamp(15px,4.8vmin,22px)}
+/* today's mission: a card in the map bar, inline beside the money, and on an upright phone a row of its own above the buttons */
+@media (max-width:959px){#levelsBar.withToday>b{display:none}}
+#today{flex:1 1 0;max-width:460px;min-width:0}
+@media (max-width:699px) and (min-height:481px){#today{order:-1;flex:1 0 100%;max-width:none}}
+#todayCard{position:relative;width:100%;height:56px;box-sizing:border-box;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:0 10px;padding:0 12px 0 8px;border-radius:18px;border:2px solid rgba(255,243,223,.3);background:rgba(255,255,255,.07);color:var(--ink);font-family:var(--body);text-align:start;cursor:pointer}
+#todayCard:focus-visible,#giftBtn:focus-visible{outline:3px solid var(--cheese);outline-offset:3px}
+#todayCard.ready{border-color:var(--cheese);animation:nudgeGlow 2.4s ease-in-out infinite}
+.todayBadge{position:relative;width:38px;height:38px;box-sizing:border-box;border-radius:50%;display:grid;place-items:center;background:var(--zone,#5a7fa6);border:2px solid rgba(255,243,223,.85);color:#1a1430}
+.todayBadge>svg{width:20px;height:20px;fill:currentColor}
+#todayCard.locked .todayBadge{opacity:.6}
+.todayBadge em{position:absolute;bottom:-6px;right:-9px;display:flex;align-items:center;gap:1px;height:16px;padding:0 4px;border-radius:8px;background:var(--gold);color:#3a2206;font:800 11px/16px var(--body);font-style:normal}
+.todayBadge em svg{width:10px;height:10px;fill:#e8492c}
+.todayText{min-width:0;display:grid;line-height:1.15}
+.todayText small{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--cheese);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.todayText b{font-family:var(--display);font-weight:400;font-size:19px;line-height:1.05;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.todayPrize{display:grid;justify-items:end;line-height:1.1}
+.todayPrize b{font-family:var(--display);font-weight:400;font-size:21px;color:var(--cheese)}
+.todayPrize small{font-size:11px;font-weight:700;color:var(--soft);white-space:nowrap}
+#todayCard.done .todayText small{color:#7fe0a8}
+#todayCard.done .todayPrize b{font-family:var(--body);font-weight:800;font-size:17px;letter-spacing:1px}
+#todayCard.locked .todayPrize b{font-family:var(--body);font-weight:800;font-size:13px;color:var(--soft)}
+.dotNew{position:absolute;top:-4px;right:-4px;width:12px;height:12px;box-sizing:border-box;border-radius:50%;background:#ff5a3c;border:2px solid var(--night);pointer-events:none;animation:nudge 1.3s ease-in-out infinite}
+@media (min-width:700px),(max-height:480px){#todayCard{height:44px;padding:0 10px 0 4px;border-radius:14px}.todayBadge{width:32px;height:32px}.todayBadge>svg{width:17px;height:17px}.todayText small{font-size:10px}.todayText b{font-size:17px}.todayPrize b{font-size:19px}#todayCard.done .todayPrize b{font-size:15px}}
+#giftBtn{color:var(--cheese);display:grid;place-items:center}
+#giftBtn.ready{border:2px solid var(--cheese);animation:nudgeGlow 2.4s ease-in-out infinite}
+#levelsMoney.bump{display:inline-block;animation:comboBumpA .42s ease-out}
+.kicker{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--cheese)}
+#levelKicker{margin-bottom:-4px;padding:0 40px}
+#gifts .fine{font-size:13px;font-weight:700;color:var(--soft);text-wrap:balance}
+#giftDays{list-style:none;margin:4px 0 6px;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+#giftDays li{position:relative;display:grid;justify-items:center;align-content:center;gap:3px;min-height:84px;border-radius:18px;background:var(--well);box-shadow:inset 0 1px 2px rgba(6,5,26,.22),inset 0 -1px 0 rgba(255,255,255,.1)}
+#giftDays small{font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--soft);white-space:nowrap}
+#giftDays .ico{width:24px;height:24px;color:var(--cheese)}
+#giftDays b{font-family:var(--display);font-weight:400;font-size:20px;line-height:1;color:var(--cheese)}
+#giftDays li.big{grid-column:span 2;background:var(--gold)}
+#giftDays li.big small,#giftDays li.big b,#giftDays li.big .ico{color:#3a2200}
+#giftDays li{transition:opacity .4s}
+/* the tile just claimed stays bright and on top of its neighbours while its paper flies, then settles with the rest */
+#giftDays li.done:not(.got){opacity:.62}
+#giftDays li.got{z-index:1}
+#giftDays li.done .ico{color:var(--basil);stroke-width:3}
+#giftDays li.now{box-shadow:0 0 0 3px var(--cheese),0 0 18px rgba(255,194,61,.55);animation:giftPulse 1.6s ease-in-out infinite}
+#giftDays li.now small{color:var(--cheese)}
+#giftDays li.big.now small{color:#3a2200}
+#giftDays li.got{animation:comboBumpA .42s ease-out}
+@keyframes giftPulse{50%{transform:scale(1.05)}}
+#giftWhen{font-size:13px;font-weight:700;color:var(--soft)}
+#giftWhen:empty{display:none}
+@media (min-width:700px),(max-height:480px){#gifts .card{max-width:620px}#giftDays{grid-template-columns:repeat(7,minmax(0,1fr))}#giftDays li.big{grid-column:auto}#giftDays li{min-height:76px}#giftDays .bigWord{display:none}}
+.paper{position:absolute;left:50%;top:40%;width:7px;height:7px;margin:-3px 0 0 -3px;border-radius:1px;pointer-events:none;animation:paper 1.1s cubic-bezier(.2,.7,.4,1) forwards}
+/* each piece keeps its full colour through most of its flight and fades as it lands */
+@keyframes paper{60%{opacity:1}to{transform:translate(var(--dx),var(--dy)) rotate(var(--r));opacity:0}}
+#resultTip.note{color:#fff;background:rgba(255,255,255,.12)}
+@media (prefers-reduced-motion:reduce){#todayCard.ready,#giftBtn.ready,.dotNew,#giftDays li.now,#giftDays li.got,#levelsMoney.bump{animation:none}.paper{display:none}}

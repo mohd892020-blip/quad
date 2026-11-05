@@ -7,6 +7,7 @@ import { updateMusic } from './music.js';
 import { BEACH, CAMERA, CITY_SEED, CLOCK, DRONE, DUST, FIXED_DT, GROUND, HANGAR, HUD_INTERVAL, MAX_FRAME_DT, MUSIC, PERFECT, QUALITY } from './config.js';
 import { saveSettings, settings as picked } from './storage.js';
 import { initLeague } from './league.js';
+import { initDaily } from './daily.js';
 import { buildLevels, surprisesFor } from './levels.js';
 import {
   autoDeliver, breakStreak, chargeDrone, drawBatteryCue, goal, drawHalos, drawOrderTime, drawPointer, drawPrep, drawTarget, explode, failMission, hangarHint, newGame, prepareFirstOrder, restrain, stepHealth, stepCargo,
@@ -230,7 +231,7 @@ function loop(now) {
       const outcome = st.outcome;
       st.outcome = null;
       st.done = true;
-      showResult(outcome, st.level, st.level.n < levels.length);
+      showResult(outcome, st.level, !st.level.daily && st.level.n < levels.length);
     }
   }
   // a paused scene does not change, so the last picture stands until the canvas is resized
@@ -248,8 +249,8 @@ function loop(now) {
 function start(level) {
   st = newGame(level);
   resetWeatherNote();
-  // most missions open in daylight; a few keep the sunset or the night
-  setClock((CLOCK.night.includes(level.n) ? 1 : CLOCK.sunset.includes(level.n) ? 0 : 2) * (CLOCK.hold + CLOCK.fade));
+  // most missions open in daylight; a few keep the sunset or the night, and today's mission picks its own hour
+  setClock((level.daily ? level.daily.time : CLOCK.night.includes(level.n) ? 1 : CLOCK.sunset.includes(level.n) ? 0 : 2) * (CLOCK.hold + CLOCK.fade));
   hideModals();
   last = performance.now();
   pace.t = pace.n = pace.even = 0;
@@ -320,6 +321,7 @@ initAudio();
 initSheet();
 initShop();
 initLeague();
+initDaily();
 onStart(() => {
   hideOverlay();
   // a brand new player flies the lessons first
@@ -341,7 +343,7 @@ initLevels(levels, {
     hideOverlay();
     start(trainingLevel());
   },
-  stake: () => (st.has ? Math.min(st.money, st.item.price) : 0),
+  stake: () => (st.has && !st.level.daily ? Math.min(st.money, st.item.price) : 0),
   // the run walking out would end, and the run as it stands for the mission card
   combo: () => (st.level.training || st.done || st.outcome?.passed ? 0 : streak.n),
   streak: () => streak.n,

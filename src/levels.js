@@ -1,5 +1,5 @@
 import { carSpeed, eagleCount, hawkCount, rivalSpeed } from './action.js';
-import { BEACH, BOX, CHALLENGES, DESERT, FOREST, MOUNTAIN, SNOW, DOUBLE, DRONE, FERRY, GATES, GROUND, ITEMS, JET, LEVELS, RADAR, RIVAL, ROPE, ROPE_CTL, STOPS, SURPRISE, THIN_ICE, WEATHER, WIND } from './config.js';
+import { BEACH, BOX, CHALLENGES, DAILY, DESERT, FOREST, MOUNTAIN, SNOW, DOUBLE, DRONE, FERRY, GATES, GROUND, HANGAR, ITEMS, JET, LEVELS, RADAR, RIVAL, ROPE, ROPE_CTL, STOPS, SURPRISE, THIN_ICE, WEATHER, WIND } from './config.js';
 import { targetsFor, timeLimit } from './delivery.js';
 import { weatherFor } from './weather.js';
 import { nearby, rng, roofAt, shopPad, world } from './world.js';
@@ -139,7 +139,7 @@ function stepOver(l, s) {
 // and where a gust blows or a customer goes.
 export function surprisesFor(l, attempt) {
   const c = SURPRISE, pick = rng(c.seed + l.n * 977 + attempt * 7919);
-  if (!c.on || l.training || l.challenge || l.n < c.from || l.n > c.to) return [];
+  if (!c.on || l.training || l.challenge || l.daily || l.n < c.from || l.n > c.to) return [];
   const legs = l.stops.length, roll = pick(), out = [];
   const count = roll < c.counts[0] ? 0 : roll < c.counts[0] + c.counts[1] || l.n < c.twoFrom || legs < 2 ? 1 : 2;
   // the few missions where a customer can step over usually lead with it, so it is met often enough
@@ -155,6 +155,84 @@ export function surprisesFor(l, attempt) {
     out.push({ stop: k, kind, share: c.share[0] + pick() * (last - c.share[0]), ...(kind === 'gust' ? { dir: pick() < .5 ? -1 : 1 } : kind === 'move' ? { to } : {}) });
   }
   return out;
+}
+
+/* ---------- today's mission ---------- */
+const mod = (a, b) => ((a % b) + b) % b;
+// Day 0, 1 January 1970, was a Thursday; Monday is 0.
+export const weekday = day => mod(day + 3, 7);
+// A date's theme and region: the weekday names the theme, and the region steps on one a day, so a theme meets a new
+// region each week.
+export function dailyTheme(day) {
+  const c = DAILY, wd = weekday(day);
+  return { theme: c.themes[wd], region: c.regions[mod(wd + Math.floor((day + 3) / 7), c.regions.length)] };
+}
+const OPEN = { beach: BEACH, desert: DESERT, forest: FOREST, mountain: MOUNTAIN, snow: SNOW };
+// Nothing solid straight over the customer, where an aircraft coming down would only settle on top of it.
+const openSky = t => !nearby(t.x).some(R => R.y + R.h <= t.y && R.x < t.x + DRONE.radius && R.x + R.w > t.x - DRONE.radius && R.y < GROUND);
+// The first order a theme asks of a shop: its first two items tied on one rope, or its most delicate one; null when it
+// has none.
+function themeOrder(theme, shop) {
+  const menu = shop.shop.items.map(k => ITEMS[k]);
+  if (theme.pair) {
+    const a = menu[0], b = menu[1 % menu.length], w = a.weight + b.weight;
+    return w >= theme.pair[0] && w <= theme.pair[1] ? tiePair(a, b) : null;
+  }
+  if (theme.fragile) {
+    const i = [...menu].sort((x, y) => y.fragile - x.fragile)[0];
+    return i.fragile >= theme.fragile ? i : null;
+  }
+  return null;
+}
+// One try at a date's mission in a region, from the date's own stream, so missions 1-55 stay exactly as they were; null
+// when a stop finds no fair customer. Today's mission is the same for everyone, so every customer is a fair one.
+function dailyTry(day, attempt, region) {
+  const c = DAILY, { theme } = dailyTheme(day), open = OPEN[region], [shops, spots] = MAPS[region]();
+  const pick = rng(c.seed + day * c.mix + attempt * c.retry), tier = c.tier;
+  const count = theme.stops ?? (pick() < c.two ? 2 : 1), reach = Math.floor(tier / count);
+  const starts = shops.filter(s => !(theme.pair || theme.fragile) || themeOrder(theme, s)), stops = [];
+  if (!starts.length) return null;
+  for (let k = 0, shop = starts[(pick() * starts.length) | 0]; k < count; k++) {
+    const x = shop.x + shop.w / 2, race = k === count - 1 && !!theme.rival;
+    // an order that catches the wind flies only where the wind is gentle, never in a race or under a cut clock, and a cut
+    // clock never comes with an urgent order, which is tight enough already
+    const fair = i => (ITEMS[i].wind < HANGAR.windyFrom || (!race && !theme.clock && (!open || open.windBoost <= c.calm))) && !(theme.clock && ITEMS[i].urgent);
+    const menu = shop.shop.items.filter(fair);
+    if (!menu.length) return null;
+    const item = (!k && themeOrder(theme, shop)) || ITEMS[menu[(pick() * menu.length) | 0]];
+    const heavy = item.weight >= HANGAR.heavyFrom, windy = item.wind >= HANGAR.windyFrom;
+    const pool = open ? spots.filter(s => Math.abs(s.x - x) > open.minDist && wayDown(s, item))
+      : targetsFor(shop, reach, LEVELS.maxDist).filter(s => (s.kind !== 'bal' || item.size <= LEVELS.balconyMaxSize) && wayDown(s, item));
+    const fits = pool.filter(s => s.b !== shop && openSky(s) && !stops.some(p => p.t === s) && !c.avoid.includes(s.kind)
+      && !(heavy && GROUND - s.y > c.heavyTop) && !(windy && c.perches.includes(s.kind)) && !(race && Math.abs(s.x - x) < c.rivalMin));
+    if (!fits.length) return null;
+    const t = fits[(pick() * fits.length) | 0], dist = Math.abs(t.x - x);
+    stops.push({ shop, item, t, dist, limit: timeLimit(item, dist) * (theme.clock ?? 1), rival: race });
+    shop = nextShop(t, shop, shops);
+  }
+  const time = theme.night ? 1 : pick() < c.day ? 2 : 0, skies = c.skies[region], is = r => region === r;
+  const weather = is('snow') ? 'snow' : !theme.night && skies.length && pick() < c.weather ? skies[(pick() * skies.length) | 0] : null;
+  // the same flags as a generated mission, so traffic, music, the map strip and the card read it as one; n is the day
+  // number, past every mission, so nothing treats it as one (surprises, skips and saves check daily)
+  const l = {
+    n: day, tier, shop: stops[0].shop, stops, beach: is('beach'), desert: is('desert'), forest: is('forest'), mountain: is('mountain'), snow: is('snow'),
+    cold: is('snow') ? SNOW.cold : 1, hawks: hawkCount(reach) + (theme.hawks ?? 0), eagles: 0, rival: !!theme.rival, rivalSpeed: rivalSpeed(tier),
+    street: false, carSpeed: carSpeed(tier), wind: Math.round((WIND.base + Math.min(tier, WIND.maxDeliveries) * WIND.perDelivery) * (open ? open.windBoost : 1)),
+    weather, daily: { day, theme, region, time, attempt },
+  };
+  if (weather === 'clouds') l.clouds = WEATHER.clouds.amount;
+  return l;
+}
+// Today's mission for a day number: its region's tries first, then the city's, which has room for every theme.
+export function dailyLevel(day) {
+  const { region } = dailyTheme(day);
+  for (const r of [region, 'city']) {
+    for (let a = 0; a < DAILY.tries; a++) {
+      const l = dailyTry(day, a, r);
+      if (l) return l;
+    }
+  }
+  return null;
 }
 
 // Levels are fixed: the same shops, orders and customers every time, so what the
