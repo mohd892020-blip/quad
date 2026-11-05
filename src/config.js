@@ -1091,7 +1091,7 @@ export const DAILY = {
   // each note says its theme's numbers in words, so a changed clock, hawks or stops needs its note changed too; a no-break
   // space keeps a short last word off a line of its own on a narrow phone
   themes: [
-    { key: 'rush', name: 'Rush Hour', note: 'Every clock is 20% shorter', sign: 'clock', clock: .8 },
+    { key: 'rush', name: 'Tight Clock', note: 'Every clock is 20% shorter', sign: 'clock', clock: .8 },
     { key: 'big', name: 'Big Order', note: 'Two orders tied on one rope, for one customer', sign: 'double', pair: [1.6, 2.2], stops: 1 },
     { key: 'hawks', name: 'Hawk Alley', note: 'One more hawk on every leg', sign: 'hawk', hawks: 1 },
     { key: 'tour', name: 'Grand Tour', note: 'Three stops, one after another', sign: 'route', stops: 3 },
@@ -1109,3 +1109,50 @@ export const DAILY = {
 // pixels out, the nearest at inner of that, lifted lift higher and turned up to spin degrees, and buzzes buzz[0]
 // milliseconds (buzz[1] on the big day).
 export const GIFTS = { unlock: 1, days: [10, 12, 15, 18, 20, 25, 100], paper: [24, 48], spread: 110, inner: .45, lift: 30, spin: 720, buzz: [40, 90] };
+
+// Rush Hour, the endless mode over the city: open once mission unlock is passed (or in dev mode), its map card shown from
+// mission showFrom on. A run opens on city shop `shop` with that shop's first item, loaded in firstLoad seconds, at hour
+// (a CLOCK index), with traffic at tier and the battery draining at drain of a mission's rate; every later order loads in
+// `load` seconds with a fresh battery. One clock runs the whole run: it starts at `start` as the first order loads and
+// ends the run at zero, even between orders. Each drop adds (base + way / pace) seconds times the level's share, way being
+// the way back to the next shop's pad and on to its customer, plus clean for a clean drop and perfect more for a PERFECT;
+// the clock holds cap at most. What a drop added shows in gainInk (style.css reads it too) for gainShow seconds in the HUD
+// clock and as gainPop words, size `size`, `below` under the drop's points; the last tickFrom seconds tick.
+// Every `every` drops the rush level steps to the next row of levels, with a gold toast of its note and a levelBuzz ms
+// buzz; past the last row the share shrinks by fade a level and the note says `later`. A row's customers stand near to
+// far from their shop and west of `to`, of its kinds (down on the street at chance street), with an order from its menu
+// (null: the whole menu); hawks and wind are a mission's. From level eagle.from an order may bring an eagle, at chance
+// plus step a level after that, once Mission eagle.after is passed (or in dev mode); until then that level's toast says
+// eagle.calm. The next order comes from the shop closest to the drop that has something on the menu; a balcony takes
+// only a small, steady, sturdy order, a heavy one never stands more than heavyTop over the street, and a level that finds nobody looks widen wider, widenTries times. From ring.from a drop may
+// bring a bonus ring (ring.chance), from gust.from a gust (gust.chance), as SURPRISE plays them. Points: drop, plus
+// perfect for a PERFECT, plus perBonus for each dollar a close call or ring banks, times 1 + perLevel per level over the
+// first, times combo by the run of clean drops (the badge shows it, the last held), times urgent for an urgent order,
+// rounded to `round`. Pay: each dollars a drop, perLevel more for each level over the first it was flown at, and perfect
+// more for a PERFECT, paid with the best when the run ends, so a run played out pays more a minute than one quit early;
+// measured, it stays well under what missions pay a minute. From level hotFrom the challenge music plays. The result
+// card counts the score up over tally ms after tallyDelay (firstTip under a run that ran out before its first drop); a
+// new best throws bestPaper paper (half on the low picture) and buzzes bestBuzz ms.
+export const RUSH = {
+  unlock: 6, showFrom: 5, shop: 0, tier: 6, hour: 0, drain: .6,
+  start: 45, firstLoad: 3, load: 1, base: 16, pace: 90, cap: 75, clean: 2, perfect: 4,
+  every: 3, fade: .8, heavyTop: 240, widen: .25, widenTries: 3,
+  gainShow: .9, gainInk: '#7fe0a8', gainPop: { size: 16, below: 24 }, tickFrom: 5, hotFrom: 5, levelBuzz: 30,
+  ring: { from: 2, chance: .35 }, gust: { from: 4, chance: .25 }, eagle: { from: 8, chance: .35, step: .1, after: 24, calm: 'Farther, windier, less time' },
+  points: { drop: 100, perfect: 100, perBonus: 10, perLevel: .25, urgent: 1.5, round: 10 },
+  combo: [1, 1, 1.2, 1.4, 1.6, 1.8, 2],
+  pay: { each: 4, perLevel: 1, perfect: 3 },
+  tally: 1100, tallyDelay: 300, bestPaper: 48, bestBuzz: 90,
+  intro: 'Deliver until the clock runs out', later: 'Less time per drop', firstTip: 'Fly straight to the customer. Each drop adds time',
+  menus: { easy: ['pizza', 'falafel', 'kunafa', 'medicine'], medium: ['pizza', 'falafel', 'kunafa', 'medicine', 'flowers', 'watermelon', 'coffee'] },
+  levels: [
+    { near: 500, far: 1100, kinds: ['roof'], street: 0, menu: 'easy', hawks: 0, wind: 90, share: 1, to: 7000, note: '' },
+    { near: 600, far: 1400, kinds: ['roof'], street: 0, menu: 'easy', hawks: 1, wind: 110, share: .88, to: 7000, note: 'A hawk joins in' },
+    { near: 800, far: 1700, kinds: ['roof', 'bal'], street: 0, menu: 'medium', hawks: 1, wind: 130, share: .78, to: 10500, note: 'Balconies and heavier orders' },
+    { near: 900, far: 1900, kinds: ['roof', 'bal'], street: .35, menu: 'medium', hawks: 1, wind: 150, share: .7, to: 10500, note: 'Street drops. Mind the traffic' },
+    { near: 1000, far: 2100, kinds: ['roof', 'bal'], street: .35, menu: null, hawks: 2, wind: 170, share: .64, to: Infinity, note: 'Fragile orders. Two hawks' },
+    { near: 1100, far: 2300, kinds: ['roof', 'bal'], street: .35, menu: null, hawks: 2, wind: 190, share: .58, to: Infinity, note: 'Stronger wind' },
+    { near: 1200, far: 2500, kinds: ['roof', 'bal'], street: .35, menu: null, hawks: 3, wind: 205, share: .53, to: Infinity, note: 'Three hawks' },
+    { near: 1300, far: 2700, kinds: ['roof', 'bal'], street: .35, menu: null, hawks: 3, wind: 220, share: .49, to: Infinity, note: 'An eagle hunts. Dodge it' },
+  ],
+};

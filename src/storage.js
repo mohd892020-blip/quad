@@ -71,6 +71,8 @@ const clean = saved => ({
   daily: { day: whole(saved?.daily?.day, -1), streak: whole(saved?.daily?.streak, 0), best: whole(saved?.daily?.best, 0), stars: [1, 2, 3].includes(saved?.daily?.stars) ? saved.daily.stars : 0 },
   // the gift calendar: the last date a gift was claimed, the next of the week's gifts, and the weeks completed
   gifts: { day: whole(saved?.gifts?.day, -1), step: Math.min(GIFTS.days.length - 1, whole(saved?.gifts?.step, 0)), weeks: whole(saved?.gifts?.weeks, 0) },
+  // Rush Hour: the best score, the most drops in one run, and the runs that delivered anything
+  rush: { best: count(saved?.rush?.best), del: count(saved?.rush?.del), runs: count(saved?.rush?.runs) },
 });
 
 // With storage blocked, progress still lasts as long as the page does. Once a write fails (storage that reads but is full)
@@ -132,4 +134,12 @@ export function claimGift() {
   const amount = GIFTS.days[g.step], last = g.step === GIFTS.days.length - 1;
   writeProgress({ ...saved, money: saved.money + amount, gifts: { day, step: last ? 0 : g.step + 1, weeks: g.weeks + (last ? 1 : 0) } });
   return amount;
+}
+
+// A run's end: its pay and the best score and most drops, in one write, so the money and the record that paid it never
+// part. Returns the record as it was before, for the result card.
+export function saveRush(score, del, pay) {
+  const saved = loadProgress(), r = saved.rush;
+  writeProgress({ ...saved, money: saved.money + pay, rush: { best: Math.max(r.best, score), del: Math.max(r.del, del), runs: r.runs + 1 } });
+  return r;
 }

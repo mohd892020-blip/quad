@@ -4,9 +4,10 @@ import { standout } from './contrast.js';
 import { planClouds } from './weather.js';
 import { musicCue } from './music.js';
 import {
-  AIRCRAFT, BATTERY, BOX, CAMERA, CARGO, COMBO, CONTRAST, DELIVERY, DEV, DOUBLE, DRONE, FIXED_DT, FX, HANGAR, HEALTH, LAND, LEVELS, MISSION, ORDER_TIME, ORDERS, PERFECT, POINTER, PREP, RESTAURANT, RIVAL, ROPE, SKIP, ROPE_CTL, SURPRISE, WIND,
+  AIRCRAFT, BATTERY, BOX, CAMERA, CARGO, COMBO, CONTRAST, DELIVERY, DEV, DOUBLE, DRONE, FIXED_DT, FX, HANGAR, HEALTH, LAND, LEVELS, MISSION, ORDER_TIME, ORDERS, PERFECT, POINTER, PREP, RESTAURANT, RIVAL, ROPE, RUSH, SKIP, ROPE_CTL, SURPRISE, WIND,
 } from './config.js';
 import { currentModel } from './drone.js';
+import { endRun, rushDelivered, rushLoaded } from './rush.js';
 import { loadProgress, noteResult, owns, payDaily, saveProgress, settings } from './storage.js';
 import { addMark, blast, clockText, confetti, ctx, glow, hud, placeName, pop, puff, showToast, view, X, Y } from './ui.js';
 import { mixHex, nearby, nearestShop, shopPad, world } from './world.js';
@@ -17,12 +18,12 @@ export const currentShift = () => current;
 // The run of clean deliveries. It lives as long as the page, through every mission passed, and is never saved.
 export const streak = { n: 0 };
 
-// A hit, a ruined order or a mission not passed ends the run; training neither builds nor breaks it. A run the badge
-// was showing ends on a falling note, unless the player walked out (quiet).
+// A hit, a ruined order or a mission not passed ends the run (the page's streak in a mission, a Rush run's own in Rush);
+// training neither builds nor breaks it. A run the badge was showing ends on a falling note, unless the player walked out.
 export function breakStreak(st, quiet = false) {
   if (st.level.training) return;
-  if (streak.n >= COMBO.showFrom && !quiet) sfx('comboLost');
-  streak.n = 0;
+  if (st.combo.n >= COMBO.showFrom && !quiet) sfx('comboLost');
+  st.combo.n = 0;
 }
 
 // A level starts on its shop's pad.
@@ -38,7 +39,7 @@ export function newGame(level) {
     boost: 100, boosting: false, boostDir: 1, boostWait: 0, hawks: [], eagles: [], falling: false, rival: null, prep: null,
     hp: 100, wreck: 0, lastHit: null, smokeDue: 0, marks: [], smoke: [], blasts: [], batWarn: 0, charging: false, ready: 0,
     leg: { t: 0, x: p.x }, charge: 0, standout: standout(),
-    combo: streak, hitAt: -Infinity, close: { n: 0, at: -Infinity, wall: null, cable: null }, ring: null, gust: null, slow: 0, plan: [], note: null, notice: null, waves: [],
+    combo: level.rush ? { n: 0 } : streak, hitAt: -Infinity, close: { n: 0, at: -Infinity, wall: null, cable: null }, ring: null, gust: null, slow: 0, plan: [], note: null, notice: null, waves: [],
   };
   planTraffic(st);
   planClouds(st);
@@ -73,6 +74,7 @@ export function startMission(st, shop, item) {
   // grace: what the extra way takes, which the tip and the time star never count; hand: how calm the handover has
   // been, for a perfect drop
   st.order = { t, shop, start: st.t, deadline: st.t + limit, limit, drop: parcels ? 1 : 0, next: parcels ? parcels[1] : null, bonus: 0, added: 0, grace: 0, hand: null, fromX: st.d.x, surprises };
+  if (st.rush) rushLoaded(st);
   st.heat = 100;
   st.integ = 100;
   st.has = true;
@@ -116,7 +118,8 @@ function endMission(st) {
 function finish(st, outcome) {
   if (st.outcome || st.done) return;
   // a quick restart is not a real try, so it never counts toward a skip
-  if (!st.level.training && !st.level.daily) noteResult(st.level.n, outcome.passed, st.t >= SKIP.realSecs || st.picked);
+  if (!st.level.training && !st.level.daily && !st.rush) noteResult(st.level.n, outcome.passed, st.t >= SKIP.realSecs || st.picked);
+  if (st.rush) outcome = endRun(st, outcome);
   st.outcome = { ...outcome, at: st.t + (outcome.passed ? LEVELS.passDelay : LEVELS.resultDelay) };
 }
 
@@ -130,7 +133,7 @@ function cheer(st, { x, y }) {
 
 // charged: the player wrecked the goods, so they pay the shop for them.
 export function failMission(st, why, charged = false) {
-  const training = st.level.training, cost = charged && st.item && !training && !st.level.daily ? Math.min(st.money, st.item.price) : 0, reason = why.toUpperCase();
+  const training = st.level.training, cost = charged && st.item && !training && !st.level.daily && !st.rush ? Math.min(st.money, st.item.price) : 0, reason = why.toUpperCase();
   // a mission already decided stands: a car or a blast in a passed mission's last moments takes nothing from the run
   if (!st.outcome && !st.done) breakStreak(st);
   st.money -= cost;
@@ -184,8 +187,17 @@ function passMission(st) {
   const perfect = clean && st.integ >= P.minInteg && Math.abs(st.box.x - o.t.x) <= P.centre && !!h && h.swing <= P.swing && h.fall <= P.fall && h.drone <= P.drone;
   // an order that arrives in poor shape ends the run on the same falling note as a hit
   if (!clean) breakStreak(st);
-  streak.n = clean ? streak.n + 1 : 0;
-  const mult = COMBO.mult[Math.min(streak.n, COMBO.mult.length - 1)], extra = Math.round(care * mult) - care + o.bonus;
+  st.combo.n = clean ? st.combo.n + 1 : 0;
+  // a Rush drop scores points instead of tips, and the next order comes at once
+  if (st.rush) {
+    rushDelivered(st, o, item, clean, perfect);
+    chime(st, o.t, perfect, true);
+    if (st.leg) st.leg.via = o.t.x;
+    endMission(st);
+    hud(st);
+    return;
+  }
+  const mult = COMBO.mult[Math.min(st.combo.n, COMBO.mult.length - 1)], extra = Math.round(care * mult) - care + o.bonus;
   const tip = care + extra + beat;
   o.bonus = 0;
   const fresh = item.heat && !item.spoils ? heat > c.starHeat : fair / (o.limit - o.added) < c.starTimeShare;
@@ -201,11 +213,7 @@ function passMission(st) {
   st.money += tip;
   st.del++;
   pop(st, o.t.x, o.t.y - c.popLift, mult > 1 ? `+$${tip} COMBO ×${mult}` : `+$${tip}`, '#ffc23d');
-  sfx('deliver');
-  // the chime climbs as the run grows, after the delivery's own two notes
-  if (streak.n >= COMBO.showFrom) sfx('combo', 2 ** (COMBO.notes[Math.min(streak.n - COMBO.showFrom, COMBO.notes.length - 1)] / 12));
-  if (perfect) perfectDrop(st, o.t, !!(o.next || next));
-  musicCue('deliver');
+  chime(st, o.t, perfect, !!(o.next || next));
   if (o.next) {
     dropLower(st);
     saveProgress(st.del, st.money);
@@ -224,9 +232,17 @@ function passMission(st) {
     if (daily) st.money += daily.reward;
     else saveProgress(st.del, st.money, st.level.n, made.stars);
     cheer(st, o.t);
-    finish(st, { passed: true, ...made, combo: streak.n, ...daily });
+    finish(st, { passed: true, ...made, combo: st.combo.n, ...daily });
   }
   hud(st);
+}
+
+// A delivery's sounds: its two notes, the combo chime climbing with the run, a perfect drop, and the music's answer.
+function chime(st, at, perfect, paper) {
+  sfx('deliver');
+  if (st.combo.n >= COMBO.showFrom) sfx('combo', 2 ** (COMBO.notes[Math.min(st.combo.n - COMBO.showFrom, COMBO.notes.length - 1)] / 12));
+  if (perfect) perfectDrop(st, at, paper);
+  musicCue('deliver');
 }
 
 // A perfect drop: time slows for a moment, a gold wave spreads from the customer, the words pop over the aircraft, a
@@ -268,7 +284,9 @@ export function stepMission(st, dt) {
   }
   if (!st.prep) {
     const { item } = st.stop;
-    st.prep = { shop, item, left: item.prep, nudge: 0 };
+    // in Rush every order after the first loads in a moment
+    const left = st.rush ? RUSH.load : item.prep;
+    st.prep = { shop, item, left, full: left, nudge: 0 };
     hud(st);
   }
   st.prep.left -= dt;
@@ -285,7 +303,7 @@ export function stepMission(st, dt) {
 export function hangarHint(st) {
   // the first order's suggestion stands until the aircraft leaves the pad
   const item = st.prep?.item ?? (st.has && st.onGround && !st.stopAt ? st.item : null);
-  if (!item || st.level.training) return null;
+  if (!item || st.level.training || st.rush?.del) return null;
   const c = HANGAR, named = key => AIRCRAFT.find(a => a.key === key), pace = (named(settings.plane) ?? AIRCRAFT[0]).speed;
   // an avalanche catches a slow aircraft: Boost helps, and so does the fastest aircraft the player owns; the slowest
   // are caught even with Boost, so they hear only to switch (the Courier is always owned, so there is one to name)
@@ -472,7 +490,7 @@ function stepBattery(st) {
 function earnCharge(st) {
   const c = BATTERY, { d, leg } = st, via = leg.via ?? d.x;
   const fair = c.grace + (Math.abs(via - leg.x) + Math.abs(d.x - via)) / c.pace;
-  const share = st.level.training ? 1 : Math.min(1, fair / (st.t - leg.t));
+  const share = st.level.training || st.rush ? 1 : Math.min(1, fair / (st.t - leg.t));
   st.charge = (100 - d.bat) * share;
   st.leg = null;
   if (share < 1) showToast('Slow trip', `This charge stops at ${Math.floor(d.bat + st.charge)}%`, false);
@@ -531,7 +549,7 @@ function ringPaint() {
 export function drawPrep(st) {
   const p = st.prep, c = PREP;
   if (!p && !st.ready) return;
-  const S = view.S, x = X(st.d.x), y = Y(st.d.y), fade = p ? 1 : st.ready / c.flash, done = p ? 1 - p.left / p.item.prep : 1, step = Math.PI * 2 / c.ticks, top = -Math.PI / 2;
+  const S = view.S, x = X(st.d.x), y = Y(st.d.y), fade = p ? 1 : st.ready / c.flash, done = p ? 1 - p.left / (p.full ?? p.item.prep) : 1, step = Math.PI * 2 / c.ticks, top = -Math.PI / 2;
   const r = Math.max(c.minRadius, (currentModel().span * CONTRAST.scale + c.gap) * S) + (1 - fade) * c.flashGrow * S, w = Math.max(c.minWidth, c.width * S);
   const lit = Math.ceil(done * c.ticks), paint = ringPaint(), head = top + done * c.ticks * step;
   const tick = i => {
@@ -700,9 +718,11 @@ export function drawBatteryCue(st) {
 
 // The time left on the order and a bar running down with it, quiet over the aircraft and clear of the battery cue.
 export function drawOrderTime(st) {
-  const c = ORDER_TIME, o = st.order;
-  if (!st.has || !o || o.limit === Infinity || st.wreck || st.outcome || st.done) return;
-  const left = Math.max(0, o.deadline - st.t), low = left < MISSION.lowTime, cue = st.batWarn > 0 || st.charging;
+  const c = ORDER_TIME, o = st.order, r = st.rush;
+  if (st.wreck || st.outcome || st.done || (r ? r.end == null || st.prep : !st.has || !o || o.limit === Infinity)) return;
+  const left = Math.max(0, (r ? r.end : o.deadline) - st.t), low = left < MISSION.lowTime, cue = st.batWarn > 0 || st.charging;
+  // between Rush orders the HUD clock has the run; over the aircraft only its last seconds, once the drop's words are gone
+  if (r && !st.has && (!low || st.t - (r.gain?.at ?? -Infinity) < FX.popLife)) return;
   const x = Math.max(c.w / 2 + 4, Math.min(view.W - c.w / 2 - 4, X(st.d.x)));
   const y = Math.max(view.top + c.h, Y(st.d.y) - c.lift * view.S - (cue ? c.clearCue : c.gap));
   ctx.save();
@@ -716,7 +736,7 @@ export function drawOrderTime(st) {
   ctx.textBaseline = 'middle';
   ctx.fillStyle = low ? '#ff9a84' : '#fff3df';
   ctx.fillText(clockText(left), x, y + c.textY);
-  const share = left / o.limit, bar = c.barW * share, barX = x - c.barW / 2, barY = y + c.barY - c.barH / 2;
+  const share = Math.min(1, left / (r ? RUSH.cap : o.limit)), bar = c.barW * share, barX = x - c.barW / 2, barY = y + c.barY - c.barH / 2;
   ctx.fillStyle = `rgba(255,255,255,${c.track})`;
   ctx.beginPath();
   ctx.roundRect(barX, barY, c.barW, c.barH, c.barH / 2);

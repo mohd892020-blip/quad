@@ -1,5 +1,6 @@
 import { LEAGUE } from './config.js';
 import { loadProgress } from './storage.js';
+import { scoreText } from './ui.js';
 
 const $ = id => document.getElementById(id);
 
@@ -16,6 +17,10 @@ export function initLeague() {
     const { rows, rank } = standings();
     $('leagueRank').textContent = `You are ${rank} of ${rows.length}`;
     $('leagueRows').innerHTML = rows.map((r, i) => `<li class="${r.you ? 'you' : ''}"><b>${i + 1}</b><span>${r.name}</span><em>${r.score}</em></li>`).join('');
+    // Rush Hour stands apart: its best is shown here, never added to the league score
+    const { rush } = loadProgress();
+    $('leagueRush').hidden = !rush.runs;
+    $('leagueRush').textContent = `Rush Hour best ${scoreText(rush.best)} · most drops ${rush.del}`;
     $('league').hidden = false;
   });
   $('leagueClose').addEventListener('click', () => { $('league').hidden = true; });

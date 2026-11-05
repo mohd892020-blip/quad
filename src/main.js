@@ -4,10 +4,11 @@ import { beginChallenge, drawChallenge, drawWeather, stepChallenge } from './cha
 import { stepContrast } from './contrast.js';
 import { drawCloudsBack, drawCloudsFront, drawFallBehind, drawFallFront, drawFog, drawHighClouds, drawOvercast, stepClouds } from './weather.js';
 import { updateMusic } from './music.js';
-import { BEACH, CAMERA, CITY_SEED, CLOCK, DRONE, DUST, FIXED_DT, GROUND, HANGAR, HUD_INTERVAL, MAX_FRAME_DT, MUSIC, PERFECT, QUALITY } from './config.js';
+import { BEACH, CAMERA, CITY_SEED, CLOCK, DRONE, DUST, FIXED_DT, GROUND, HANGAR, HUD_INTERVAL, MAX_FRAME_DT, MUSIC, PERFECT, QUALITY, RUSH } from './config.js';
 import { saveSettings, settings as picked } from './storage.js';
 import { initLeague } from './league.js';
 import { initDaily } from './daily.js';
+import { beginRush, initRush, rushLevel, stepRush } from './rush.js';
 import { buildLevels, surprisesFor } from './levels.js';
 import {
   autoDeliver, breakStreak, chargeDrone, drawBatteryCue, goal, drawHalos, drawOrderTime, drawPointer, drawPrep, drawTarget, explode, failMission, hangarHint, newGame, prepareFirstOrder, restrain, stepHealth, stepCargo,
@@ -72,6 +73,7 @@ export function step(dt) {
     stepCargo(st, dt);
   }
   stepMission(st, dt);
+  stepRush(st);
   if (stepAction(st, dt) && st.has) failMission(st, 'The rival got there first');
   stepSurprises(st);
   stepCloseCalls(st);
@@ -231,7 +233,7 @@ function loop(now) {
       const outcome = st.outcome;
       st.outcome = null;
       st.done = true;
-      showResult(outcome, st.level, !st.level.daily && st.level.n < levels.length);
+      showResult(outcome, st.level, !st.level.daily && !st.level.rush && st.level.n < levels.length);
     }
   }
   // a paused scene does not change, so the last picture stands until the canvas is resized
@@ -247,10 +249,12 @@ function loop(now) {
 }
 
 function start(level) {
+  // Rush starts a fresh run from its card, the pause card's Retry and the result card's Retry alike
+  if (level.rush) level = rushLevel();
   st = newGame(level);
   resetWeatherNote();
   // most missions open in daylight; a few keep the sunset or the night, and today's mission picks its own hour
-  setClock((level.daily ? level.daily.time : CLOCK.night.includes(level.n) ? 1 : CLOCK.sunset.includes(level.n) ? 0 : 2) * (CLOCK.hold + CLOCK.fade));
+  setClock((level.rush ? RUSH.hour : level.daily ? level.daily.time : CLOCK.night.includes(level.n) ? 1 : CLOCK.sunset.includes(level.n) ? 0 : 2) * (CLOCK.hold + CLOCK.fade));
   hideModals();
   last = performance.now();
   pace.t = pace.n = pace.even = 0;
@@ -260,8 +264,9 @@ function start(level) {
   if (level.training) beginTraining(st);
   else {
     showKeyHints();
-    st.plan = surprisesFor(level, (tries[level.n] = (tries[level.n] ?? -1) + 1));
+    st.plan = level.rush ? [] : surprisesFor(level, (tries[level.n] = (tries[level.n] ?? -1) + 1));
     prepareFirstOrder(st);
+    if (level.rush) beginRush(st);
   }
   hud(st);
   measureHud();
@@ -270,6 +275,12 @@ function start(level) {
 
 // Walking out on an order in the air costs the same as ruining it.
 function leave() {
+  // walking out of a Rush run ends it there: its score and pay so far still count, and nothing is charged
+  if (st?.rush && !st.done && !st.outcome) {
+    breakStreak(st, true);
+    failMission(st, 'Left the run');
+    return;
+  }
   // walking out of a mission that has not been passed ends the run too, quietly, and the badge goes with it
   if (st?.has) {
     breakStreak(st, true);
@@ -284,11 +295,11 @@ function leave() {
 const demo = { x: 0, at: performance.now() };
 // What the music follows: where the mission is, the time of day, and how the flight is going.
 function musicState(paused) {
-  const l = st.level, d = st.d, o = st.has ? st.order : null, left = o ? o.deadline - st.t : Infinity;
+  const l = st.level, d = st.d, o = st.has ? st.order : null, r = st.rush, left = r?.end != null ? r.end - st.t : o ? o.deadline - st.t : Infinity;
   return {
     active: !st.done && !st.outcome, paused, place: l.beach ? 'beach' : l.desert ? 'desert' : l.forest ? 'forest' : l.mountain ? 'mountain' : l.snow ? 'snow' : 'city', time: Math.floor(world.palKey) % 3,
     // a mission keeps its own music through a pause and its result card; once it is over and the maps are open, they take over
-    mission: !st.done || !levelsOpen(), challenge: !!l.challenge,
+    mission: !st.done || !levelsOpen(), challenge: !!l.challenge || (r?.level ?? 0) >= RUSH.hotFrom,
     alt: Math.max(0, Math.min(1, (GROUND - d.y) / MUSIC.altSpan)), speed: Math.min(1, Math.hypot(d.vx, d.vy) / MUSIC.fastSpeed), wind: l.wind ? Math.min(1, Math.abs(st.wind) / l.wind) : 0,
     danger: Math.max(left < MUSIC.lateSecs ? 1 - left / MUSIC.lateSecs : 0, st.batWarn > 1 ? 1 : st.batWarn ? .5 : 0), boosting: st.boosting, holding: !!st.anchor,
   };
@@ -322,6 +333,7 @@ initSheet();
 initShop();
 initLeague();
 initDaily();
+initRush();
 onStart(() => {
   hideOverlay();
   // a brand new player flies the lessons first
@@ -343,11 +355,12 @@ initLevels(levels, {
     hideOverlay();
     start(trainingLevel());
   },
-  stake: () => (st.has && !st.level.daily ? Math.min(st.money, st.item.price) : 0),
+  stake: () => (st.has && !st.level.daily && !st.rush ? Math.min(st.money, st.item.price) : 0),
   // the run walking out would end, and the run as it stands for the mission card
   combo: () => (st.level.training || st.done || st.outcome?.passed ? 0 : streak.n),
   streak: () => streak.n,
   level: () => st.level,
+  rush: () => st.rush,
 });
 // building sprites hold shop signs, so repaint them once the web fonts arrive
 document.fonts?.ready.then(dropSprites);

@@ -1,8 +1,9 @@
 import { buzz, canBuzz, sfx, toggleMute } from './audio.js';
 import { musicCue } from './music.js';
 import { nudgeShop } from './shop.js';
-import { showToday } from './daily.js';
-import { AIRCRAFT, ALTIMETER, BADGE, BOOST, COMBO, DAILY, DEV, DUST, FROST, FX, G, GATES, GIFTS, GROUND as G_LINE, HANGAR, HEALTH, JOY, KEY_HINT, LEVELS, MISSION, PERFECT, PICTURE, POINTER, QUALITY, RESULT, SHAKE, SHOP, SHOTS, SKIP, VIEW, WEATHER, WEATHER_HINT, WIND } from './config.js';
+import { paper, showToday } from './daily.js';
+import { showRushCard } from './rush.js';
+import { AIRCRAFT, ALTIMETER, BADGE, BOOST, COMBO, DAILY, DEV, DUST, FROST, FX, G, GATES, GIFTS, GROUND as G_LINE, HANGAR, HEALTH, JOY, KEY_HINT, LEVELS, MISSION, PERFECT, PICTURE, POINTER, QUALITY, RESULT, RUSH, SHAKE, SHOP, SHOTS, SKIP, VIEW, WEATHER, WEATHER_HINT, WIND } from './config.js';
 import { applyControls, touchUI } from './input.js';
 import { bought, loadProgress, owns, saveSettings, saveSkips, settings, skips } from './storage.js';
 
@@ -526,8 +527,23 @@ export function hud(st) {
   const rings = o && st.stop.gates, at = (o?.gate ?? 0) + 1, ring = rings && at <= rings.length ? `${view.W < GATES.narrow ? '◎' : 'Ring '}${at}/${rings.length} · ` : '';
   const tag = (o?.drop ? `Drop ${o.drop}/${run.length} · ` : legs > 1 ? `Stop ${st.stopAt + 1}/${legs} · ` : '') + ring;
   const left = o ? Math.max(0, o.deadline - st.t) : st.prep ? st.prep.left : 0, whole = Math.ceil(left);
-  text('clock', (o || st.prep) && whole < Infinity ? `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}` : '--:--');
-  put('clockLow', !!o && left < MISSION.lowTime, v => { $('clock').classList.toggle('low', v); });
+  const r = st.rush, flash = !!r?.gain && st.t - r.gain.at < RUSH.gainShow;
+  if (r) {
+    // the run's clock, before its first order too, and for a moment what the last drop added
+    const runLeft = Math.max(0, (r.end ?? st.t + RUSH.start) - st.t);
+    text('clock', flash ? (r.gain.secs ? `+${r.gain.secs}s` : 'MAX') : clockText(runLeft));
+    put('clockLow', !flash && runLeft < MISSION.lowTime, v => { $('clock').classList.toggle('low', v); });
+    text('rushPts', scoreText(r.score));
+    text('rushLv', `Level ${r.level}`);
+    put('rushBump', r.del, v => { $('rushScore').style.animationName = v ? (v % 2 ? 'comboBumpA' : 'comboBumpB') : 'none'; });
+  } else {
+    text('clock', (o || st.prep) && whole < Infinity ? `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}` : '--:--');
+    put('clockLow', !!o && left < MISSION.lowTime, v => { $('clock').classList.toggle('low', v); });
+  }
+  put('clockGain', flash, v => { $('clock').classList.toggle('gain', v); });
+  put('rushOn', !!r, v => { $('rushScore').hidden = !v; $('wrap').classList.toggle('rush', v); });
+  // past the best mid-run, the score glows
+  put('rushBest', !!r && r.best > 0 && r.score > r.best, v => { $('rushScore').classList.toggle('best', v); });
   bar('bBat', st.d.bat);
   text('batPct', `${Math.ceil(st.d.bat)}%`);
   put('batLow', st.batWarn > 0, v => { $('batPct').classList.toggle('low', v); });
@@ -541,7 +557,7 @@ export function hud(st) {
   showWeatherNote(st);
   showCombo(st);
   const item = o && (o.drop ? run[o.drop - 1].item : st.item);
-  text('oTitle', st.outcome ? st.outcome.why || 'Delivered' : o ? `${tag}${item.label}${item.urgent ? ' · URGENT' : ''} → ${placeName(o.t)}`
+  text('oTitle', st.outcome ? st.outcome.why || 'Delivered' : o ? `${tag}${item.label}${item.urgent ? (r ? ` · URGENT ×${RUSH.points.urgent}` : ' · URGENT') : ''} → ${placeName(o.t)}`
     : st.prep ? `${tag}Preparing ${st.prep.item.label}`
     : st.level.training ? 'Training' : `${tag}Land on the green pad at ${st.stop.shop.shop.name}`);
 }
@@ -556,9 +572,10 @@ function showCombo(st) {
   const on = n >= c.showFrom && room && !st.done && !(st.outcome && !st.outcome.passed) && !st.level.training;
   // a broken run keeps its number while it shakes away
   if (n >= c.showFrom) {
-    put('combo', n, v => {
-      $('comboN').textContent = v;
-      $('comboX').textContent = `×${c.mult[Math.min(v, c.mult.length - 1)]}`;
+    const table = st.rush ? RUSH.combo : c.mult;
+    put('combo', `${n}${st.rush ? 'r' : ''}`, () => {
+      $('comboN').textContent = n;
+      $('comboX').textContent = `×${table[Math.min(n, table.length - 1)]}`;
     });
   }
   put('comboOn', on, v => {
@@ -576,7 +593,7 @@ function showCombo(st) {
   if (on && !settings.comboSeen && !st.outcome) {
     settings.comboSeen = true;
     saveSettings();
-    st.note = { icon: 'flame', text: 'Clean drops in a row raise your tip', until: st.t + c.hint };
+    st.note = { icon: 'flame', text: st.rush ? 'Clean drops in a row raise your score' : 'Clean drops in a row raise your tip', until: st.t + c.hint };
   }
 }
 
@@ -619,11 +636,12 @@ export function showLesson(step, title, body, teach = []) {
 export const noticeUp = () => view.W < COMBO.wideFrom && !($('toast').hidden && $('hangarTip').hidden);
 
 let toastTimer = 0;
-export function showToast(title, detail, good) {
+export function showToast(title, detail, good, gold = false) {
   const el = $('toast');
   $('toastTitle').textContent = title;
   $('toastWhy').textContent = detail;
   el.classList.toggle('bad', !good);
+  el.classList.toggle('gold', gold);
   el.hidden = false;
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => { el.hidden = true; }, MISSION.toastMs);
@@ -687,6 +705,9 @@ export function frost(on) {
 /* ---------- levels ---------- */
 let levelList = [], acts = {}, picked = null, resultLevel = null;
 export const starText = n => '★'.repeat(n) + '☆'.repeat(3 - n);
+// A score as the player reads it: 12,340.
+const scoreFmt = new Intl.NumberFormat('en-US');
+export const scoreText = n => scoreFmt.format(n);
 export const clockText = s => `${Math.floor(Math.ceil(s) / 60)}:${String(Math.ceil(s) % 60).padStart(2, '0')}`;
 // The first level without a star is the furthest one open.
 function reachedLevel(stars) {
@@ -792,8 +813,9 @@ export function showLevels() {
   path.innerHTML = `<svg viewBox="0 0 100 ${height}" preserveAspectRatio="none" aria-hidden="true"><polyline points="${road}"/></svg>${nodes}`;
   $('levelsMoney').textContent = `$${money}`;
   $('levels').hidden = false;
-  // the Today card changes the bar's height, so it comes before the shop note is placed
+  // the Today and Rush cards change the bar's height, so they come before the shop note is placed
   showToday(true);
+  showRushCard();
   nudgeShop();
   const scroll = $('levelsScroll');
   scroll.scrollTop = height - open * gap - (scroll.clientHeight || 0) / 2;
@@ -822,14 +844,16 @@ function missionRows(l) {
 }
 
 // A mission's card, from the map or today's mission: head rows first, then the job and its dangers, then tail rows; go
-// is the Start button's word, and lock names the mission to pass first.
-export function openMissionCard(l, { kicker = '', title, best = 0, head = [], tail = [], go = 'Start', lock = 0 }) {
+// is the Start button's word, and lock names the mission to pass first; rows replaces the job and its dangers, and mark
+// the stars.
+export function openMissionCard(l, { kicker = '', title, best = 0, head = [], tail = [], go = 'Start', lock = 0, rows = null, mark = null }) {
   picked = l;
   $('levelKicker').hidden = !kicker;
   $('levelKicker').textContent = kicker;
   $('levelTitle').textContent = title;
-  $('levelBest').textContent = starText(best);
-  $('levelRows').innerHTML = [...head, ...missionRows(l), ...tail].map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');
+  $('levelBest').textContent = mark ?? starText(best);
+  $('levelBest').classList.toggle('words', mark != null);
+  $('levelRows').innerHTML = [...head, ...(rows ?? missionRows(l)), ...tail].map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');
   const locked = !!lock && !settings.dev;
   $('levelPlay').disabled = locked;
   $('levelPlay').classList.toggle('devMark', !!lock && !locked);
@@ -842,31 +866,34 @@ function openLevelCard(n) {
 }
 
 // The money runs up to its total once the stars have landed.
-let tally = 0;
-function countUp(el, to) {
-  const c = RESULT, from = performance.now() + c.tallyDelay;
-  cancelAnimationFrame(tally);
-  el.textContent = '+$0';
+// Each element keeps its own count, so a run's score and its pay can run up together.
+function countUp(el, to, fmt = v => `+$${v}`, wait = RESULT.tallyDelay, span = RESULT.tally) {
+  const from = performance.now() + wait;
+  cancelAnimationFrame(el.tally);
+  el.textContent = fmt(0);
   const tick = now => {
-    const k = Math.max(0, Math.min(1, (now - from) / c.tally));
-    el.textContent = `+$${Math.round(to * (1 - (1 - k) ** 3))}`;
-    if (k < 1) tally = requestAnimationFrame(tick);
+    const k = Math.max(0, Math.min(1, (now - from) / span));
+    el.textContent = fmt(Math.round(to * (1 - (1 - k) ** 3)));
+    if (k < 1) el.tally = requestAnimationFrame(tick);
   };
-  tally = requestAnimationFrame(tick);
+  el.tally = requestAnimationFrame(tick);
 }
 
 // A passed mission's line under the money: today's reward already taken, or what just opened on the map.
 function passTip(o, level) {
-  const { daily, gifts } = loadProgress();
+  const { daily, gifts, rush } = loadProgress();
   if (level.daily) return o.reward ? '' : "Today's reward is already yours. A new mission comes at midnight";
   if (o.training) return '';
   if (level.n === DAILY.unlock && daily.day < 0) return "Today's Mission is open on the map";
   if (level.n === GIFTS.unlock && gifts.day < 0) return 'A daily gift is waiting on the map';
+  if (level.n === RUSH.unlock && !rush.runs) return 'Rush Hour is open on the map';
   return '';
 }
 
 export function showResult(o, level, hasNext) {
   resultLevel = level;
+  $('resultCard').classList.remove('rush', 'best');
+  if (level.rush) return rushResult(o);
   const card = $('resultCard'), won = o.passed && !o.training, legs = level.stops.length, next = o.passed && hasNext, daily = !!level.daily;
   const lead = o.training || (daily && o.passed) ? 'resultMap' : next ? 'resultNext' : 'resultRetry';
   card.classList.toggle('bad', !o.passed);
@@ -901,12 +928,50 @@ export function showResult(o, level, hasNext) {
   if (won) countUp($('resultMoney'), o.tip + (o.reward || 0));
 }
 
+// A run's card: the score counting up where the stars stand, what ended it under it, the run's numbers and its pay. Retry
+// leads. A new best gets the rays, the win, then paper from the score and a buzz once the count lands.
+function rushResult(o) {
+  const card = $('resultCard'), r = o.rush, best = r.newBest, c = RUSH, hero = $('resultStars');
+  card.classList.remove('bad');
+  card.classList.add('rush');
+  card.classList.toggle('best', best);
+  $('resultKicker').textContent = 'Rush Hour';
+  $('resultTitle').textContent = best ? 'NEW BEST!' : 'FINAL SCORE';
+  hero.innerHTML = '<div class="rushHero"><b id="rushFinal">0</b><small>points</small></div>';
+  hero.setAttribute('aria-label', `${r.score} points`);
+  const rows = [['Deliveries', `${r.del}`], ['PERFECT drops', `${r.perfect}`], ['Longest combo', `${r.combo}`], ['Rush level', `${r.level}`],
+    ...(best ? (r.best ? [['Old best', scoreText(r.best)]] : []) : [['Best score', scoreText(r.best)]])];
+  $('resultStats').innerHTML = rows.map(([k, v], i) => `<dt style="--n:${i}">${k}</dt><dd style="--n:${i}">${v}</dd>`).join('');
+  $('resultStats').hidden = false;
+  $('resultSheet').hidden = false;
+  $('resultTotal').hidden = !r.pay;
+  $('resultWhy').textContent = o.why;
+  $('resultWhy').classList.remove('shine');
+  $('resultTip').textContent = o.why !== "TIME'S UP" ? RESULT.tips[o.why] || '' : r.del ? `Clean drops add ${c.clean}s to the clock, PERFECT drops ${c.clean + c.perfect}s` : c.firstTip;
+  $('resultTip').classList.remove('note');
+  $('resultRetry').className = 'go wide';
+  $('resultMap').className = 'ghost round';
+  $('resultNext').hidden = true;
+  $('resultSkip').hidden = true;
+  card.hidden = false;
+  sfx(best ? 'win' : 'lose');
+  musicCue(best ? 'win' : 'lose');
+  if (r.pay) countUp($('resultMoney'), r.pay);
+  countUp($('rushFinal'), r.score, scoreText, c.tallyDelay, c.tally);
+  if (best) setTimeout(() => {
+    if (card.hidden || !card.classList.contains('best')) return;
+    paper(hero.firstChild, c.bestPaper >> (view.lowQ ? 1 : 0));
+    buzz(c.bestBuzz);
+  }, c.tallyDelay + c.tally);
+}
+
 // The map button pauses. Leaving with an order in the air costs what ruining it would.
 function openPause() {
-  const cost = acts.stake(), level = acts.level(), { money, del } = loadProgress(), combo = acts.combo() >= COMBO.showFrom;
-  $('pauseTitle').textContent = level.training ? 'Training' : level.daily ? "Today's Mission" : `Mission ${level.n}`;
-  $('pauseStats').textContent = `$${money} · ${del} ${del === 1 ? 'delivery' : 'deliveries'}`;
-  $('pauseWhy').textContent = cost ? `Leaving loses the order: -$${cost}${combo ? ' and your combo' : ''}` : combo ? 'Leaving ends your combo' : '';
+  const cost = acts.stake(), level = acts.level(), { money, del } = loadProgress(), combo = acts.combo() >= COMBO.showFrom, rush = acts.rush();
+  $('pauseTitle').textContent = rush ? 'Rush Hour' : level.training ? 'Training' : level.daily ? "Today's Mission" : `Mission ${level.n}`;
+  $('pauseStats').textContent = rush ? `${scoreText(rush.score)} points · ${rush.del} ${rush.del === 1 ? 'delivery' : 'deliveries'}` : `$${money} · ${del} ${del === 1 ? 'delivery' : 'deliveries'}`;
+  $('pauseWhy').textContent = rush ? (rush.del ? 'Leaving ends the run. Your score still counts' : '')
+    : cost ? `Leaving loses the order: -$${cost}${combo ? ' and your combo' : ''}` : combo ? 'Leaving ends your combo' : '';
   $('pauseCard').hidden = false;
 }
 

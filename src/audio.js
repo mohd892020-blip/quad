@@ -191,6 +191,9 @@ const SOUNDS = {
   close: t => { burst(t, .14, .35, 1800, 'bandpass'); tone(880, 1320, t + .05, .1, .28); },
   // a claimed gift: four notes climbing, four voices
   gift: t => { tone(784, 784, t, .1, .35); tone(1047, 1047, t + .08, .1, .35); tone(1319, 1319, t + .16, .1, .35); tone(1568, 2093, t + .24, .38, .42); },
+  // Rush Hour: a tick for each of the clock's last seconds, and three notes climbing for a new rush level
+  tick: t => tone(1568, 1568, t, .05, .25),
+  rush: t => { tone(784, 784, t, .09, .35); tone(1175, 1175, t + .08, .09, .35); tone(1568, 2093, t + .16, .28, .4); },
 };
 
 // A short buzz where the phone has one and the player wants it; the app hands it to Android itself.

@@ -150,7 +150,7 @@ export function openGifts() {
 
 // Paper bursts from the claimed tile along a golden-angle spiral; each piece goes when it lands, and with the last one the
 // tile settles among the days taken. A screen that asks for less motion gets none, and the tile settles at once.
-function paper(tile, count) {
+export function paper(tile, count) {
   if (!tile) return;
   const settle = () => tile.classList.remove('got');
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) { settle(); return; }

@@ -1,5 +1,5 @@
 import { buzz, sfx } from './audio.js';
-import { BEACH, BOX, CARS, CLOSE, CONTRAST, DESERT, FIXED_DT, FOREST, FX, MISSION, MOUNTAIN, SNOW, DRONE, EAGLES, EDGE, G, GROUND, HAWKS, HEALTH, RIVAL, SURPRISE } from './config.js';
+import { BEACH, BOX, CARS, CLOSE, CONTRAST, DESERT, FIXED_DT, FOREST, FX, MISSION, MOUNTAIN, SNOW, DRONE, EAGLES, EDGE, G, GROUND, HAWKS, HEALTH, RIVAL, RUSH, SURPRISE } from './config.js';
 import { currentModel, drawAirframe } from './drone.js';
 import { confetti, ctx, glow, hud, kickDust, noticeUp, placeName, pop, shade, showToast, view, X, Y } from './ui.js';
 import { nearby, roofAt, world } from './world.js';
@@ -262,6 +262,9 @@ export function stepAction(st, dt) {
 }
 
 /* ---------- close calls ---------- */
+// What a close call or a ring banks, as the player reads it: dollars in a mission, points in Rush.
+const prize = (st, v) => (st.rush ? `+${v * RUSH.points.perBonus}` : `+$${v}`);
+
 // Slipping past danger at speed without a touch pays into the order: a few times a mission at most, never twice
 // within the cooldown, and only while the player is flying the order, not on Hold or Land. The danger is already
 // behind when it counts, so the words ride over the aircraft where the player is looking.
@@ -272,7 +275,7 @@ function closeCall(st) {
   st.close.n++;
   st.close.at = st.t;
   o.bonus += c.bonus;
-  pop(st, st.d.x, st.d.y - c.popLift, `+$${c.bonus} Close call`, c.color, FX.popSize, false, true);
+  pop(st, st.d.x, st.d.y - c.popLift, `${prize(st, c.bonus)} Close call`, c.color, FX.popSize, false, true);
   sfx('close');
 }
 
@@ -376,7 +379,7 @@ function launchRing(st, dir) {
   if ([...st.hawks, ...st.eagles].some(b => close(b.x, b.y) || close(b.homeX, b.homeY))) return false;
   if (world.lines.some(L => x > L.minX - c.keepOff && x < L.maxX + c.keepOff && L.pts.some(p => close(p.x, p.y)))) return false;
   st.ring = { x, y, born: st.t, end: st.t + c.life };
-  st.note = { icon: 'ring', text: `Bonus ring ahead +$${c.bonus}`, until: st.t + c.note };
+  st.note = { icon: 'ring', text: `Bonus ring ahead ${prize(st, c.bonus)}`, until: st.t + c.note };
   sfx('gate');
   return true;
 }
@@ -391,7 +394,7 @@ function stepRing(st) {
   if (st.note?.icon === 'ring') st.note = null;
   if (!taken) return;
   st.order.bonus += c.bonus;
-  pop(st, st.d.x, st.d.y - c.popLift, `+$${c.bonus} Bonus ring`, '#ffc23d', FX.popSize, false, true);
+  pop(st, st.d.x, st.d.y - c.popLift, `${prize(st, c.bonus)} Bonus ring`, '#ffc23d', FX.popSize, false, true);
   confetti(st, r.x, r.y, c.sparkle);
   sfx('ring');
   buzz(c.buzz);

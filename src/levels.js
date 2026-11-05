@@ -15,7 +15,7 @@ function nextShop(t, left, shops) {
 }
 
 // The drone and its load need a clear way down near a customer, wide enough to keep off the walls.
-function wayDown(t, item) {
+export function wayDown(t, item) {
   const need = Math.max(DRONE.radius, BOX.padX * item.size) * 2 + LEVELS.wayMargin, left = t.x - ROPE_CTL.zoneX - need, right = t.x + ROPE_CTL.zoneX + need;
   const solids = [left, t.x, right].flatMap(nearby).filter(R => R.y < t.y - ROPE).sort((a, b) => a.x - b.x);
   let edge = left;
@@ -169,7 +169,7 @@ export function dailyTheme(day) {
 }
 const OPEN = { beach: BEACH, desert: DESERT, forest: FOREST, mountain: MOUNTAIN, snow: SNOW };
 // Nothing solid straight over the customer, where an aircraft coming down would only settle on top of it.
-const openSky = t => !nearby(t.x).some(R => R.y + R.h <= t.y && R.x < t.x + DRONE.radius && R.x + R.w > t.x - DRONE.radius && R.y < GROUND);
+export const openSky = t => !nearby(t.x).some(R => R.y + R.h <= t.y && R.x < t.x + DRONE.radius && R.x + R.w > t.x - DRONE.radius && R.y < GROUND);
 // The first order a theme asks of a shop: its first two items tied on one rope, or its most delicate one; null when it
 // has none.
 function themeOrder(theme, shop) {
