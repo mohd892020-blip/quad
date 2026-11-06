@@ -429,7 +429,7 @@ function stepGust(st) {
 
 // The customer steps over to the next rooftop or boat, and the clock gains more than the extra way takes. The tip and
 // the time star leave out what the extra way takes at the same pace; a customer stepping closer adds none.
-function moveCustomer(st, to) {
+export function moveCustomer(st, to) {
   const c = SURPRISE.move, o = st.order, dx = to.x - o.t.x, extra = Math.ceil(c.base + Math.abs(dx) / MISSION.speed * c.pace);
   const further = Math.max(0, Math.abs(to.x - st.d.x) - Math.abs(o.t.x - st.d.x));
   o.moved = { x: o.t.x, y: o.t.y, at: st.t, seen: null };

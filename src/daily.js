@@ -3,7 +3,7 @@ import { DAILY, FX, GIFTS } from './config.js';
 import { dailyLevel } from './levels.js';
 import { nudgeShop } from './shop.js';
 import { claimGift, dailyReward, dayNumber, loadProgress, saveSettings, settings } from './storage.js';
-import { openMissionCard, starText, view } from './ui.js';
+import { chapterIntro, openMissionCard, starText, view } from './ui.js';
 
 // The map's side of today's mission and the gift calendar: the Today card and the gift button in the map bar, today's
 // mission card and the calendar. All of it reads the save and the device's own clock, so it works offline.
@@ -192,7 +192,8 @@ export function initDaily() {
   $('giftClaim').addEventListener('click', claim);
   $('giftsClose').addEventListener('click', () => {
     $('gifts').hidden = true;
-    // the money may now cover something new
+    // the money may now cover something new, and a chapter newly open introduces itself
     nudgeShop();
+    chapterIntro();
   });
 }

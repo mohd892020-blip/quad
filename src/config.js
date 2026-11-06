@@ -25,7 +25,7 @@ export const QUALITY = {
 // challengeFrom on); and no more than open skipped missions may wait unplayed at once. There is no clock, so changing
 // the phone's time gains nothing. devOnly keeps it in developer mode until real ads exist; until then a stand-in plays.
 export const SKIP = {
-  devOnly: true, afterFails: 3, realSecs: 15, from: 6, never: [10, 20, 30, 40, 50, 55], gap: 2,
+  devOnly: true, afterFails: 3, realSecs: 15, from: 6, never: [10, 20, 30, 40, 50, 55, 60, 70, 80], gap: 2,
   blockSize: 10, perBlock: 2, challengeFrom: 41, challengePerBlock: 1, open: 3, adSecs: 5,
 };
 
@@ -53,19 +53,19 @@ export const CLOUDS = {
 export const WEATHER = {
   kinds: ['rain', 'fog', 'clouds', 'snow'], dim: '150,156,170',
   snow: {
-    name: 'Snowfall', missions: [16, 33], count: 140, depth: [.45, .8, 1.35], size: [1.3, 1.8, 2.4], fall: 48, spread: .6, sway: 14, swayRate: .9, windShare: .35, lean: 0,
+    name: 'Snowfall', missions: [16, 33, 67], count: 140, depth: [.45, .8, 1.35], size: [1.3, 1.8, 2.4], fall: 48, spread: .6, sway: 14, swayRate: .9, windShare: .35, lean: 0,
     pad: 30, lowShare: .5, color: '255,255,255', alpha: [.5, .75, .9], overcast: .2,
   },
   rain: {
-    name: 'Rain', missions: [6, 14, 19, 26, 31, 39], count: 120, depth: [.5, .8, 1.3], size: [1, 1.1, 1.3], fall: 900, spread: .3, windShare: .5, lean: .0025, long: 18,
+    name: 'Rain', missions: [6, 14, 19, 26, 31, 39, 64, 75], count: 120, depth: [.5, .8, 1.3], size: [1, 1.1, 1.3], fall: 900, spread: .3, windShare: .5, lean: .0025, long: 18,
     pad: 40, lowShare: .5, color: '205,220,255', alpha: [.22, .32, .45], overcast: .42, splashes: 28, splashRate: 1.6, splashSize: 7, splashAlpha: .5,
   },
   fog: {
-    name: 'Fog. Follow the arrow', missions: [11, 20, 28, 36], sprite: 128, clear: 330, wide: 1.45, core: .05, near: .22, thick: .7,
+    name: 'Fog. Follow the arrow', missions: [11, 20, 28, 36, 60, 73], sprite: 128, clear: 330, wide: 1.45, core: .05, near: .22, thick: .7,
     ease: [[.35, .06], [.6, .32], [.82, .74]], low: .45, lowH: 170, banks: 7, bankW: 520, bankFlat: .32,
     bankAlpha: .35, drift: 14, bankDepth: .8, bankLow: 30, bankHigh: 320, overcast: .3,
   },
-  clouds: { name: 'Low cloud', missions: [3, 9, 22, 35], amount: .97, overcast: .22 },
+  clouds: { name: 'Low cloud', missions: [3, 9, 22, 35, 62], amount: .97, overcast: .22 },
 };
 
 // The city's depth. A strip is repainted palSteps times through each fade of the day, not at every step. Each strip slides at par of the camera's pace at scale, its foot base above the street; items
@@ -460,12 +460,12 @@ export const SHOP = {
 };
 
 // The player's score against computer pilots. The ladder was set so a full 120 stars plus steady replays reach the top;
-// missions 51-55 make 165 stars possible.
+// missions 51-55 make 165 stars possible, and Chapter 2 makes 240, so its three pilots stand above the old top.
 export const LEAGUE = {
   perStar: 100,
   perDelivery: 5,
   pilots: [
-    ['Sky Fox', 12600], ['Rotor Rex', 11200], ['Night Owl', 9800], ['Blue Kite', 8400], ['Iron Wing', 7000], ['Copper Hawk', 5800],
+    ['Ace Falcon', 24500], ['Storm Rider', 20000], ['Polar Kite', 16000], ['Sky Fox', 12600], ['Rotor Rex', 11200], ['Night Owl', 9800], ['Blue Kite', 8400], ['Iron Wing', 7000], ['Copper Hawk', 5800],
     ['Dust Devil', 4600], ['Zero Wind', 3500], ['Captain Prop', 2500], ['Mint Comet', 1600], ['Low Battery', 800], ['Rookie Rotor', 300],
   ],
 };
@@ -493,8 +493,17 @@ export const STOPS = { twoFrom: 6, threeFrom: 21 };
 // M mountains, S snowfield. The first ten visit every one; the Double Runs (12, 17, 22, 27, 32, 37) stay in the city.
 export const LEVELS = { regions: 'CBCFDCBMCSFCDCBMCSCFDCBMSCCFDBCCMSBFCDCB', count: 40, seed: 2026, maxDist: 6500, resultDelay: 2, passDelay: 2.2, rowGap: 92, pathWave: .85, pathWidth: 30, balconyMaxSize: 1.3, wayMargin: 24, signs: 2 };
 
+// The map's chapters after the first. Chapter n opens at mission from, its banner standing in gap extra pixels between
+// that mission and the one before. Its card shows by itself once, the first time the chapter is open on the map (or
+// before its first mission), and again whenever the banner is tapped; tags are its highlights, each with its map sign.
+export const CHAPTERS = [{
+  n: 2, from: 56, gap: 110, kicker: 'Chapter 2', name: 'Wild Skies', span: 'Missions 56-80', locked: 'Pass Mission 55 to open',
+  intro: 'Twenty-five new missions across every region. The last one crosses four of them in one run.',
+  tags: [['ferry', 'Moving customers'], ['rescue', 'Rescue runs'], ['relay', 'Orders handed on'], ['bullseye', 'Bullseye drops'], ['rival', 'A rival in every region'], ['gale', 'Gales and sandstorms']],
+}];
+
 // The result screen. tally is how long the money takes to run up, in milliseconds, after tallyDelay. tips answer each way
-// of failing, by the words on the screen.
+// of failing, by the words on the screen, and ruleTips answer a clock run out on a rescue or a bullseye stop.
 export const RESULT = {
   tally: 700, tallyDelay: 1300,
   tips: {
@@ -513,6 +522,7 @@ export const RESULT = {
     'THROUGH THE ICE': 'Keep the order off the ice. Fly high, and lower the rope only at the customer',
     'CAUGHT BY THE AVALANCHE': 'Keep moving and Boost on the straights. Drop straight onto the customer',
   },
+  ruleTips: { rescue: 'Press Hold over them and keep still until the green ring closes', bullseye: 'Hover right over the mark, then lower the rope onto it' },
 };
 
 // The last missions, each with one rule of its own. map is where it flies, shop which of that map's shops it opens at,
@@ -520,6 +530,21 @@ export const RESULT = {
 // a route. A mission with no stops is one order under the rule named by its key. legs overrides near, far, kinds or item
 // for one stop of a route, lake picks the frozen lake of an ice stop, sign names the map sign when it is not the key,
 // and wallSpeed sets the avalanche's speed for one mission.
+// Chapter 2 (56-80) adds:
+// - map as a list, for a route across regions listed west to east, where each leg names its own map and the first leg
+//   takes the first;
+// - ride and speed, a ferry's lane (FERRY.lanes) and its speed;
+// - rescue, on a leg or the mission, which makes a stop a rescue (RESCUE);
+// - on a leg, handOn: the last customer ties this order on, with no shop in between. It is never raced and never has rings;
+// - place, the word for the customer's spot on the card and the HUD when the map's own word would mislead.
+// Stop rules may also be:
+// - sandstorm (the storm's gusts without rain or thunder; the desert's haze shows them);
+// - gale (GALE);
+// - hop (HOP);
+// - bullseye (BULLSEYE);
+// - rescue (a rescue and no other rule);
+// - plain or race (no rule).
+// A rescue is never also a storm or a sandstorm.
 export const CHALLENGES = [
   { key: 'blackout', name: 'Blackout', note: 'Power cut. You only see what your lights reach', map: 'city', shop: 3, item: 'medicine', kinds: ['roof', 'bal'], near: 1500, far: 2600, hawks: 1, wind: 120 },
   { key: 'glass', name: 'Glass Cargo', note: 'One good knock and the vase is gone', map: 'city', shop: 4, item: 'vase', kinds: ['roof'], near: 900, far: 1700, hawks: 0, wind: 110, extra: 12 },
@@ -539,6 +564,37 @@ export const CHALLENGES = [
     key: 'grand', sign: 'finale', name: 'Grand Finale', note: 'Rings, thin ice, then outrun the avalanche', map: 'snow', shop: 0, stops: ['gates', 'ice', 'avalanche'], kinds: ['chalet'],
     legs: [{ near: 1800, far: 2100 }, {}, { near: 4800, far: 5200 }], lake: 1, hawks: 2, wind: 200, wallSpeed: 198, extra: 10,
   },
+  // Chapter 2
+  { key: 'peakRace', sign: 'rival', name: 'Peak Race', note: 'A rival races you to the crag. Fly straight and fast', map: 'mountain', shop: 1, stops: ['race'], item: 'pizza', kinds: ['crag'], near: 1800, far: 3000, hawks: 1, wind: 200, rival: true, rivalSpeed: 200, extra: 6 },
+  { key: 'sandstorm', name: 'Sandstorm', note: 'Gusts swap sides and the sand hides the way', map: 'desert', shop: 1, item: 'pizza', kinds: ['rock'], near: 1100, far: 2000, hawks: 1, wind: 240, extra: 8 },
+  { key: 'relay', name: 'Pass It On', note: 'The customer hands you the next order. No shop in between', map: 'city', shop: 2, stops: ['plain', 'plain'], item: 'cake', kinds: ['roof'], near: 1000, far: 1800, legs: [{}, { item: 'flowers', handOn: true }], hawks: 1, wind: 150, extra: 6 },
+  { key: 'ferryChase', sign: 'ferry', name: 'Ferry Chase', note: 'A faster ferry in the far bay. Wait ahead of it, then Hold', map: 'beach', shop: 1, stops: ['ferry'], item: 'falafel', ride: 'far', speed: 80, hawks: 1, wind: 160, extra: 14 },
+  { key: 'nightRescue', sign: 'rescue', name: 'Night Rescue', note: 'Follow the arrow to the flare in the fog. Hold steady, race on', map: 'forest', shop: 0, stops: ['rescue', 'race'], item: 'supplies', kinds: ['lookout'], near: 1800, far: 2600, legs: [{}, { item: 'pizza', kinds: ['cabin'], near: 1800, far: 2600 }], hawks: 1, wind: 170, rival: true, rivalSpeed: 205, extra: 8 },
+  { key: 'bullseye', name: 'Bullseye', note: 'Set the order down on the small mark. Hold steady', map: 'snow', shop: 0, item: 'coffee', kinds: ['chalet'], near: 500, far: 1200, hawks: 0, wind: 110, extra: 10 },
+  { key: 'hopper', sign: 'hop', name: 'Rooftop Hopper', note: 'The customer moves twice on the way. Follow the arrow', map: 'city', shop: 1, stops: ['hop'], item: 'coffee', kinds: ['roof'], near: 1800, far: 2400, hawks: 1, wind: 160, extra: 4 },
+  { key: 'stayLow', sign: 'radar', name: 'Stay Low', note: 'Stay under the red line, between the mesas', map: 'desert', shop: 2, stops: ['radar'], item: 'cake', kinds: ['rock'], near: 1500, far: 2400, hawks: 1, wind: 200, extra: 6 },
+  { key: 'islandRescue', sign: 'rescue', name: 'Island Rescue', note: 'Supplies to the island in the rain. Hold steady over them', map: 'beach', shop: 0, stops: ['rescue'], item: 'supplies', kinds: ['sand'], place: 'Island', near: 2000, far: 3000, hawks: 1, wind: 220, extra: 8 },
+  { key: 'darkWoods', sign: 'blackout', name: 'Dark Woods', note: 'Lights out in the pines. Two drops by your own lights', map: 'forest', shop: 0, stops: ['blackout', 'blackout'], item: 'coffee', kinds: ['treehouse'], near: 1200, far: 1800, legs: [{}, { item: 'pizza', kinds: ['cabin'], near: 2100, far: 2600 }], hawks: 1, wind: 150, extra: 6 },
+  { key: 'snowRelay', sign: 'relay', name: 'Snow Relay', note: 'Two chalets, one order handed on to the next', map: 'snow', shop: 1, stops: ['plain', 'plain'], item: 'pizza', kinds: ['chalet'], near: 1000, far: 1600, legs: [{}, { item: 'cake', handOn: true, near: 1800, far: 2600 }], hawks: 0, wind: 120, extra: 6 },
+  { key: 'gale', name: 'Peak Gale', note: 'A gale in your face all the way to the crag', map: 'mountain', shop: 0, item: 'kunafa', kinds: ['crag'], near: 1400, far: 2000, hawks: 1, wind: 360, extra: 10 },
+  { key: 'rooftopDuel', sign: 'bullseye', name: 'Rooftop Duel', note: 'A small mark first, then race a rival to a moving customer', map: 'city', shop: 2, stops: ['bullseye', 'hop'], item: 'kunafa', kinds: ['roof'], near: 1600, far: 2400, legs: [{}, { item: 'flowers', near: 1800, far: 2600 }], hawks: 1, wind: 170, rival: true, rivalSpeed: 210, extra: 6 },
+  { key: 'seaDuel', sign: 'rival', name: 'Sea Duel', note: 'A rival races you out to the boats', map: 'beach', shop: 2, stops: ['race'], item: 'cake', kinds: ['boat'], near: 1200, far: 2200, hawks: 1, wind: 200, rival: true, rivalSpeed: 205, extra: 6 },
+  { key: 'caravan', sign: 'sandstorm', name: 'Caravan Run', note: 'A sandstorm, an order handed on, then a race', map: 'desert', shop: 0, stops: ['sandstorm', 'plain', 'race'], item: 'coffee', kinds: ['rock'], near: 1200, far: 2000, legs: [{}, { item: 'kunafa', handOn: true, kinds: ['rock', 'oasis'], near: 1000, far: 2200 }, { item: 'pizza', near: 1400, far: 2400 }], hawks: 1, wind: 230, rival: true, rivalSpeed: 215, extra: 8 },
+  { key: 'highLine', sign: 'rope', name: 'High Line', note: 'Double rope. Lower the order down to the lookout', map: 'forest', shop: 0, stops: ['rope'], item: 'medicine', kinds: ['lookout'], near: 1800, far: 2600, hawks: 0, wind: 130, rope: 130, extra: 10 },
+  { key: 'avalancheRescue', sign: 'avalanche', name: 'Avalanche Rescue', note: 'Supplies to the crag, an avalanche behind. Hold steady there', map: 'mountain', shop: 2, stops: ['avalanche'], item: 'supplies', kinds: ['crag'], near: 3500, far: 4500, rescue: true, hawks: 2, wind: 180, wallSpeed: 200, extra: 10 },
+  { key: 'whiteoutDuel', sign: 'rival', name: 'Whiteout Duel', note: 'A rival races you through the snow fog', map: 'snow', shop: 2, stops: ['race'], item: 'flowers', kinds: ['station'], near: 1200, far: 2000, hawks: 1, wind: 170, rival: true, rivalSpeed: 220, extra: 6 },
+  { key: 'blackoutRelay', sign: 'blackout', name: 'Blackout Relay', note: 'A power cut, and the order is handed on in the dark', map: 'city', shop: 8, stops: ['blackout', 'blackout'], item: 'pizza', kinds: ['roof'], near: 1200, far: 2000, legs: [{}, { item: 'falafel', handOn: true, near: 1000, far: 1800 }], hawks: 1, wind: 170, extra: 6 },
+  { key: 'roughSea', sign: 'ferry', name: 'Rough Sea', note: 'Rain, a strong wind and a fast ferry. Hold rides along', map: 'beach', shop: 0, stops: ['ferry'], item: 'watermelon', ride: 'near', speed: 90, hawks: 1, wind: 260, extra: 12 },
+  { key: 'glassLodge', sign: 'glass', name: 'Glass in the Pines', note: 'A glass vase up to a treehouse. Mind the branches', map: 'forest', shop: 2, stops: ['glass'], item: 'vase', kinds: ['treehouse'], near: 700, far: 1500, hawks: 0, wind: 110, extra: 12 },
+  { key: 'scorcher', sign: 'melt', name: 'Scorcher', note: 'Ice cream in the heat, then a race to the rocks', map: 'desert', shop: 1, stops: ['melt', 'race'], item: 'icecream', kinds: ['rock'], near: 2100, far: 2300, legs: [{}, { item: 'watermelon', near: 1400, far: 2400 }], hawks: 1, wind: 220, rival: true, rivalSpeed: 225, extra: 6 },
+  { key: 'iceRescue', sign: 'ice', name: 'Stranded on the Ice', note: 'Supplies to the frozen lake at night. Stay high, hold steady', map: 'snow', shop: 0, stops: ['ice'], item: 'supplies', lake: 0, rescue: true, hawks: 2, wind: 200, extra: 10 },
+  { key: 'summitDuel', sign: 'jet', name: 'Summit Duel', note: 'Ride the jet stream to beat the rival to the far crag', map: 'mountain', shop: 0, stops: ['jet'], item: 'kunafa', kinds: ['crag'], near: 4400, far: 5000, hawks: 2, wind: 360, rival: true, rivalSpeed: 205, extra: 4 },
+  {
+    key: 'longHaul', sign: 'finale', name: 'The Long Haul', note: 'Sea to summit: a ferry, a sandstorm, rings, an avalanche', map: ['beach', 'desert', 'forest', 'mountain'], shop: 1,
+    stops: ['ferry', 'sandstorm', 'gates', 'avalanche'], item: 'pizza', ride: 'far', speed: 80, kinds: ['rock'],
+    legs: [{}, { map: 'desert', item: 'kunafa', near: 3500, far: 4500 }, { map: 'forest', item: 'medicine', kinds: ['lookout', 'cabin'], near: 1800, far: 2600 }, { map: 'mountain', item: 'kunafa', kinds: ['crag'], near: 3400, far: 4000 }],
+    hawks: 2, wind: 240, wallSpeed: 205, extra: 4,
+  },
 ];
 
 // reach is how far the aircraft's lights carry, clear the share of it that stays fully lit.
@@ -553,8 +609,11 @@ export const STORM = {
 // The line sits clear above the tallest thing on the route. grace is how many seconds above it are forgiven.
 export const RADAR = { clear: 120, grace: 1.6, fade: 1.2, line: 3, dash: 16, dashRate: 40, text: 12, edge: 10, tint: .22 };
 
-// The ferry works the bay between from and to, with the customer on its open deck.
-export const FERRY = { from: 15520, to: 16880, speed: 62, w: 190, deckH: 30, bow: 18, draft: 10, stripe: 9, stripeH: 6, cabinAt: 14, cabinW: 56, cabinH: 34, targetLift: 11, start: 16200 };
+// The ferry works the bay between from and to, with the customer on its open deck. A mission may send it along another
+// lane (lanes, named by the mission's ride) and at its own speed; near is this bay's own ends, far is the second bay,
+// past the island. The boats moored along a named lane are away for that mission (seaside.js clearBay), so their masts
+// never catch the order while it rides along.
+export const FERRY = { from: 15520, to: 16880, speed: 62, w: 190, deckH: 30, bow: 18, draft: 10, stripe: 9, stripeH: 6, cabinAt: 14, cabinW: 56, cabinH: 34, targetLift: 11, start: 16200, lanes: { near: {}, far: { from: 17660, to: 18900, start: 18300 } } };
 
 // Rings on a route: count of them from from to to of the way, each at a height band above the ground taken in turn and
 // lifted to clear anything within span of it by clear. Passing within reach of the next one counts it. On a screen
@@ -590,6 +649,27 @@ export const AVALANCHE = {
   behind: 450, delay: 1.5, speed: 200, spend: 400, rest: 200, cue: 400, rumble: 1.5, dust: 300,
   haze: .9, puff: '#f4f8fc', puffs: 9, puffR: [40, 70], roll: 3, spray: 14, sprayRate: 120, sprayReach: 80, text: 12, edge: 10, warn: '#ff7a5c',
 };
+
+// A bullseye drop counts only with the order within reach of the customer, on Hold or not (any other drop counts within
+// DELIVERY.reach, holdReach on Hold). Its mark lies flat, drop under the customer: rings of red and white at rings times
+// the reach, squashed by flat; while the order is near but not on the mark the outer ring turns off and pulses at blink.
+export const BULLSEYE = { reach: 12, drop: 11, rings: [1.25, .85, .45], flat: .35, red: '#e8492c', white: '#fff3df', off: '#ffe14d', blink: 8 };
+
+// A rescue: the stranded customer unclips the supplies while the aircraft holds steady over them for hold seconds (any
+// other handover takes DELIVERY.holdTime). Their flare stands at beside them (on the side away from a beach umbrella),
+// drop under the spot: a red stick stick tall and stickW wide with a glow glow wide flickering by flickerShare at flicker,
+// and soft puffs of smoke rising rise over life seconds as they swell from r[0] to r[1] and fade from alpha, gone before
+// they reach the aircraft holding over them, leaning drift with the full wind; half the puffs on the low picture, none
+// while the flare is more than reach pixels off screen.
+export const RESCUE = { hold: 2.5, at: -32, drop: 11, puffs: 8, life: 3, rise: 150, drift: 60, r: [8, 30], alpha: .85, smoke: '#ffb3a0', color: '#ff5a3c', stick: 10, stickW: 3, glow: 26, flicker: 11, flickerShare: .2, reach: 140 };
+
+// A gale blows against the order the whole way, between floor and all of the mission's wind, swelling at rate; the
+// mission's own wind takes over again keep seconds after the gale stop. Streaks of it cross the screen (half on the low
+// picture), long px long and width wide, carried at drift of the wind.
+export const GALE = { floor: .7, rate: .5, keep: 1, streaks: 24, long: 80, width: 2, drift: 1.6, color: 'rgba(255,255,255,.7)' };
+
+// A hopping customer steps over, as a surprise move does (SURPRISE.move), once the order is each share of at the way out.
+export const HOP = { at: [.3, .55] };
 
 // The lesson flight: how far the drone must go in each step, measured from the green pad.
 export const TRAINING = { prep: 2, climb: 90, ringX: 420, ringY: 150, ringReach: 46, boostFor: .4, padLift: 20, rope: 40 };
@@ -698,6 +778,8 @@ export const ITEMS = {
   vase: { key: 'vase', price: 35, prep: 3, label: 'Glass Vase', weight: .6, size: .9, fragile: 6, heat: 0, wind: 1.2 },
   // spoils: losing all its heat ruins this one, and the word says how
   icecream: { key: 'icecream', price: 7, prep: 2, label: 'Ice Cream', weight: .5, size: .8, fragile: .8, heat: 3, wind: .9, spoils: 'Melted' },
+  // supplies for someone stranded: a roped crate that flies like a pizza, with nothing to keep warm
+  supplies: { key: 'supplies', price: 12, prep: 2, label: 'Supplies', weight: 1, size: 1, fragile: .6, heat: 0, wind: .8 },
 };
 
 // How much a load above or below pizza weight changes lift and battery use.
@@ -717,7 +799,7 @@ export const SHOPS = [
 // One day: each time holds, then fades into the next. lit = window colours for off, dim and bright.
 // Sky stops must line up across times so they can blend; discCut is how much of the disc is shaded.
 // Missions open in daylight and the day turns on from there; the missions in sunset and night open at those hours.
-export const CLOCK = { hold: 120, fade: 20, steps: 16, startAt: 2, sunset: [9, 18, 27, 36, 45], night: [19, 29, 39, 49] };
+export const CLOCK = { hold: 120, fade: 20, steps: 16, startAt: 2, sunset: [9, 18, 27, 36, 45, 57, 69, 76], night: [19, 29, 39, 49, 60, 78] };
 export const TIMES = [
   {
     name: 'Sunset', sky: [[0, '#140f2a'], [.45, '#3b2452'], [.8, '#b4505a'], [1, '#f0a259']],

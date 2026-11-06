@@ -740,8 +740,8 @@ function drawBirds(st) {
 // The strip map: zones as bands, then shops, the customer, and the player on top.
 export function drawMap(st) {
   const c = document.getElementById('map'), w = view.mapW, h = view.mapH;
-  // the strip covers the stretch of world the mission is flown in
-  const level = st.level, [left, right] = level.snow ? [SNOW.from, SNOW.to] : level.mountain ? [MOUNTAIN.from, MOUNTAIN.to] : level.forest ? [FOREST.from, FOREST.to] : level.desert ? [DESERT.from, DESERT.to] : level.beach ? [BEACH.from, BEACH.to] : [CITY.leftBuilding.x, BEACH.from];
+  // the strip covers the stretch of world the mission is flown in; a route across regions spans them all
+  const level = st.level, [left, right] = level.span ?? (level.snow ? [SNOW.from, SNOW.to] : level.mountain ? [MOUNTAIN.from, MOUNTAIN.to] : level.forest ? [FOREST.from, FOREST.to] : level.desert ? [DESERT.from, DESERT.to] : level.beach ? [BEACH.from, BEACH.to] : [CITY.leftBuilding.x, BEACH.from]);
   const k = view.DPR, span = right - left;
   if (c.width !== Math.round(w * k)) {
     c.width = Math.round(w * k);

@@ -61,6 +61,12 @@
     <symbol id="s-jet" viewBox="0 0 32 32"><path fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" d="M3 10h16a4 4 0 1 0-4-4M3 17h24M3 24h12a4 4 0 1 1-4 4"/></symbol>
     <symbol id="s-avalanche" viewBox="0 0 32 32"><path opacity=".55" d="M2 28 13 8l4 6 3-4 10 18z"/><path d="M2 29c3-6 7-9 12-9 3 0 5 2 8 2 3 0 6-2 8-4v11z"/></symbol>
     <symbol id="s-ice" viewBox="0 0 32 32"><path fill-rule="evenodd" d="M16 3a13 13 0 1 1 0 26 13 13 0 0 1 0-26zm-1.500 5-2 6.500 4 2-3 6.500 1.500.800 4-7.500-4-2 2-5.500z"/></symbol>
+    <symbol id="s-sandstorm" viewBox="0 0 32 32"><path fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" d="M3 10h18a4 4 0 1 0-4-4M3 17h22M3 24h14"/><circle cx="26" cy="24" r="2"/><circle cx="22" cy="28" r="1.6"/></symbol>
+    <symbol id="s-gale" viewBox="0 0 32 32"><path fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" d="M3 12h17a4 4 0 1 0-4-4M3 19h23a4 4 0 1 1-4 4"/></symbol>
+    <symbol id="s-rescue" viewBox="0 0 32 32"><path d="M12 3h8v9h9v8h-9v9h-8v-9H3v-8h9z"/></symbol>
+    <symbol id="s-relay" viewBox="0 0 32 32"><path d="M2 9h17V4l9 8-9 8v-5H2z"/><path opacity=".55" d="M30 23H13v5l-9-8 9-8v5h17z"/></symbol>
+    <symbol id="s-bullseye" viewBox="0 0 32 32"><circle cx="16" cy="16" r="12" fill="none" stroke="currentColor" stroke-width="3"/><circle cx="16" cy="16" r="6" fill="none" stroke="currentColor" stroke-width="3"/><circle cx="16" cy="16" r="2"/></symbol>
+    <symbol id="s-hop" viewBox="0 0 32 32"><path d="M2 22h9v8H2zM21 22h9v8h-9z"/><path fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-dasharray="3 3" d="M6.5 18C8 10 12 7 16 7s8 3 9 9"/><path d="M21.5 15.5l4 4.5 3-5.5z"/></symbol>
     <symbol id="i-gift" viewBox="0 0 24 24"><rect x="3.5" y="9" width="17" height="11.5" rx="2"/><path d="M2.5 9h19M12 9v11.5M12 9c-1.5-4-6.5-5-6.5-2S9.5 9 12 9zm0 0c1.5-4 6.5-5 6.5-2S14.5 9 12 9z"/></symbol>
     <symbol id="s-route" viewBox="0 0 32 32"><circle cx="6" cy="24" r="4"/><circle cx="16" cy="9" r="4"/><circle cx="26" cy="22" r="4"/><path fill="none" stroke="currentColor" stroke-width="2.6" stroke-dasharray="3 3" d="M8 21l6-9M18 12l6 7"/></symbol>
     <symbol id="s-clock" viewBox="0 0 32 32"><path fill-rule="evenodd" d="M16 3a13 13 0 1 1 0 26 13 13 0 0 1 0-26zm0 4a9 9 0 1 0 0 18 9 9 0 0 0 0-18z"/><path d="M14.6 9h2.8v6.4l4.4 3.2-1.6 2.3-5.6-4.1z"/></symbol>
@@ -216,6 +222,7 @@
     </div>
   </div>
   <div id="gifts" class="modal" hidden><div class="card"><button class="ghost round corner" id="giftsClose" aria-label="Close"><svg class="ico"><use href="#i-close"/></svg></button><small id="giftsWeek" class="kicker"></small><h2>Daily Gifts</h2><p class="fine" id="giftsNote"></p><ol id="giftDays"></ol><button class="go wide" id="giftClaim">Claim</button><p id="giftWhen"></p></div></div>
+  <div id="chapterCard" class="modal" hidden><div class="card" role="dialog" aria-labelledby="chapterName"><button class="ghost round corner" id="chapterClose" aria-label="Close"><svg class="ico"><use href="#i-close"/></svg></button><small id="chapterKicker" class="kicker"></small><h2 id="chapterName"></h2><p class="fine" id="chapterIntro"></p><ul id="chapterTags"></ul><button class="go wide" id="chapterGo"></button></div></div>
   <div id="sheet" hidden>
     <div class="card" role="dialog" aria-label="Settings">
       <h2>Settings</h2>

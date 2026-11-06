@@ -6,7 +6,7 @@ const GARAGE_KEY = 'pizzaGarageV1';
 const SKIPS_KEY = 'pizzaSkipsV1';
 
 const STICK = { size: 'medium', feel: 'normal', fade: 'solid', origin: 'fixed', hand: 'right' };
-export const settings = { controls: 'joystick', plane: 'courier', dev: false, muted: false, music: true, vibration: true, comboSeen: false, camera: 'chase', tier: null, lite: false, sideways: false, shopSeen: [], picture: 'sharp', trained: false, stick: STICK, giftSeen: -1 };
+export const settings = { controls: 'joystick', plane: 'courier', dev: false, muted: false, music: true, vibration: true, comboSeen: false, camera: 'chase', tier: null, lite: false, sideways: false, shopSeen: [], picture: 'sharp', trained: false, stick: STICK, giftSeen: -1, chapterSeen: 1 };
 
 try {
   Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {});
@@ -14,6 +14,8 @@ try {
 if (!Array.isArray(settings.shopSeen)) settings.shopSeen = [];
 // the last date the gift calendar opened by itself
 if (!Number.isInteger(settings.giftSeen)) settings.giftSeen = -1;
+// the newest chapter whose card has shown; chapter 1 needs none
+if (!Number.isInteger(settings.chapterSeen)) settings.chapterSeen = 1;
 settings.stick = { ...STICK, ...(settings.stick && typeof settings.stick === 'object' ? settings.stick : null) };
 
 // Real fails in a row on each mission, the missions skipped, and the missions passed since the last skip.

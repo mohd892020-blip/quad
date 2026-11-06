@@ -1,6 +1,6 @@
-import { BEACH, BOX, CITY, DESERT, DRONE, GROUND } from './config.js';
+import { BEACH, BOX, CITY, DESERT, DRONE, FERRY, GROUND } from './config.js';
 import { ctx, shade, view, X, Y } from './ui.js';
-import { world, zoneAt } from './world.js';
+import { indexColliders, world, zoneAt } from './world.js';
 
 // The open coast past the city: sand, sea and an island, with nothing tall in the way.
 // The layout is laid by hand in BEACH, so its levels read the same on every run.
@@ -34,8 +34,8 @@ export function buildSeaside(firstIdx) {
     targets.push({ x: p.x + p.w - c.pierEnd, y: deck - c.targetLift, kind: 'pier' });
   }
   for (const b of c.boats) {
-    solids.push({ x: b.x, y: deck, w: b.w, h: c.deckH, mat: 'wood' });
-    solids.push({ x: b.x + b.w * c.mastAt, y: deck - c.mastH, w: c.mastW, h: c.mastH, mat: 'wood' });
+    solids.push({ x: b.x, y: deck, w: b.w, h: c.deckH, mat: 'wood', boat: b });
+    solids.push({ x: b.x + b.w * c.mastAt, y: deck - c.mastH, w: c.mastW, h: c.mastH, mat: 'wood', boat: b });
     targets.push({ x: b.x + b.w * c.boatSpot, y: deck - c.targetLift, kind: 'boat' });
   }
   for (const x of c.towels) targets.push({ x, y: GROUND - c.targetLift, kind: 'sand' });
@@ -43,6 +43,18 @@ export function buildSeaside(firstIdx) {
 }
 
 const lit = (hex, time) => shade(hex, time.light);
+
+// A ferry on a lane of its own has that bay to itself: the boats moored on its way are out for the mission, neither drawn
+// nor in the way of the order. Every mission start names its lane or none, so the boats are back for every other mission,
+// and the colliders are only rebuilt when that changes.
+const away = new Set();
+export function clearBay(lane) {
+  const out = lane ? BEACH.boats.filter(b => b.x + b.w > lane.from - FERRY.w / 2 && b.x < lane.to + FERRY.w / 2) : [];
+  if (out.length === away.size && out.every(b => away.has(b))) return;
+  away.clear();
+  for (const b of out) away.add(b);
+  indexColliders(world.solids.filter(R => !away.has(R.boat)));
+}
 
 // The far water, and a headland that closes off the skyline where the city ends.
 export function drawSeaBehind() {
@@ -157,7 +169,7 @@ export function drawShore(st) {
     drawWaves(st, a, b);
   }
   for (const p of c.piers) if (seen(p.x) || seen(p.x + p.w)) drawPier(p, time);
-  for (const b of c.boats) if (seen(b.x)) drawBoat(b, st, time);
+  for (const b of c.boats) if (seen(b.x) && !away.has(b)) drawBoat(b, st, time);
   for (const x of c.towers) if (seen(x)) drawTower(x, time);
   for (const x of c.palms) if (seen(x)) drawPalm(x, st, time);
   c.umbrellas.forEach((x, i) => { if (seen(x)) drawUmbrella(x, time, i); });

@@ -1,23 +1,32 @@
 import { iceAt } from './alpine.js';
 import { sfx } from './audio.js';
-import { AVALANCHE, BEACH, BLACKOUT, BOX, DRONE, FERRY, GATES, GROUND, JET, RADAR, SNOW, STORM, THIN_ICE } from './config.js';
+import { moveCustomer } from './action.js';
+import { clearBay } from './seaside.js';
+import { AVALANCHE, BEACH, BLACKOUT, BOX, BULLSEYE, DELIVERY, DRONE, FERRY, GALE, GATES, GROUND, HOP, JET, RADAR, RESCUE, SNOW, STORM, SURPRISE, THIN_ICE } from './config.js';
 import { drawHalos, drawTarget, failMission, pointerSpot } from './delivery.js';
-import { ctx, kickDust, pop, popSpot, shade, showBoost, showToast, view, X, Y } from './ui.js';
+import { ctx, glow, kickDust, pop, popSpot, shade, showBoost, showToast, view, X, Y } from './ui.js';
 import { world } from './world.js';
 
 // The last missions each add one rule of their own. A stop names its rule, so a route can change rule from order to
 // order; the rules that only set the stage (a vase, a low battery, a long rope) are laid out in levels.js.
 export function beginChallenge(st) {
-  const { challenge, noBoost, stops } = st.level, t = stops[0].t;
+  const { challenge, noBoost, stops } = st.level;
   showBoost(!noBoost);
-  if (t.ferry) t.x = t.home;
+  // every ferry starts from home; one with its own speed also sets off the same way, so each try is the same, and one on
+  // its own lane has the bay to itself
+  for (const s of stops) if (s.t.ferry) {
+    s.t.x = s.t.home;
+    if (s.t.speed) s.t.dir = 1;
+  }
+  clearBay(stops.find(s => s.t.ferry && s.t.from != null)?.t);
   // a challenge, or today's mission, names its rule as it starts
   const intro = challenge ?? st.level.daily?.theme;
   if (intro) showToast(intro.name, intro.note, true);
 }
 
-// Gusts swap sides every couple of seconds, far quicker than the wind of any other mission.
-function storm(st, dt) {
+// Gusts swap sides every couple of seconds, far quicker than the wind of any other mission; a sandstorm is the storm
+// without its rain and thunder.
+function storm(st, dt, bolts = true) {
   const c = STORM;
   if (!st.gusting || st.t > st.windNext) {
     st.gusting = true;
@@ -26,7 +35,7 @@ function storm(st, dt) {
   }
   st.wind += (st.windT - st.wind) * Math.min(1, dt * c.follow);
   st.flash = Math.max(0, (st.flash ?? 0) - dt * c.boltFade);
-  if (st.t > (st.boltAt ?? 0)) {
+  if (bolts && st.t > (st.boltAt ?? 0)) {
     st.flash = st.boltAt ? 1 : 0;
     st.boltAt = st.t + c.boltGap + Math.random() * c.boltRange;
     if (st.flash) sfx('thunder');
@@ -45,14 +54,14 @@ function radar(st, dt) {
 
 // The ferry shuttles along the bay; an aircraft on Hold rides along with it.
 function ferry(st, dt) {
-  const c = FERRY, t = st.stop.t;
+  const c = FERRY, t = st.stop.t, from = t.from ?? c.from, to = t.to ?? c.to;
   t.dir = t.dir || 1;
-  const step = t.dir * c.speed * dt;
+  const step = t.dir * (t.speed ?? c.speed) * dt;
   t.x += step;
   // its speed, so a perfect drop on deck is judged as the customer riding it sees it
   t.vx = step / dt;
   if (st.anchor) st.anchor.x += step;
-  if (t.x > c.to || t.x < c.from) t.dir = -t.dir;
+  if (t.x > to || t.x < from) t.dir = -t.dir;
 }
 
 // Rings in order, and only with the order on the rope: flying past the next one without going through it loses the order.
@@ -118,14 +127,33 @@ function avalanche(st, dt) {
   failMission(st, 'Caught by the avalanche', true);
 }
 
-const RULES = { storm, radar, ferry, gates, jet, ice, avalanche };
+// The gale blows against the order the whole way, swelling and easing but never below its floor.
+function gale(st) {
+  const c = GALE;
+  st.windT = st.stop.gale * st.level.wind * (c.floor + (1 - c.floor) * (.5 + .5 * Math.sin(st.t * c.rate)));
+  st.windNext = st.t + c.keep;
+}
+
+// The customer steps over at set shares of the way, the same each try: never on Hold or Land, never while a hawk dives
+// at the order (it waits the dive out, as a surprise move does), and never once the aircraft is on its approach, where a
+// move would come too late to be fair.
+function hop(st) {
+  const o = st.order, s = st.stop, i = o?.hop ?? 0;
+  if (!st.has || !o || i >= s.hops.length || st.anchor || st.landing || st.hawks.some(h => h.state === 'dive')) return;
+  const way = s.t.x - o.fromX, share = way ? (st.d.x - o.fromX) / way : 0;
+  if (share < HOP.at[i] || Math.abs(o.t.x - st.d.x) < SURPRISE.approach) return;
+  o.hop = i + 1;
+  moveCustomer(st, s.hops[i]);
+}
+
+const RULES = { storm, sandstorm: (st, dt) => storm(st, dt, false), radar, ferry, gates, jet, ice, avalanche, gale, hop };
 
 export function stepChallenge(st, dt) {
   if (!st.outcome && !st.done) RULES[st.stop.twist]?.(st, dt);
 }
 
-function drawFerry(st) {
-  const c = FERRY, S = view.S, t = st.stop.t, time = world.pal, left = t.x - c.w / 2, deck = GROUND - c.deckH, x = X(left);
+function drawFerry(t) {
+  const c = FERRY, S = view.S, time = world.pal, left = t.x - c.w / 2, deck = GROUND - c.deckH, x = X(left);
   if (x > view.W + 40 || x + c.w * S < -40) return;
   ctx.fillStyle = shade('#f2efe6', time.light);
   ctx.beginPath();
@@ -369,14 +397,79 @@ function drawAvalanche(st) {
   ctx.restore();
 }
 
+// The small mark of a bullseye drop, flat on the surface under the customer; its outer ring warns while the order is near but off it.
+function drawBullseye(st) {
+  const c = BULLSEYE, S = view.S, t = st.order.t, x = X(t.x), y = Y(t.stand ?? t.y + c.drop), gap = Math.hypot(st.box.x - t.x, st.box.y - t.y), off = gap < DELIVERY.holdReach && gap >= c.reach;
+  for (let i = 0; i < c.rings.length; i++) {
+    const k = c.rings[i], warn = !i && off;
+    ctx.globalAlpha = warn ? .55 + .45 * Math.sin(st.t * c.blink) : 1;
+    ctx.fillStyle = i % 2 ? c.white : warn ? c.off : c.red;
+    ctx.beginPath();
+    ctx.ellipse(x, y, c.reach * k * S, c.reach * k * c.flat * S, 0, 0, 7);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+// One soft puff of smoke, drawn once and scaled: a flat disc would read as a bubble, not as smoke.
+let puff = null;
+function puffSprite() {
+  if (puff) return puff;
+  puff = document.createElement('canvas');
+  puff.width = puff.height = 64;
+  const g = puff.getContext('2d'), grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  grad.addColorStop(0, RESCUE.smoke);
+  grad.addColorStop(.5, RESCUE.smoke + '99');
+  grad.addColorStop(1, RESCUE.smoke + '00');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 64, 64);
+  return puff;
+}
+
+// A stranded customer's flare: a red light at their side and smoke that rises and leans with the wind, so the spot shows
+// from afar, before the pickup too; the challenge layer is drawn over the fog.
+function drawFlare(st) {
+  const c = RESCUE, S = view.S, t = st.stop.t, x = X(t.x + c.at), y = Y(t.stand ?? t.y + c.drop);
+  if (x < -c.reach * S || x > view.W + c.reach * S) return;
+  const n = view.lowQ ? c.puffs >> 1 : c.puffs, lean = st.level.wind ? st.wind / st.level.wind : 0, sprite = puffSprite();
+  // each puff fades on a square, so it is thick by the flare and gone before the height the aircraft holds at
+  for (let i = 0; i < n; i++) {
+    const k = (st.t / c.life + i / n) % 1, r = (c.r[0] + (c.r[1] - c.r[0]) * k) * S;
+    ctx.globalAlpha = c.alpha * (1 - k) * (1 - k);
+    ctx.drawImage(sprite, x + lean * c.drift * k * S - r, y - (c.stick + c.rise * k) * S - r, r * 2, r * 2);
+  }
+  ctx.globalAlpha = 1;
+  glow(ctx, c.color, x, y - c.stick * S, c.glow * (1 + Math.sin(st.t * c.flicker) * c.flickerShare) * S);
+  ctx.fillStyle = c.color;
+  ctx.fillRect(x - c.stickW / 2 * S, y - c.stick * S, c.stickW * S, c.stick * S);
+}
+
+// A gale's streaks of fast air across the whole screen, the way it blows; one path.
+function drawGale(st) {
+  const c = GALE, { W, H, S } = view, n = view.lowQ ? c.streaks / 2 : c.streaks, lean = Math.sign(st.wind) || 1;
+  ctx.strokeStyle = c.color;
+  ctx.lineWidth = c.width * S;
+  ctx.beginPath();
+  for (let i = 0; i < n; i++) {
+    const x = ((i * 197 + st.t * st.wind * c.drift * S) % W + W) % W, y = (i * 89 % 100) / 100 * H;
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + lean * c.long * S, y);
+  }
+  ctx.stroke();
+}
+
 // Under the aircraft, in the world.
 export function drawChallenge(st) {
   const tw = st.stop.twist;
-  if (tw === 'ferry') drawFerry(st);
-  else if (tw === 'radar' && st.has) drawRadarLine(st);
+  // a route's ferry stays on the water after its drop, under the aircraft that just left it
+  const boat = tw === 'ferry' ? st.stop.t : st.level.stops?.find(s => s.twist === 'ferry')?.t;
+  if (boat) drawFerry(boat);
+  if (tw === 'radar' && st.has) drawRadarLine(st);
   else if (tw === 'gates') drawGates(st);
   else if (tw === 'jet') drawJet(st);
   else if (tw === 'ice') drawIce(st);
+  if (st.has && st.stop.bull) drawBullseye(st);
+  if (st.stop.rescue && !st.outcome && !st.done) drawFlare(st);
 }
 
 function drawRain(st) {
@@ -416,4 +509,5 @@ export function drawWeather(st) {
   if (tw === 'storm') drawRain(st);
   else if (tw === 'blackout') drawBlackout(st);
   else if (tw === 'avalanche') drawAvalanche(st);
+  else if (tw === 'gale') drawGale(st);
 }

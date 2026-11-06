@@ -94,7 +94,7 @@ kbd{display:inline-grid;place-items:center;min-width:24px;height:24px;box-sizing
 @media (max-height:480px){#toast{max-width:min(70vw,560px)}}
 #cardStart{display:grid;gap:14px;justify-items:center}
 /* these open over the mission map, which is sharp and busy, so their glass is solid */
-#levelCard .card,#shop .card,#league .card,#sheet .card,#gifts .card{--tint:#3d3580}
+#levelCard .card,#shop .card,#league .card,#sheet .card,#gifts .card,#chapterCard .card{--tint:#3d3580}
 #boost{width:64px;height:64px;font-size:15px;align-self:flex-end}
 @media (max-width:420px){#joy{width:140px}}
 @media (max-height:480px){#actions{right:calc(200px + max(16px,env(safe-area-inset-right,0px)))}}
@@ -182,6 +182,24 @@ body:not(.dev) .devOnly{display:none!important}
 .sign.jet{background:linear-gradient(#8fd8ff,#2f7fb8)}
 .sign.avalanche{background:linear-gradient(#eef6fc,#9fb4c8);color:#2c4a66}
 .sign.ice{background:linear-gradient(#bfe6ff,#4f8fc0)}
+.sign.sandstorm{background:linear-gradient(#e6b06a,#a8702c)}
+.sign.gale{background:linear-gradient(#b8d8f0,#5f8fb8);color:#1c3550}
+.sign.rescue{background:linear-gradient(#ff6a5a,#c92a1e)}
+.sign.relay{background:linear-gradient(#7cc28f,#3a8f6b)}
+.sign.bullseye{background:#fff;color:#e8492c}
+.sign.hop{background:linear-gradient(#ffb04a,#d9762b)}
+.chapter{position:absolute;left:50%;width:min(300px,calc(100% - 32px));box-sizing:border-box;transform:translate(-50%,-50%);display:grid;justify-items:center;gap:2px;padding:10px 14px 9px;border-radius:18px;border:2px solid var(--cheese);background:linear-gradient(#3d3580,#241a4d);color:#fff;font-family:var(--body);cursor:pointer;box-shadow:0 5px 0 rgba(0,0,0,.28)}
+.chapter small{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--cheese)}
+.chapter b{font-family:var(--display);font-weight:400;font-size:26px;line-height:1}
+.chapter span{font-size:12px;font-weight:700;color:var(--soft)}
+.chapter.locked{border-color:rgba(255,243,223,.3);background:#4a4258}
+.chapter:focus-visible{outline:3px solid var(--cheese);outline-offset:3px}
+#chapterCard .fine{font-size:14px;font-weight:700;color:var(--soft);text-wrap:balance}
+#chapterTags{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 12px;margin:4px 0 6px;padding:0;list-style:none}
+#chapterTags li{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:800;line-height:1.2;text-align:start}
+#chapterTags .sign,#chapterTags .sign+.sign{width:30px;height:30px}
+#chapterTags .sign svg,#chapterTags .sign+.sign svg{width:19px;height:19px}
+@media (max-height:480px){#chapterTags{grid-template-columns:repeat(3,minmax(0,1fr))}}
 .node.locked{background:#4a4258;color:#a79cb4;border-color:rgba(255,243,223,.3)}
 .node.next{border-color:var(--cheese);animation:nudge 1.3s ease-in-out infinite}
 @media (prefers-reduced-motion:reduce){.node.next{animation:none}}
@@ -230,8 +248,8 @@ body:not(.dev) .devOnly{display:none!important}
 .chips button.locked{opacity:.55;border-style:dashed}
 #league .fine{font-size:13px;font-weight:700;color:var(--soft)}
 #leagueRank{font-size:18px}
-#leagueRows{list-style:none;margin:4px 0;padding:8px;border-radius:20px;background:var(--well);display:grid;gap:2px}
-#leagueRows li{display:grid;grid-template-columns:30px 1fr auto;gap:8px;align-items:center;min-height:30px;padding:0 10px;border-radius:10px;font-size:15px}
+#leagueRows{list-style:none;margin:4px 0;padding:8px;border-radius:20px;background:var(--well);display:grid;gap:1px}
+#leagueRows li{display:grid;grid-template-columns:30px 1fr auto;gap:8px;align-items:center;min-height:28px;padding:0 10px;border-radius:10px;font-size:15px}
 #leagueRows li b{font-weight:800;color:var(--soft)}
 #leagueRows li em{font-style:normal;font-weight:800;font-variant-numeric:tabular-nums}
 #leagueRows li.you{background:rgba(255,255,255,.92);color:#1c1840}

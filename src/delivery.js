@@ -4,7 +4,7 @@ import { standout } from './contrast.js';
 import { planClouds } from './weather.js';
 import { musicCue } from './music.js';
 import {
-  AIRCRAFT, BATTERY, BOX, CAMERA, CARGO, COMBO, CONTRAST, DELIVERY, DEV, DOUBLE, DRONE, FIXED_DT, FX, HANGAR, HEALTH, LAND, LEVELS, MISSION, ORDER_TIME, ORDERS, PERFECT, POINTER, PREP, RESTAURANT, RIVAL, ROPE, RUSH, SKIP, ROPE_CTL, SURPRISE, WIND,
+  AIRCRAFT, BATTERY, BOX, BULLSEYE, CAMERA, CARGO, COMBO, CONTRAST, DELIVERY, DEV, DOUBLE, DRONE, FIXED_DT, FX, HANGAR, HEALTH, LAND, LEVELS, MISSION, ORDER_TIME, ORDERS, PERFECT, POINTER, PREP, RESCUE, RESTAURANT, RIVAL, ROPE, RUSH, SKIP, ROPE_CTL, SURPRISE, WIND,
 } from './config.js';
 import { currentModel } from './drone.js';
 import { endRun, rushDelivered, rushLoaded } from './rush.js';
@@ -162,6 +162,28 @@ function dropLower(st) {
   notice(st, 'First drop done', `Next: ${item.label} to ${placeName(t)}`);
 }
 
+// The customer ties the next order on: it leaves from here on the rope with its own clock and a fresh box, no shop and
+// no prep in between, and Hold stays on so the swap settles. Hawks already fleeing fly on; the battery's fair time for
+// the next trip starts here.
+function handOn(st, next) {
+  const { item, t, limit, shop } = next, fleeing = st.hawks;
+  st.stopAt++;
+  st.stop = next;
+  st.item = item;
+  st.order = { t, shop, start: st.t, deadline: st.t + limit, limit, drop: 0, next: null, bonus: 0, added: 0, grace: 0, hand: null, fromX: st.d.x, surprises: [] };
+  st.heat = st.integ = 100;
+  st.hold = 0;
+  // the swap leaves the order over the roof, which is no close call
+  st.close.wall = st.close.cable = 'spent';
+  st.leg = { t: st.t, x: st.d.x };
+  clearAction(st);
+  planMission(st, shop);
+  st.hawks.push(...fleeing);
+  sfx('pickup');
+  musicCue('pickup');
+  notice(st, `Stop ${st.stopAt} done`, `Handed on: ${item.label} to ${placeName(t)}`);
+}
+
 // The notice naming the next stop comes a moment after the delivery, so the tip and a perfect drop are read first;
 // stepMission shows it, and a mission decided meanwhile drops it.
 function notice(st, title, detail) {
@@ -220,10 +242,18 @@ function passMission(st) {
     hud(st);
     return;
   }
+  if (next?.handOn) {
+    handOn(st, next);
+    saveProgress(st.del, st.money);
+    hud(st);
+    return;
+  }
   if (st.leg) st.leg.via = o.t.x;
   endMission(st);
   if (next) {
-    notice(st, `Stop ${++st.stopAt} done`, `Next: ${next.item.label} at ${next.shop.shop.name}`);
+    // a shop named for what it sells reads as a shop: "Flowers at Flowers shop"
+    const name = next.shop.shop.name;
+    notice(st, `Stop ${++st.stopAt} done`, `Next: ${next.item.label} at ${name}${name === next.item.label ? ' shop' : ''}`);
     st.stop = next;
     saveProgress(st.del, st.money);
   } else {
@@ -389,7 +419,7 @@ export function stepCargo(st, dt) {
     failMission(st, item.spoils, true);
     return;
   }
-  const o = st.order, T = o.t, reach = st.anchor ? c.holdReach : c.reach, speed = Math.hypot(d.vx, d.vy), near = Math.hypot(bx.x - T.x, bx.y - T.y) < reach && speed < c.maxDroneSpeed;
+  const o = st.order, T = o.t, reach = st.stop.bull ? BULLSEYE.reach : st.anchor ? c.holdReach : c.reach, speed = Math.hypot(d.vx, d.vy), near = Math.hypot(bx.x - T.x, bx.y - T.y) < reach && speed < c.maxDroneSpeed;
   // the order and the aircraft as the customer sees them, so a customer on the moving ferry counts the same
   const P = PERFECT, vx = T.vx ?? 0, swing = Math.abs((bx.x - bx.px) / dt - vx), fall = (bx.y - bx.py) / dt, drone = Math.hypot(d.vx - vx, d.vy);
   if (near) {
@@ -405,7 +435,7 @@ export function stepCargo(st, dt) {
     && (!hand || (hand.swing <= P.swing && hand.fall <= P.fall && hand.drone <= P.drone));
   if (near) {
     st.hold += dt;
-    if (st.hold > c.holdTime) passMission(st);
+    if (st.hold > (st.stop.rescue ? RESCUE.hold : c.holdTime)) passMission(st);
   } else {
     st.hold = Math.max(0, st.hold - dt * c.holdDecay);
     if (!st.hold) o.hand = null;
@@ -630,11 +660,12 @@ export function drawTarget(st) {
   ctx.beginPath();
   ctx.arc(X(t.x), Y(t.y), (20 + pulse * 5) * S, 0, 7);
   ctx.stroke();
-  // the second customer of a Double Run waits as a faint ring
-  if (o.next) {
+  // the second customer of a Double Run waits as a faint ring, and so does the customer the order will be handed on to
+  const after = st.level.stops[st.stopAt + 1], wait = o.next?.t ?? (after?.handOn ? after.t : null);
+  if (wait) {
     ctx.strokeStyle = 'rgba(255,194,61,.35)';
     ctx.beginPath();
-    ctx.arc(X(o.next.t.x), Y(o.next.t.y), 20 * S, 0, 7);
+    ctx.arc(X(wait.x), Y(wait.y), 20 * S, 0, 7);
     ctx.stroke();
   }
   // a customer who stepped over leaves a trail from where they stood, fading once the player has had it on screen
@@ -677,7 +708,7 @@ export function drawTarget(st) {
     ctx.strokeStyle = '#4fc27c';
     ctx.lineWidth = 4 * S;
     ctx.beginPath();
-    ctx.arc(X(t.x), Y(t.y), 30 * S, -Math.PI / 2, -Math.PI / 2 + st.hold / DELIVERY.holdTime * Math.PI * 2);
+    ctx.arc(X(t.x), Y(t.y), 30 * S, -Math.PI / 2, -Math.PI / 2 + st.hold / (st.stop.rescue ? RESCUE.hold : DELIVERY.holdTime) * Math.PI * 2);
     ctx.stroke();
   }
   ctx.restore();

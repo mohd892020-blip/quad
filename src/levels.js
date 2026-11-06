@@ -1,5 +1,5 @@
 import { carSpeed, eagleCount, hawkCount, rivalSpeed } from './action.js';
-import { BEACH, BOX, CHALLENGES, DAILY, DESERT, FOREST, MOUNTAIN, SNOW, DOUBLE, DRONE, FERRY, GATES, GROUND, HANGAR, ITEMS, JET, LEVELS, RADAR, RIVAL, ROPE, ROPE_CTL, STOPS, SURPRISE, THIN_ICE, WEATHER, WIND } from './config.js';
+import { BEACH, BOX, CHALLENGES, CITY, DAILY, DESERT, FOREST, MOUNTAIN, SNOW, DOUBLE, DRONE, FERRY, GATES, GROUND, HANGAR, ITEMS, JET, LEVELS, RADAR, RIVAL, ROPE, ROPE_CTL, STOPS, SURPRISE, THIN_ICE, WEATHER, WIND } from './config.js';
 import { targetsFor, timeLimit } from './delivery.js';
 import { weatherFor } from './weather.js';
 import { nearby, rng, roofAt, shopPad, world } from './world.js';
@@ -69,9 +69,13 @@ const MAPS = {
   forest: () => [world.lodges, world.forestTargets], mountain: () => [world.mountShops, world.mountTargets], snow: () => [world.snowShops, world.snowTargets],
 };
 
-// Customers that come with their rule: the ferry, and an angler on a frozen lake who stands on the ice and reaches up.
+// Customers that come with their rule: the ferry, on its own lane and at its own speed when a mission names them, and an
+// angler on a frozen lake who stands on the ice and reaches up.
 const RIDERS = {
-  ferry: () => ({ x: FERRY.start, home: FERRY.start, y: GROUND - FERRY.deckH - FERRY.targetLift, kind: 'ferry', ferry: true }),
+  ferry: c => {
+    const lane = FERRY.lanes[c.ride], start = lane?.start ?? FERRY.start;
+    return { x: start, home: start, y: GROUND - FERRY.deckH - FERRY.targetLift, kind: 'ferry', ferry: true, ...(lane && { from: lane.from ?? FERRY.from, to: lane.to ?? FERRY.to }), ...(c.speed && { speed: c.speed }) };
+  },
   ice: c => {
     const [a, b] = SNOW.lakes[c.lake ?? 0];
     return { x: (a + b) / 2, y: GROUND - THIN_ICE.lift, stand: GROUND, kind: 'ice' };
@@ -89,34 +93,54 @@ function gateLine(a, b) {
 }
 
 // A challenge has its own random stream too, so the generated levels stay exactly as they were. A customer that comes
-// with its rule draws nothing from it, as the ferry never did.
+// with its rule draws nothing from it, as the ferry never did. A route may cross maps (map is then a list, and a leg
+// names its own), a handed-on leg starts at the last customer, and a hop leg knows where its customer will go.
 function challengeLevel(c, n) {
-  const pick = rng(LEVELS.seed + n), tier = n - 1, rules = c.stops ?? [c.key], [shops, spots] = MAPS[c.map](), city = c.map === 'city', stops = [];
-  for (let k = 0, shop = shops[c.shop]; k < rules.length; k++) {
-    const twist = rules[k], leg = { ...c, ...c.legs?.[k] }, item = ITEMS[leg.item ?? shop.shop.items[0]], x = shop.x + shop.w / 2;
+  const pick = rng(LEVELS.seed + n), tier = n - 1, rules = c.stops ?? [c.key], maps = [].concat(c.map), stops = [];
+  for (let k = 0, shop = MAPS[maps[0]]()[0][c.shop]; k < rules.length; k++) {
+    const twist = rules[k], leg = { ...c, ...c.legs?.[k] }, map = c.legs?.[k]?.map ?? maps[0], [shops, spots] = MAPS[map](), city = map === 'city', prev = stops[k - 1];
+    // a leg on the next map leaves from that map's shop closest to the last customer; a handed-on one from the customer
+    if (!shops.includes(shop)) shop = nextShop(prev.t, shop, shops);
+    if (leg.handOn) shop = prev.shop;
+    const item = ITEMS[leg.item ?? shop.shop.items[0]], x = leg.handOn ? prev.t.x : shop.x + shop.w / 2;
     let t = RIDERS[twist]?.(leg);
     if (!t) {
       const fits = spots.filter(s => {
         const gap = Math.abs(s.x - x);
-        return s.b !== shop && gap > leg.near && gap < leg.far && leg.kinds.includes(s.kind) && (s.kind !== 'bal' || item.size <= LEVELS.balconyMaxSize) && (!city || wayDown(s, item));
+        return s.b !== shop && s !== prev?.t && gap > leg.near && gap < leg.far && leg.kinds.includes(s.kind) && (s.kind !== 'bal' || item.size <= LEVELS.balconyMaxSize) && (!city || wayDown(s, item));
       });
       t = fits[(pick() * fits.length) | 0];
     }
     const dist = Math.abs(t.x - x), dir = Math.sign(t.x - x);
-    stops.push({
+    const stop = {
       shop, item, t, dist, limit: timeLimit(item, dist) + (c.extra ?? 0), rival: false, twist, ceiling: twist === 'radar' ? radarLine(x, t.x) : null,
       gates: twist === 'gates' ? gateLine(x, t.x) : null, jet: twist === 'jet' ? { line: radarLine(x, t.x) - JET.gap, dir } : null, wall: twist === 'avalanche' ? { from: x, dir } : null,
-    });
+    };
+    // the new rules ride on the stop only where they apply, so missions 1-55 build exactly as before
+    if (leg.handOn) stop.handOn = true;
+    if (twist === 'bullseye') stop.bull = true;
+    if (twist === 'rescue' || leg.rescue) stop.rescue = true;
+    if (leg.place) stop.place = leg.place;
+    if (twist === 'gale') stop.gale = -dir;
+    // the customer's two steps, fixed here so every try is the same; the rival flag comes after, so a race may hop too
+    if (twist === 'hop') {
+      const one = stepOver({ [map]: true }, stop), two = one && stepOver({ [map]: true }, { ...stop, t: one }, [t]);
+      stop.hops = [one, two].filter(Boolean);
+    }
+    stops.push(stop);
     shop = nextShop(t, shop, shops);
   }
   stops[stops.length - 1].rival = !!c.rival;
-  const is = m => c.map === m, beach = is('beach'), snow = is('snow');
+  const is = m => maps.includes(m), beach = is('beach'), snow = is('snow');
   // music, the map strip, traffic, drafts, the cold and the level card all read these flags
-  return {
+  const l = {
     n, tier, shop: stops[0].shop, stops, beach, desert: is('desert'), forest: is('forest'), mountain: is('mountain'), snow, cold: snow ? SNOW.cold : 1,
     hawks: c.hawks, eagles: c.eagles ?? 0, rival: !!c.rival, rivalSpeed: c.rivalSpeed ?? rivalSpeed(tier), street: false, carSpeed: carSpeed(tier), wind: c.wind,
     challenge: c, startBat: c.startBat, noBoost: c.noBoost, rope: c.rope, calm: beach || rules.includes('ice'),
   };
+  // a route across regions: the strip map spans them and the card names them
+  if (maps.length > 1) Object.assign(l, { regions: maps, span: [ends(maps[0])[0], ends(maps[maps.length - 1])[1]] });
+  return l;
 }
 
 // How far a stop's leg runs from its shop's pad to its customer.
@@ -125,12 +149,12 @@ const legOf = s => Math.abs(s.t.x - shopPad(s.shop).x);
 // Where a customer on a rooftop or a boat can step over to: the closest spot of the same kind a step away, about as
 // high and not on the shop, with a clear way down for this order in the city. A balcony rail or a drop at street level
 // is no place to be sent by surprise, the other open maps have no such spot close enough, and a short leg is past the
-// approach before a move could happen.
-function stepOver(l, s) {
+// approach before a move could happen; skip names spots it may not go back to.
+function stepOver(l, s, skip = []) {
   const c = SURPRISE.move, gap = t => Math.abs(t.x - s.t.x), city = !l.beach && !l.desert && !l.forest && !l.mountain && !l.snow;
   const pool = l.beach ? world.seaTargets : city ? world.targets : [];
   if (s.parcels || s.rival || !c.kinds.includes(s.t.kind) || legOf(s) < SURPRISE.approach + c.room) return null;
-  return pool.filter(t => t !== s.t && t.kind === s.t.kind && (!t.b || (t.b !== s.t.b && t.b !== s.shop)) && gap(t) >= c.step[0] && gap(t) <= c.step[1]
+  return pool.filter(t => t !== s.t && !skip.includes(t) && t.kind === s.t.kind && (!t.b || (t.b !== s.t.b && t.b !== s.shop)) && gap(t) >= c.step[0] && gap(t) <= c.step[1]
     && Math.abs(t.y - s.t.y) <= c.rise && (!city || wayDown(t, s.item))).sort((a, b) => gap(a) - gap(b))[0] ?? null;
 }
 
@@ -168,6 +192,8 @@ export function dailyTheme(day) {
   return { theme: c.themes[wd], region: c.regions[mod(wd + Math.floor((day + 3) / 7), c.regions.length)] };
 }
 const OPEN = { beach: BEACH, desert: DESERT, forest: FOREST, mountain: MOUNTAIN, snow: SNOW };
+// Where a map starts and ends, the city's as the strip map draws it.
+const ends = m => (m === 'city' ? [CITY.leftBuilding.x, BEACH.from] : [OPEN[m].from, OPEN[m].to]);
 // Nothing solid straight over the customer, where an aircraft coming down would only settle on top of it.
 export const openSky = t => !nearby(t.x).some(R => R.y + R.h <= t.y && R.x < t.x + DRONE.radius && R.x + R.w > t.x - DRONE.radius && R.y < GROUND);
 // The first order a theme asks of a shop: its first two items tied on one rope, or its most delicate one; null when it

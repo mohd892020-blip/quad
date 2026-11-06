@@ -190,7 +190,8 @@ export function drawDesert(st) {
 
 // The stronger the wind, the thicker the air: gusts cut how far the player can see.
 export function drawSandstorm(st) {
-  if (!st.level.desert) return;
+  // a route across regions shows the sand only over the desert
+  if (!st.level.desert || (st.level.span && (st.d.x < DESERT.from || st.d.x > DESERT.to))) return;
   const { W, H, S } = view, c = DESERT, blow = Math.min(1, Math.abs(st.wind) / st.level.wind), storm = (blow - c.stormFrom) / (1 - c.stormFrom);
   if (storm <= 0) return;
   ctx.fillStyle = `rgba(${c.stormColor},${c.stormHaze * storm})`;

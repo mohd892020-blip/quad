@@ -3,7 +3,7 @@ import { musicCue } from './music.js';
 import { nudgeShop } from './shop.js';
 import { paper, showToday } from './daily.js';
 import { showRushCard } from './rush.js';
-import { AIRCRAFT, ALTIMETER, BADGE, BOOST, COMBO, DAILY, DEV, DUST, FROST, FX, G, GATES, GIFTS, GROUND as G_LINE, HANGAR, HEALTH, JOY, KEY_HINT, LEVELS, MISSION, PERFECT, PICTURE, POINTER, QUALITY, RESULT, RUSH, SHAKE, SHOP, SHOTS, SKIP, VIEW, WEATHER, WEATHER_HINT, WIND } from './config.js';
+import { AIRCRAFT, ALTIMETER, BADGE, BOOST, CHAPTERS, COMBO, DAILY, DEV, DUST, FROST, FX, G, GATES, GIFTS, GROUND as G_LINE, HANGAR, HEALTH, JOY, KEY_HINT, LEVELS, MISSION, PERFECT, PICTURE, POINTER, QUALITY, RESCUE, RESULT, RUSH, SHAKE, SHOP, SHOTS, SKIP, VIEW, WEATHER, WEATHER_HINT, WIND } from './config.js';
 import { applyControls, touchUI } from './input.js';
 import { bought, loadProgress, owns, saveSettings, saveSkips, settings, skips } from './storage.js';
 
@@ -490,7 +490,7 @@ function weatherNote(st) {
   // a surprise or the first combo says its piece at once, ahead of the weather
   if (st.note && st.t < st.note.until) return [st.note.icon, st.note.text, true];
   if (Math.abs(st.draft || 0) > c.draft) return st.draft < 0 ? ['wind', 'Updraft ↑ lifting you'] : ['wind', 'Downdraft ↓ pulling you down'];
-  if (Math.abs(st.wind) > Math.max(c.gustMin, (l.wind || 0) * c.gust)) return ['wind', `Strong gusts ${st.wind > 0 ? '→' : '←'} hold steady`];
+  if (Math.abs(st.wind) > Math.max(c.gustMin, (l.wind || 0) * c.gust)) return ['wind', st.stop?.gale ? `Gale ${st.wind > 0 ? '→' : '←'} push through` : `Strong gusts ${st.wind > 0 ? '→' : '←'} hold steady`];
   if (st.t < c.intro && l.weather === 'fog') return ['mist', 'Fog. Follow the arrow'];
   if (st.t < c.intro && l.cold > 1) return ['cold', 'Cold air. The battery drains faster'];
   return null;
@@ -557,7 +557,7 @@ export function hud(st) {
   showWeatherNote(st);
   showCombo(st);
   const item = o && (o.drop ? run[o.drop - 1].item : st.item);
-  text('oTitle', st.outcome ? st.outcome.why || 'Delivered' : o ? `${tag}${item.label}${item.urgent ? (r ? ` · URGENT ×${RUSH.points.urgent}` : ' · URGENT') : ''} → ${placeName(o.t)}`
+  text('oTitle', st.outcome ? st.outcome.why || 'Delivered' : o ? `${tag}${item.label}${item.urgent ? (r ? ` · URGENT ×${RUSH.points.urgent}` : ' · URGENT') : ''} → ${st.stop?.place ?? placeName(o.t)}`
     : st.prep ? `${tag}Preparing ${st.prep.item.label}`
     : st.level.training ? 'Training' : `${tag}Land on the green pad at ${st.stop.shop.shop.name}`);
 }
@@ -682,7 +682,7 @@ export function showActions(zone, anchored, landing, boosting) {
 
 /* ---------- settings ---------- */
 export const sheetOpen = () => !$('sheet').hidden;
-const MODALS = ['levels', 'levelCard', 'resultCard', 'pauseCard', 'shop', 'league', 'adCard', 'gifts'];
+const MODALS = ['levels', 'levelCard', 'resultCard', 'pauseCard', 'shop', 'league', 'adCard', 'gifts', 'chapterCard'];
 export const modalOpen = () => sheetOpen() || MODALS.some(id => !$(id).hidden);
 // The level map is opaque, so nothing behind it needs drawing.
 export const levelsOpen = () => !$('levels').hidden;
@@ -722,12 +722,19 @@ function skipState(n) {
   const c = SKIP, { stars } = loadProgress();
   if ((c.devOnly && !settings.dev) || (skips.fails[n] || 0) < c.afterFails || stars[n] || skips.skipped.includes(n) || n < c.from) return null;
   if (c.never.includes(n)) return { why: "Checkpoint mission. Can't be skipped" };
-  const block = Math.ceil(n / c.blockSize), allowed = n >= c.challengeFrom ? c.challengePerBlock : c.perBlock;
-  const used = skips.skipped.filter(k => Math.ceil(k / c.blockSize) === block).length, waiting = skips.skipped.filter(k => !stars[k]).length;
+  const block = skipBlock(n), allowed = n >= c.challengeFrom ? c.challengePerBlock : c.perBlock;
+  const used = skips.skipped.filter(k => skipBlock(k).id === block.id).length, waiting = skips.skipped.filter(k => !stars[k]).length;
   if (skips.skipped.length && skips.since < c.gap) return { why: `Pass ${c.gap - skips.since} more ${c.gap - skips.since === 1 ? 'mission' : 'missions'} to skip again` };
   if (waiting >= c.open) return { why: 'Clear a skipped mission to skip again' };
-  if (used >= allowed) return { why: block * c.blockSize + 1 > levelList.length ? 'No skips left in these missions' : `No skips left until Mission ${block * c.blockSize + 1}` };
+  if (used >= allowed) return { why: block.next > levelList.length ? 'No skips left in these missions' : `No skips left until Mission ${block.next}` };
   return { ok: true };
+}
+
+// Skips are counted in blocks of SKIP.blockSize missions, and each chapter starts a block of its own; next is the first
+// mission after the block.
+function skipBlock(n) {
+  const size = SKIP.blockSize, from = CHAPTERS.filter(c => n >= c.from).pop()?.from ?? 1, i = Math.ceil((n - from + 1) / size);
+  return { id: `${from}-${i}`, next: Math.min(from + i * size, CHAPTERS.find(c => c.from > n)?.from ?? Infinity) };
 }
 
 function showSkip(n) {
@@ -763,7 +770,7 @@ function playAd(n) {
     skips.since = 0;
     delete skips.fails[n];
     saveSkips();
-    if (levelList[n]) acts.play(levelList[n]);
+    if (levelList[n]) playLevel(levelList[n]);
     else showLevels();
   };
   $('adClose').onclick = () => {
@@ -799,8 +806,10 @@ export function hideModals() {
 export function showLevels() {
   hideModals();
   const { stars, money } = loadProgress(), open = reachedLevel(stars), gap = LEVELS.rowGap, unlocked = n => settings.dev || n <= open;
-  const height = (levelList.length + 1) * gap;
-  const spot = l => ({ x: 50 + Math.sin(l.n * LEVELS.pathWave) * LEVELS.pathWidth, y: height - l.n * gap });
+  // a chapter's banner stands in its own gap below the chapter's first mission
+  const lift = n => CHAPTERS.reduce((sum, c) => sum + (n >= c.from ? c.gap : 0), 0);
+  const height = (levelList.length + 1) * gap + lift(levelList.length), rowY = n => height - n * gap - lift(n);
+  const spot = l => ({ x: 50 + Math.sin(l.n * LEVELS.pathWave) * LEVELS.pathWidth, y: rowY(l.n) });
   const road = levelList.map(l => { const p = spot(l); return `${p.x},${p.y}`; }).join(' ');
   const nodes = levelList.map(l => {
     const p = spot(l), best = stars[l.n] || 0, skipped = !best && skips.skipped.includes(l.n);
@@ -808,38 +817,43 @@ export function showLevels() {
     const marks = signs.map(([key, name]) => `<i class="sign ${key}" title="${name}"><svg aria-hidden="true"><use href="#s-${key}"/></svg></i>`).join('');
     return `<button class="node ${state}${p.x > 50 ? ' west' : ''}${l.n > open && unlocked(l.n) ? ' devMark' : ''}" data-n="${l.n}" style="left:${p.x}%;top:${p.y}px;--zone:${l.shop.zone.map}" aria-label="${[`Mission ${l.n}`, ...signs.map(s => s[1])].join(', ')}"><b>${l.n}</b><small${skipped ? ' title="Skipped. Replay for stars"' : ''}>${best ? starText(best) : skipped ? '⏭ skipped' : ''}</small><span class="signs">${marks}</span></button>`;
   }).join('');
+  const banners = CHAPTERS.filter(c => c.from <= levelList.length).map(c => {
+    const shut = !unlocked(c.from);
+    return `<button class="chapter${shut ? ' locked' : ''}" data-chapter="${c.n}" style="top:${(rowY(c.from - 1) + rowY(c.from)) / 2}px" aria-label="${c.kicker}, ${c.name}, ${shut ? c.locked : c.span}"><small>${c.kicker}</small><b>${c.name}</b><span>${shut ? c.locked : c.span}</span></button>`;
+  }).join('');
   const path = $('levelsPath');
   path.style.height = height + 'px';
-  path.innerHTML = `<svg viewBox="0 0 100 ${height}" preserveAspectRatio="none" aria-hidden="true"><polyline points="${road}"/></svg>${nodes}`;
+  path.innerHTML = `<svg viewBox="0 0 100 ${height}" preserveAspectRatio="none" aria-hidden="true"><polyline points="${road}"/></svg>${banners}${nodes}`;
   $('levelsMoney').textContent = `$${money}`;
   $('levels').hidden = false;
   // the Today and Rush cards change the bar's height, so they come before the shop note is placed
   showToday(true);
   showRushCard();
   nudgeShop();
+  chapterIntro();
   const scroll = $('levelsScroll');
-  scroll.scrollTop = height - open * gap - (scroll.clientHeight || 0) / 2;
+  scroll.scrollTop = rowY(open) - (scroll.clientHeight || 0) / 2;
 }
 
 // What a mission asks and what can end it, for its card: the job, the run, the cost of a ruined order, the dangers.
 function missionRows(l) {
   const legs = l.stops, route = legs.length > 1;
-  const order = i => (i.urgent ? `${i.label} · urgent` : i.label), to = s => `${placeName(s.t)}, ${Math.round(s.dist / 10)} m`;
+  const order = i => (i.urgent ? `${i.label} · urgent` : i.label), to = s => `${s.place ?? placeName(s.t)}${s.bull ? ', small mark' : ''}, ${Math.round(s.dist / 10)} m${s.hops?.length ? `, moves ${s.hops.length > 1 ? 'twice' : 'once'}` : ''}`;
   const { item, shop, limit, parcels } = legs[0];
   const jobs = parcels
     ? [['Double Run', 'Two orders, one trip'], ['Shop', `${shop.shop.name}, ${shop.zone.name}`], ...parcels.map((p, k) => [`Drop ${k + 1}`, `${order(p.item)} to ${to(p)}`]), ['Time', clockText(limit)]]
     : route
-    ? legs.map((s, k) => [`Stop ${k + 1}`, `${order(s.item)} to ${to(s)}, ${clockText(s.limit)}`])
+    ? legs.map((s, k) => [`Stop ${k + 1}`, `${order(s.item)} to ${to(s)}${s.handOn ? ', handed on' : ''}, ${clockText(s.limit)}`])
     : [['Order', order(item)], ['Shop', `${shop.shop.name}, ${shop.zone.name}`], ['Customer', to(legs[0])], ['Time', clockText(limit)]];
   // a slow aircraft is told before an avalanche, while there is still time to pick another
   const plane = AIRCRAFT.find(a => a.key === settings.plane) ?? AIRCRAFT[0], chased = legs.some(s => s.twist === 'avalanche') && plane.speed < HANGAR.chaseSpeed;
   return [
     ...(chased ? [['Aircraft', plane.speed < HANGAR.boostFloor ? `${plane.name} is too slow for an avalanche, even with Boost. Pick a faster one` : `${plane.name} is slow for an avalanche. Boost, or pick a faster one`]] : []),
-    ...jobs, ...(acts.streak() >= COMBO.showFrom ? [['Combo', `${acts.streak()} in a row, next clean tip ×${COMBO.mult[Math.min(acts.streak() + 1, COMBO.mult.length - 1)]}`]] : []),
+    ...jobs, ...(legs.some(s => s.rescue) ? [['Rescue', `Hold steady ${RESCUE.hold} s over them`]] : []), ...(acts.streak() >= COMBO.showFrom ? [['Combo', `${acts.streak()} in a row, next clean tip ×${COMBO.mult[Math.min(acts.streak() + 1, COMBO.mult.length - 1)]}`]] : []),
     ['If ruined', l.daily ? 'Nothing. Retries are free' : route ? `up to -$${Math.max(...legs.map(s => s.item.price))}` : `-$${item.price}`],
     ...(l.weather ? [['Weather', WEATHER[l.weather].name]] : []), ['Wind', `up to ${l.wind}`], ['Hawks', l.hawks ? `${l.hawks}${route ? ' per stop' : ''}` : 'None'], ...(l.eagles ? [['Eagles', `${l.eagles}${route ? ', last stop' : ''}, one hit downs you`]] : []),
     ['Rival', l.rival ? `Yes${route ? ', last stop' : ''}, speed ${l.rivalSpeed}` : 'None'], ...(l.calm ? [] : [[l.beach ? 'Boats' : l.desert ? 'Buggies' : l.forest ? 'Jeeps and deer' : l.mountain ? 'Jeeps and goats' : l.snow ? 'Sleds and reindeer' : 'Cars', `${l.street ? (l.desert || l.forest || l.mountain || l.snow ? 'Crossing your drop' : 'On your street') : 'Yes'}, speed ${l.carSpeed}`]]),
-    ...(l.beach ? [['Danger', 'Open sea']] : l.desert ? [['Danger', 'Quicksand, sandstorms']] : l.forest ? [['Danger', 'Tall pines, the river']] : l.mountain ? [['Danger', 'Updrafts, downdrafts, the cable car']] : l.snow ? [['Danger', 'Thin ice. The cold drains the battery']] : []),
+    ...(l.regions ? [['Route', l.regions.map(r => DAILY.places[r]).join(' → ')]] : l.beach ? [['Danger', 'Open sea']] : l.desert ? [['Danger', 'Quicksand, sandstorms']] : l.forest ? [['Danger', 'Tall pines, the river']] : l.mountain ? [['Danger', 'Updrafts, downdrafts, the cable car']] : l.snow ? [['Danger', 'Thin ice. The cold drains the battery']] : []),
   ];
 }
 
@@ -861,8 +875,44 @@ export function openMissionCard(l, { kicker = '', title, best = 0, head = [], ta
   $('levelCard').hidden = false;
 }
 function openLevelCard(n) {
-  const l = levelList[n - 1], { stars } = loadProgress(), open = reachedLevel(stars);
-  openMissionCard(l, { title: `Mission ${n}`, best: stars[n] || 0, head: l.challenge ? [['Challenge', l.challenge.name], ['Rule', l.challenge.note]] : [], lock: n > open ? open : 0 });
+  const l = levelList[n - 1], { stars } = loadProgress(), open = reachedLevel(stars), ch = CHAPTERS.filter(c => n >= c.from).pop();
+  openMissionCard(l, { kicker: ch?.kicker ?? '', title: `Mission ${n}`, best: stars[n] || 0, head: l.challenge ? [['Challenge', l.challenge.name], ['Rule', l.challenge.note]] : [], lock: n > open ? open : 0 });
+}
+
+// A chapter's card. Opened with the chapter open it counts as seen, so it comes by itself only once; go is what its
+// button does after closing it, as starting the chapter's first mission.
+function openChapter(c, go = null) {
+  const open = settings.dev || reachedLevel(loadProgress().stars) >= c.from;
+  if (open && settings.chapterSeen < c.n) {
+    settings.chapterSeen = c.n;
+    saveSettings();
+  }
+  $('chapterKicker').textContent = c.kicker;
+  $('chapterName').textContent = c.name;
+  $('chapterIntro').textContent = c.intro;
+  $('chapterTags').innerHTML = c.tags.map(([key, text]) => `<li><i class="sign ${key}"><svg aria-hidden="true"><use href="#s-${key}"/></svg></i>${text}</li>`).join('');
+  // a locked chapter's button reads as the locked level card's does, and the corner button closes the card
+  const btn = $('chapterGo');
+  btn.disabled = !open;
+  btn.textContent = !open ? c.locked : go ? `Start Mission ${c.from}` : "Let's fly";
+  btn.onclick = () => {
+    $('chapterCard').hidden = true;
+    go?.();
+  };
+  $('chapterCard').hidden = false;
+}
+
+// A chapter newly open on the map shows its card once, unless another card is up; the gift calendar's close asks again.
+export function chapterIntro() {
+  const open = reachedLevel(loadProgress().stars), c = CHAPTERS.filter(c => open >= c.from && settings.chapterSeen < c.n).pop();
+  if (c && !$('levels').hidden && MODALS.every(id => id === 'levels' || $(id).hidden)) openChapter(c);
+}
+
+// The first mission of a chapter not yet introduced starts from the chapter's card.
+function playLevel(l) {
+  const c = !l.daily && !l.training && !l.rush && CHAPTERS.find(c => c.from === l.n);
+  if (c && settings.chapterSeen < c.n) openChapter(c, () => acts.play(l));
+  else acts.play(l);
 }
 
 // The money runs up to its total once the stars have landed.
@@ -887,7 +937,19 @@ function passTip(o, level) {
   if (level.n === DAILY.unlock && daily.day < 0) return "Today's Mission is open on the map";
   if (level.n === GIFTS.unlock && gifts.day < 0) return 'A daily gift is waiting on the map';
   if (level.n === RUSH.unlock && !rush.runs) return 'Rush Hour is open on the map';
+  const ch = CHAPTERS.find(c => c.from === level.n + 1);
+  if (ch && settings.chapterSeen < ch.n) return `${ch.kicker} is open: ${ch.name}`;
+  if (level.n === levelList.length) {
+    const { stars } = loadProgress(), c = CHAPTERS[CHAPTERS.length - 1], left = levelList.filter(l => (stars[l.n] || 0) < 3).length;
+    return `${c.kicker} complete: ${c.name}. ${left ? `${left} ${left > 1 ? 'missions' : 'mission'} left for three stars` : 'Every mission at three stars'}`;
+  }
   return '';
+}
+
+// A fail's tip: a rule's own word when the clock ran out on a rescue or a bullseye stop, else the way of failing's.
+function failTip(o, level) {
+  const s = level.stops?.[o.reached], rule = s?.rescue ? 'rescue' : s?.bull ? 'bullseye' : '';
+  return (o.why === "TIME'S UP" && RESULT.ruleTips[rule]) || RESULT.tips[o.why] || '';
 }
 
 export function showResult(o, level, hasNext) {
@@ -895,7 +957,8 @@ export function showResult(o, level, hasNext) {
   $('resultCard').classList.remove('rush', 'best');
   if (level.rush) return rushResult(o);
   const card = $('resultCard'), won = o.passed && !o.training, legs = level.stops.length, next = o.passed && hasNext, daily = !!level.daily;
-  const lead = o.training || (daily && o.passed) ? 'resultMap' : next ? 'resultNext' : 'resultRetry';
+  // a pass with nowhere further to go, today's mission or the last one, leads back to the map
+  const lead = o.training || (o.passed && !next) ? 'resultMap' : next ? 'resultNext' : 'resultRetry';
   card.classList.toggle('bad', !o.passed);
   $('resultKicker').textContent = o.training ? 'Flight school' : daily ? "Today's Mission" : `Mission ${level.n}`;
   $('resultTitle').textContent = o.training ? 'TRAINING COMPLETE' : o.passed ? 'MISSION COMPLETE' : 'MISSION FAILED';
@@ -916,7 +979,7 @@ export function showResult(o, level, hasNext) {
   const shine = won ? [o.reward && (o.run > 1 ? `${o.run}-DAY\u00a0STREAK` : 'DAILY\u00a0DONE'), o.perfect && (o.perfect > 1 ? `PERFECT\u00a0×${o.perfect}` : 'PERFECT'), o.combo >= COMBO.showFrom && `COMBO\u00a0${o.combo}`].filter(Boolean).join(' ·\u00a0') : '';
   $('resultWhy').textContent = o.training ? 'You are ready for Mission 1' : o.passed ? shine : o.why;
   $('resultWhy').classList.toggle('shine', !!shine);
-  $('resultTip').textContent = o.passed ? passTip(o, level) : RESULT.tips[o.why] || '';
+  $('resultTip').textContent = o.passed ? passTip(o, level) : failTip(o, level);
   $('resultTip').classList.toggle('note', o.passed);
   for (const id of ['resultMap', 'resultRetry']) $(id).className = id === lead ? 'go wide' : 'ghost round';
   $('resultNext').hidden = !next;
@@ -979,11 +1042,18 @@ export function initLevels(levels, handlers) {
   levelList = levels;
   acts = handlers;
   $('levelsPath').addEventListener('click', e => {
+    const chapter = e.target.closest?.('[data-chapter]');
+    if (chapter) {
+      openChapter(CHAPTERS.find(c => c.n === +chapter.dataset.chapter));
+      return;
+    }
     const n = e.target.closest?.('[data-n]')?.dataset.n;
     if (n) openLevelCard(+n);
   });
   $('levelClose').addEventListener('click', () => { $('levelCard').hidden = true; });
-  $('levelPlay').addEventListener('click', () => acts.play(picked));
+  // the chapter card only closes: it already counts as seen, and a card from Next leaves the result card under it
+  $('chapterClose').addEventListener('click', () => { $('chapterCard').hidden = true; });
+  $('levelPlay').addEventListener('click', () => playLevel(picked));
   $('openTraining').addEventListener('click', () => {
     $('sheet').hidden = true;
     acts.training();
@@ -1003,7 +1073,7 @@ export function initLevels(levels, handlers) {
     acts.leave();
     showLevels();
   });
-  $('resultNext').addEventListener('click', () => acts.play(levelList[resultLevel.n]));
+  $('resultNext').addEventListener('click', () => playLevel(levelList[resultLevel.n]));
   $('resultRetry').addEventListener('click', () => acts.play(resultLevel));
   $('resultMap').addEventListener('click', showLevels);
   $('resultSkip').addEventListener('click', () => playAd(resultLevel.n));

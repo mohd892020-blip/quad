@@ -207,6 +207,14 @@ const DRAW = {
     solid('#e8492c', () => { ctx.rect(-2.3, -5.4, 4.6, 12); ctx.rect(-6, -1.7, 12, 4.6); });
     solid('#8b929d', () => { ctx.rect(-11, -8.4, 3.4, 2); ctx.rect(7.6, -8.4, 3.4, 2); });
   },
+  // a wooden aid crate, roped twice, with a red cross on its label
+  supplies(worn) {
+    solid(worn('#b98a4e'), rounded(-13, -9, 26, 18, 2));
+    line('#7a5530', 1.4, () => { ctx.moveTo(-13, -3); ctx.lineTo(13, -3); ctx.moveTo(-13, 3); ctx.lineTo(13, 3); });
+    solid('#6b4a2a', () => { ctx.rect(-7, -9, 2.4, 18); ctx.rect(4.6, -9, 2.4, 18); });
+    solid('#f7f7f4', rounded(-4, -4.5, 8, 9, 1.5));
+    solid('#e8492c', () => { ctx.rect(-1, -3.5, 2, 7); ctx.rect(-3, -1, 6, 2); });
+  },
   // a bouquet in a paper cone, tied with a ribbon
   flowers(worn) {
     solid('#3f8f50', oval(-9.5, -4, 5.4, 2.2, -.7));
