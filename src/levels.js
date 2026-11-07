@@ -95,6 +95,8 @@ function gateLine(a, b) {
 // A challenge has its own random stream too, so the generated levels stay exactly as they were. A customer that comes
 // with its rule draws nothing from it, as the ferry never did. A route may cross maps (map is then a list, and a leg
 // names its own), a handed-on leg starts at the last customer, and a hop leg knows where its customer will go.
+const sells = (s, key) => s.shop.items.includes(key) || !!s.shop.extra?.includes(key);
+
 function challengeLevel(c, n) {
   const pick = rng(LEVELS.seed + n), tier = n - 1, rules = c.stops ?? [c.key], maps = [].concat(c.map), stops = [];
   for (let k = 0, shop = MAPS[maps[0]]()[0][c.shop]; k < rules.length; k++) {
@@ -102,6 +104,8 @@ function challengeLevel(c, n) {
     // a leg on the next map leaves from that map's shop closest to the last customer; a handed-on one from the customer
     if (!shops.includes(shop)) shop = nextShop(prev.t, shop, shops);
     if (leg.handOn) shop = prev.shop;
+    // an order always comes from a shop that sells it; extra lists the special goods only challenges send
+    else if (leg.item && !sells(shop, leg.item)) shop = shops.filter(s => sells(s, leg.item)).sort((a, b) => Math.abs(a.x - shop.x) - Math.abs(b.x - shop.x))[0] ?? shop;
     const item = ITEMS[leg.item ?? shop.shop.items[0]], x = leg.handOn ? prev.t.x : shop.x + shop.w / 2;
     let t = RIDERS[twist]?.(leg);
     if (!t) {
