@@ -1,6 +1,7 @@
 import { buzz, sfx } from './audio.js';
 import { BEACH, BOX, CARS, CLOSE, CONTRAST, DESERT, FIXED_DT, FOREST, FX, MISSION, MOUNTAIN, SNOW, DRONE, EAGLES, EDGE, G, GROUND, HAWKS, HEALTH, RIVAL, RUSH, SURPRISE } from './config.js';
 import { currentModel, drawAirframe } from './drone.js';
+import { homeOf } from './homes.js';
 import { confetti, ctx, glow, hud, kickDust, noticeUp, placeName, pop, shade, showToast, view, X, Y } from './ui.js';
 import { nearby, roofAt, world } from './world.js';
 
@@ -439,7 +440,7 @@ export function moveCustomer(st, to) {
   o.added += extra;
   o.grace += Math.ceil(further / MISSION.speed * c.pace);
   st.hold = 0;
-  showToast('The customer moved', `${placeName(to)}, ${Math.round(Math.abs(dx) / 10)} m ${dx > 0 ? '→' : '←'} · +${extra}s`, true);
+  showToast(`${homeOf(st.stop.t)?.first ?? 'The customer'} moved`, `To ${placeName(to)}, ${Math.round(Math.abs(dx) / 10)} m ${dx > 0 ? '→' : '←'} · +${extra}s`, true);
   sfx('gate');
   hud(st);
   return true;

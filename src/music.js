@@ -12,7 +12,7 @@ const SCALES = {
 };
 const hz = m => 440 * 2 ** ((m - 69) / 12);
 
-let out = null, padFilter = null, beat = 0, nextAt = 0, chordAt = -1, pads = [], wanted = MUSIC.menu, cues = [];
+let out = null, padFilter = null, beat = 0, nextAt = 0, chordAt = -1, pads = [], wanted = MUSIC.menu, cues = [], callBack = 0;
 
 function build(g) {
   out = g.ac.createGain();
@@ -191,11 +191,13 @@ function updateLoops(g, s, on) {
     loops.cut.frequency.setTargetAtTime(cut, now, .3);
   }
   if (!p) return false;
-  const level = p.gain * (s.mission ? 1 : c.menuShare) * (held ? c.pausedShare : 1);
+  // a call ringing or talking steps it back quickly, and it comes back as quickly
+  const call = !!s.call, level = p.gain * (s.mission ? 1 : c.menuShare) * (held ? c.pausedShare : 1) * (call ? c.callShare : 1);
   if (level !== p.level) {
     p.level = level;
-    p.g.gain.setTargetAtTime(level, now, c.swap / 3);
+    p.g.gain.setTargetAtTime(level, now, call !== !!loops.call ? c.callFade : c.swap / 3);
   }
+  loops.call = call;
   return true;
 }
 
@@ -219,8 +221,10 @@ export function updateMusic(s) {
   const c = MUSIC, ac = g.ac, now = ac.currentTime, on = settings.music !== false && ac.state === 'running';
   const recorded = updateLoops(g, s, settings.music !== false);
   wanted = s;
-  const level = !on || recorded ? 0 : (s.active ? c.level : c.menuLevel) * (s.paused ? c.pausedShare : 1);
-  out.gain.setTargetAtTime(level, now, c.fade);
+  const level = !on || recorded ? 0 : (s.active ? c.level : c.menuLevel) * (s.paused ? c.pausedShare : 1) * (s.call ? c.callShare : 1);
+  // a call steps it back quickly, and for a few of those steps after it ends it comes back as quickly
+  if (s.call) callBack = now + c.callTail;
+  out.gain.setTargetAtTime(level, now, now < callBack ? c.callFade : c.fade);
   padFilter.frequency.setTargetAtTime(c.pad.cut[0] + (c.pad.cut[1] - c.pad.cut[0]) * (s.alt ?? 0) + Math.sin(now * c.pad.windRate) * c.pad.windWobble * (s.wind ?? 0) + (s.boosting ? c.pad.boostLift : 0), now, .4);
   if (recorded && pads.length) hush(now);
   if (!on || recorded) return;

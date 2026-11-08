@@ -715,7 +715,7 @@ export const POINTER = {
 // tries to leave before the opening order is loaded.
 export const PREP = {
   gap: 15, minRadius: 36, width: 4.5, minWidth: 4, edge: 1, ticks: 40, tick: .72, alpha: .86, sparkSize: 13, flash: .9, flashGrow: 16, nudge: .6,
-  note: { gap: 10, edge: 58, h: 26, tall: 42, padX: 14, radius: 12, title: 12.5, sub: 11, titleY: 14, subY: 29, fill: 'rgba(16,12,36,.42)', shake: 4, rate: 46 },
+  note: { gap: 10, edge: 58, h: 26, tall: 42, padX: 14, radius: 12, title: 12.5, sub: 11, titleY: 14, subY: 29, fill: 'rgba(16,12,36,.42)', shake: 4, rate: 46, clear: 8 },
   backing: 'rgba(16,12,36,.2)', dim: 'rgba(255,255,255,.3)', sweep: 'rgba(255,255,255,.08)', spark: 'rgba(255,243,223,.8)', ink: '#fff3df',
   stages: [[0, '#ff3f33'], [.5, '#ffc92e'], [1, '#2fe07a']],
 };
@@ -887,6 +887,67 @@ export const DELIVERY = {
   noticeWait: 1,
 };
 
+// Who lives at each customer spot. city: [sign, caller]; country: [household, caller?] (the caller is the household's
+// own name when it is one person). pins: [mission, stop, sign] put the owner's names on the first missions; the rest
+// go out by x, so one spot keeps one name everywhere. plate: the name under the customer while the order is on board,
+// kept side pixels in from the left edge and clear of the altimeter's scale on the right.
+// No first or family name here is one of the High Score pilots in LEAGUE, or a short form of one.
+export const HOMES = {
+  city: [["Tara's House", 'Tara'], ['Bill & Louise Home', 'Louise'], ["Fuaat's Place", 'Fuaat'], ["Elisabeth's", 'Elisabeth'], ["Hannah's House", 'Hannah'],
+    ['The Millers', 'Anna Miller'], ["Walid's House", 'Walid'], ["Yuki's Place", 'Yuki'], ['The Garcias', 'Carmen Garcia'], ["Noah's", 'Noah'], ['Kavya & Dev Home', 'Kavya'], ["Lena's House", 'Lena'],
+    ['The Adeyemis', 'Chidi Adeyemi'], ["Emilio's Place", 'Emilio'], ["Grace's", 'Grace'], ['The Nguyens', 'Linh Nguyen'], ["Karim's House", 'Karim'], ['Tom & Ellie Home', 'Ellie'], ["Ingrid's Place", 'Ingrid'],
+    ["Samir's", 'Samir'], ['The Kowalskis', 'Marta Kowalski'], ["Aisha's House", 'Aisha'], ["Julien's Place", 'Julien'], ['The Khourys', 'Rami Khoury'], ["Rin's", 'Rin'], ['Jack & Rosa Home', 'Rosa'],
+    ["Freya's House", 'Freya'], ["Diego's", 'Diego'], ['The Andersens', 'Mette Andersen'], ["Leila's Place", 'Leila'], ["Ben's House", 'Ben'], ['The Rossis', 'Giulia Rossi'], ["Zuri's", 'Zuri'],
+    ["Hugo's Place", 'Hugo'], ['Sam & Nadia Home', 'Nadia'], ["Chloe's House", 'Chloe'], ['The Silvas', 'Ana Silva'], ["Arjun's", 'Arjun'], ["Maya's Place", 'Maya'], ['The Brandts', 'Paul Brandt'],
+    ["Zainab's House", 'Zainab'], ["Oscar's", 'Oscar'], ['Kofi & Efua Home', 'Efua'], ["Clara's Place", 'Clara'], ['The Tanakas', 'Hiro Tanaka'], ["Youssef's House", 'Youssef'], ["Isla's", 'Isla'],
+    ['The Dubois', 'Claire Dubois'], ["Felix's Place", 'Felix'], ["Nora's House", 'Nora'], ['Max & Lily Home', 'Lily'], ["Tariq's", 'Tariq'], ['The Schmidts', 'Moritz Schmidt'], ["Elena's Place", 'Elena'],
+    ["Ravi's House", 'Ravi'], ["The O'Briens", "Sean O'Brien"], ["Mila's", 'Mila'], ["Adam's Place", 'Adam'], ['The Petrovs', 'Ivan Petrov'], ["Salma's House", 'Salma'], ['Leo & Vera Home', 'Vera'],
+    ["Jonah's", 'Jonah'], ["Ines's Place", 'Ines'], ['The Parks', 'Min Park'], ["Rania's House", 'Rania'], ["Theo's", 'Theo'], ['The Costas', 'Nikos Costa'], ["Olga's Place", 'Olga'],
+    ["Ahmed's House", 'Ahmed'], ['Raj & Mira Home', 'Mira'], ["Astrid's", 'Astrid'], ['The Berglunds', 'Sara Berglund'], ["Kai's Place", 'Kai'], ["Rosie's House", 'Rosie']],
+  country: [['Kenji'], ['Lucia'], ['Ali & Huda', 'Huda'], ['The Haugens', 'Liv Haugen'], ['Marco'], ['Ayla'], ['Pedro'], ['Esther'], ['The Mensahs', 'Kwame Mensah'], ['Dalia'], ['Finn'],
+    ['Jade & Ray', 'Jade'], ['Hamza'], ['Selin'], ['The Girards', 'Remy Girard'], ['Ola'], ['Bruno'], ['Keira'], ['Nils'], ['The Bakers', 'June Baker'], ['Farah'], ['Ezra'], ['Imani'], ['Pablo'],
+    ['Rui & Joana', 'Joana'], ['Sven'], ['Hiba'], ['Anton'], ['Talia'], ['The Kims', 'Jisoo Kim'], ['Emil'], ['Zara'], ['Lorenzo'], ['Sakura'], ['The Novaks', 'Petra Novak'], ['Idris'], ['Bea'],
+    ['Rasha'], ['Rafael'], ['Tim & Ada', 'Ada'], ['Signe'], ['Malik'], ['Ruth'], ['The Fischers', 'Greta Fischer'], ['Elif'], ['Joaquin'], ['Amina'], ['Otto'], ['The Ortegas', 'Lola Ortega'],
+    ['Soren'], ['Naomi'], ['Bilal'], ['The Holms', 'Karl Holm'], ['Iris'], ['Tomas']],
+  pins: [[1, 0, "Tara's House"], [3, 0, 'Bill & Louise Home'], [6, 0, "Elisabeth's"], [6, 1, "Hannah's House"], [9, 0, "Fuaat's Place"]],
+  words: { boat: 'Boat', pier: 'Pier', tower: 'Tower', sand: 'Towel', rock: 'Rock', camp: 'Tent', oasis: 'Oasis', cabin: 'Cabin', treehouse: 'Treehouse', lookout: 'Lookout', clearing: 'Picnic', crag: 'Crag', hut: 'Hut', basecamp: 'Camp', station: 'Lift Hut', chalet: 'Chalet', igloo: 'Igloo', ice: 'Ice Hole', ferry: 'Ferry' },
+  plate: { text: 11, h: 18, padX: 7, radius: 6, drop: 7, surface: 11, rim: 1.2, fill: 'rgba(20,15,40,.82)', edge: '#ffc23d', ink: '#fff3df', wait: .6, side: 8, scale: 24 },
+};
+
+// An incoming call for each order, in real seconds of play (a pause ends it). At: when it rings after the order comes
+// in; kinds: how long it rings before it answers itself and how long it talks; approach: the last stretch to the
+// customer (never more than approachShare of the leg), where no call shows; below: the card's top under the HUD, and
+// it steps under a toast or the hangar tip by gap. While it would sit over the pointer, the shop's order note or guard
+// (a box in pixels around the flying aircraft and its time pill: x either side, up and down), it moves across to east
+// pixels in from the right edge, clear of the altimeter and its widest height label, and fades to faint only when that
+// side is covered too. The voice is a babble made on the device: pitch, speed and vowel size differ per caller; each
+// syllable falls silent edge of its length before the next one starts, so no two envelope steps meet. tight: the line a
+// call falls back to when its own would be cut short.
+export const CALL = {
+  firstAt: .5, laterAt: .15, handAt: .6, between: .25, fade: .25, ringEvery: .6, ringTail: .3, approach: 700, approachShare: .5,
+  below: 88, gap: 8, remeasure: .5, maxChars: 52, linger: .3, buzz: 35, faint: .3, seed: 4141, hudShort: 420,
+  guard: { x: 56, up: 64, down: 40 }, east: 76,
+  kinds: { first: { ring: 1.2, talk: [1.6, 2.4] }, short: { ring: .7, talk: [1.1, 1.8] }, hand: { ring: .7, talk: [1.2, 1.9] }, rush: { ring: .45, talk: [.9, 1.3] } },
+  states: { ring: 'Incoming call · {home}', waiting: 'Call waiting · {home}' },
+  faces: ['#e8492c', '#f09a1a', '#2fa866', '#2f9fc2', '#7d6cf0', '#d0609a', '#b4824e', '#2f8f9d'],
+  voice: { pitch: [170, 330], steps: 8, offset: 3, speed: [.85, 1.2], shift: .06, syll: .12, gap: .05, pause: .14, wobble: 3, rise: 4, lift: 2, fall: 2, maxSpeedUp: 1.6,
+    q: [6, 9], body: 1200, bodyMix: .3, level: .5, attack: .015, release: .3, edge: .04, vowels: [[800, 1200], [500, 1800], [320, 2300], [500, 900], [350, 800]] },
+  ask: {
+    pizza: ['a pizza', 'two pizzas'], falafel: ['some falafel', 'double falafel'], kunafa: ['some kunafa', 'double kunafa'], coffee: ['a coffee', 'two coffees'], cake: ['a cake', 'two cakes'],
+    medicine: ['my medicine', 'two packs of medicine'], flowers: ['some flowers', 'two bunches of flowers'], watermelon: ['a watermelon', 'two watermelons'], tv: ['a new TV', 'two TVs'],
+    vase: ['a glass vase', 'two glass vases'], icecream: ['an ice cream', 'two ice creams'], supplies: ['supplies', 'extra supplies'],
+  },
+  lines: {
+    first: ["Hi, it's {who}! Can I get {ask}, please?", 'Hello, {who} here! {Ask} for me, please.', "Hey, it's {who}! I'd love {ask}, please."],
+    urgent: ["Hi, it's {who}. I need {ask}, quickly please!", '{who} here. {Ask}, as fast as you can!'],
+    rescue: ["{who} here! I'm stuck out here. Supplies, please!", "Hello? It's {who}. Can you bring me supplies?"],
+    short: ['{who} here. {Ask}, please!', "It's {who}! {Ask} for me, please."],
+    hand: ["Hi, it's {who}! {prev} has {ask} for me.", '{who} here. {prev} is passing me {ask}!'],
+    rush: ['{who}: {Ask}, quick!', '{who} here. {Ask}, fast!'],
+    tight: { plain: '{who} here. {Ask}, please!', urgent: '{who} here. {Ask}, quickly!', rush: '{who}: {Ask}, quick!' },
+  },
+};
+
 export const RESTAURANT = {
   chargeRate: 30,
   padHeight: 40,
@@ -983,6 +1044,9 @@ export const SHADOW = {
 // often as base plus speed times how fast the aircraft goes, a little less while held, and climb an octave with height.
 export const MUSIC = {
   tempo: 84, steps: 8, ahead: .3, fade: .8, altSpan: 900, fastSpeed: 400, lateSecs: 10, level: .16, menuLevel: .1, pausedShare: .45, bass: .32, pulse: .4, cueLevel: .3,
+  // the music steps back to callShare while a call rings or talks, easing there over callFade seconds, and back the same
+  // way for callTail seconds after the call
+  callShare: .5, callFade: .15, callTail: .6,
   times: ['mixolydian', 'dorian', 'ionian'],
   progressions: { bright: [0, 5, 3, 4], dark: [0, 5, 3, 6] },
   places: {
@@ -1011,6 +1075,8 @@ export const MUSIC = {
   tracks: {
     files: { menu: 'abstraction-july-6th.ogg', city: 'abstraction-2024-12-21.ogg', country: 'abstraction-ludum-dare-30-04.ogg', challenge: 'abstraction-2024-02-07.ogg' },
     loudness: .045, stride: 16, seam: .02, menuShare: .85, pausedShare: .45, pauseCut: 700, openCut: 18000, swap: 1.5, kept: 2,
+    // a recorded loop steps back the same way while a call rings or talks
+    callShare: .5, callFade: .15,
   },
 };
 

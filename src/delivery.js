@@ -4,12 +4,13 @@ import { standout } from './contrast.js';
 import { planClouds } from './weather.js';
 import { musicCue } from './music.js';
 import {
-  AIRCRAFT, BATTERY, BOX, BULLSEYE, CAMERA, CARGO, COMBO, CONTRAST, DELIVERY, DEV, DOUBLE, DRONE, FIXED_DT, FX, HANGAR, HEALTH, LAND, LEVELS, MISSION, ORDER_TIME, ORDERS, PERFECT, POINTER, PREP, RESCUE, RESTAURANT, RIVAL, ROPE, RUSH, SKIP, ROPE_CTL, SURPRISE, WIND,
+  AIRCRAFT, BATTERY, BOX, BULLSEYE, CAMERA, CARGO, COMBO, CONTRAST, DELIVERY, DEV, DOUBLE, DRONE, FIXED_DT, FX, HANGAR, HEALTH, HOMES, LAND, LEVELS, MISSION, ORDER_TIME, ORDERS, PERFECT, POINTER, PREP, RESCUE, RESTAURANT, RIVAL, ROPE, RUSH, SKIP, ROPE_CTL, SURPRISE, WIND,
 } from './config.js';
 import { currentModel } from './drone.js';
+import { homeName } from './homes.js';
 import { endRun, rushDelivered, rushLoaded } from './rush.js';
 import { loadProgress, noteResult, owns, payDaily, saveProgress, settings } from './storage.js';
-import { addMark, blast, clockText, confetti, ctx, glow, hud, placeName, pop, puff, showToast, view, X, Y } from './ui.js';
+import { addMark, blast, clockText, confetti, covers, ctx, glow, hud, placeName, pop, puff, showToast, view, X, Y } from './ui.js';
 import { mixHex, nearby, nearestShop, shopPad, world } from './world.js';
 
 let current = null;
@@ -578,7 +579,10 @@ function ringPaint() {
 // faint sweep of light, so the scene still shows through. Once loaded it stands whole for a moment, spreading as it fades.
 export function drawPrep(st) {
   const p = st.prep, c = PREP;
-  if (!p && !st.ready) return;
+  if (!p && !st.ready) {
+    covers.note = null;
+    return;
+  }
   const S = view.S, x = X(st.d.x), y = Y(st.d.y), fade = p ? 1 : st.ready / c.flash, done = p ? 1 - p.left / (p.full ?? p.item.prep) : 1, step = Math.PI * 2 / c.ticks, top = -Math.PI / 2;
   const r = Math.max(c.minRadius, (currentModel().span * CONTRAST.scale + c.gap) * S) + (1 - fade) * c.flashGrow * S, w = Math.max(c.minWidth, c.width * S);
   const lit = Math.ceil(done * c.ticks), paint = ringPaint(), head = top + done * c.ticks * step;
@@ -615,7 +619,10 @@ export function drawPrep(st) {
   drawPrepNote(st, x, y - r - w / 2 - c.note.gap, fade);
 }
 
-// Over the ring, against the open sky: what the shop is doing, and what that means for the player.
+// Over the ring, against the open sky: what the shop is doing, and what that means for the player. Where it stands is
+// kept for the call card, which moves away from it as it rings; a card that still sits over it moves the note aside by
+// clear to the nearer side with room, and with room on neither the card says the same and the note waits.
+const noteBox = [0, 0, 0, 0];
 function drawPrepNote(st, x, bottom, fade) {
   const c = PREP.note, p = st.prep, nudge = p ? p.nudge / PREP.nudge : 0, name = p?.opening ? 'YOUR ORDER' : p?.item.label.toUpperCase();
   const title = p ? `PREPARING ${name}  ${Math.ceil(p.left)}s` : 'ORDER READY', sub = !p ? '' : p.opening ? 'Takeoff when it is ready' : 'Stay on the pad', h = sub ? c.tall : c.h;
@@ -624,7 +631,22 @@ function drawPrepNote(st, x, bottom, fade) {
   const titleW = ctx.measureText(title).width;
   ctx.font = `700 ${c.sub}px Tajawal,sans-serif`;
   const w = Math.max(titleW, ctx.measureText(sub).width) + c.padX * 2;
-  const cx = Math.max(w / 2 + 6, Math.min(view.W - w / 2 - 6, x)) + Math.sin(st.t * c.rate) * c.shake * nudge, y = Math.max(view.top + c.edge, bottom - h);
+  let cx = Math.max(w / 2 + 6, Math.min(view.W - w / 2 - 6, x)) + Math.sin(st.t * c.rate) * c.shake * nudge;
+  const y = Math.max(view.top + c.edge, bottom - h), card = covers.card;
+  if (card && card[0] < cx + w / 2 && card[2] > cx - w / 2 && card[1] < y + h && card[3] > y) {
+    const right = card[2] + c.clear + w / 2, left = card[0] - c.clear - w / 2, roomR = right + w / 2 <= view.W - 6, roomL = left - w / 2 >= 6;
+    if (!roomR && !roomL) {
+      covers.note = null;
+      ctx.restore();
+      return;
+    }
+    cx = roomR && (!roomL || right - cx < cx - left) ? right : left;
+  }
+  noteBox[0] = cx - w / 2;
+  noteBox[1] = y;
+  noteBox[2] = cx + w / 2;
+  noteBox[3] = y + h;
+  covers.note = noteBox;
   ctx.globalAlpha = fade;
   ctx.fillStyle = c.fill;
   ctx.beginPath();
@@ -648,6 +670,39 @@ function drawPrepNote(st, x, bottom, fade) {
     ctx.fillText(sub, cx, y + c.subY);
   }
   ctx.restore();
+}
+
+// The household's name on a small plate under the customer, so the name in the HUD can be found on screen. Its text is
+// kept a spot (and its width a name), so a frame builds no string; near an edge it slides in to stay whole, clear of the
+// altimeter's scale, and with the customer off screen it draws nothing.
+const plateW = new Map(), plates = new WeakMap();
+function plateOf(t, place) {
+  let p = plates.get(t);
+  if (!p || p.place !== place) plates.set(t, (p = { place, text: homeName(t, place, true) }));
+  return p.text;
+}
+function drawPlate(t, text, alpha) {
+  if (!text) return;
+  const c = HOMES.plate, at = X(t.x);
+  ctx.font = `800 ${c.text}px Tajawal,sans-serif`;
+  let w = plateW.get(text);
+  if (w == null) plateW.set(text, (w = ctx.measureText(text).width + c.padX * 2));
+  if (at < 0 || at > view.W) return;
+  const x = Math.max(c.side + w / 2, Math.min(view.W - c.scale - w / 2, at));
+  const top = Y(t.stand ?? t.y + c.surface) + c.drop;
+  ctx.globalAlpha = alpha;
+  ctx.beginPath();
+  ctx.roundRect(x - w / 2, top, w, c.h, c.radius);
+  ctx.fillStyle = c.fill;
+  ctx.fill();
+  ctx.lineWidth = c.rim;
+  ctx.strokeStyle = c.edge;
+  ctx.stroke();
+  ctx.fillStyle = c.ink;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, x, top + c.h / 2 + 1);
+  ctx.globalAlpha = 1;
 }
 
 export function drawTarget(st) {
@@ -710,6 +765,10 @@ export function drawTarget(st) {
     ctx.beginPath();
     ctx.arc(X(t.x), Y(t.y), 30 * S, -Math.PI / 2, -Math.PI / 2 + st.hold / (st.stop.rescue ? RESCUE.hold : DELIVERY.holdTime) * Math.PI * 2);
     ctx.stroke();
+  }
+  if (!st.level.training) {
+    drawPlate(t, plateOf(t, t === st.stop.t ? st.stop.place : null), 1);
+    if (wait) drawPlate(wait, plateOf(wait, null), HOMES.plate.wait);
   }
   ctx.restore();
 }
@@ -810,7 +869,7 @@ export function pointerSpot(st) {
 // never slide under the controls or the HUD.
 export function drawPointer(st) {
   const p = pointerSpot(st);
-  if (!p) return;
+  if (!p) return null;
   const c = POINTER, { px, py, ang, text, lx, top, half } = p, z = c.size, [light, deep] = st.has ? c.customer : c.shop;
   ctx.save();
   ctx.translate(px, py);
@@ -864,4 +923,6 @@ export function drawPointer(st) {
   ctx.fillStyle = '#fff3df';
   ctx.fillText(text, lx, top + c.pillH / 2 + 1);
   ctx.textBaseline = 'alphabetic';
+  // where it stood, so the call card can fade while it would cover it
+  return p;
 }

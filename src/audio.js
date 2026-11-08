@@ -1,7 +1,7 @@
-import { AUDIO } from './config.js';
+import { AUDIO, CALL } from './config.js';
 import { saveSettings, settings } from './storage.js';
 
-let ac = null, output, master, bus, filter, air, oscs, noiseBuf, voices = 0, nextUpdate = 0;
+let ac = null, output, master, bus, filter, air, oscs, noiseBuf, voices = 0, nextUpdate = 0, speaking = null;
 const lastPlayed = {}, aimed = new Map();
 
 function makeNoise() {
@@ -198,6 +198,12 @@ const SOUNDS = {
   buy: t => { tone(988, 988, t, .07, .35); tone(1319, 1976, t + .07, .22, .4); },
   // a shut mission: two soft low taps
   locked: t => { tone(330, 300, t, .06, .22, 'sine'); tone(262, 247, t + .07, .08, .2, 'sine'); },
+  // an incoming call: a phone's four-note trill, quicker in Rush, a lift as it answers and a drop as it hangs up (ring is
+  // the bonus ring's)
+  phone: t => { tone(1319, 1319, t, .08, .28, 'sine'); tone(1568, 1568, t + .09, .08, .28, 'sine'); tone(1319, 1319, t + .18, .08, .28, 'sine'); tone(1760, 1760, t + .27, .12, .3, 'sine'); },
+  phoneQuick: t => { tone(1568, 1568, t, .07, .26, 'sine'); tone(1976, 1976, t + .08, .1, .28, 'sine'); },
+  answer: t => tone(880, 1320, t, .06, .22, 'sine'),
+  hangup: t => tone(620, 410, t, .1, .18, 'sine'),
 };
 
 // A short buzz where the phone has one and the player wants it; the app hands it to Android itself.
@@ -217,4 +223,63 @@ export function sfx(name, k = 1) {
   if (t - (lastPlayed[name] ?? -1) < AUDIO.sfxGap) return;
   lastPlayed[name] = t;
   SOUNDS[name](t, k);
+}
+
+// A caller's voice: one saw through two vowel filters and a soft body, its pitch and vowels set syllable by syllable from
+// the plan, under one envelope. It is one voice through the limiter, so the mute silences it and nothing leaves the
+// device; muted, nothing is built at all.
+export function speak(plan, v) {
+  hushVoice();
+  if (!ac || ac.state !== 'running' || settings.muted || voices >= AUDIO.maxVoices || !plan.syl.length) return;
+  const c = CALL.voice, t0 = ac.currentTime + .03;
+  const o = ac.createOscillator(), f1 = ac.createBiquadFilter(), f2 = ac.createBiquadFilter(), lp = ac.createBiquadFilter(), mix = ac.createGain(), env = ac.createGain(), out = ac.createGain();
+  o.type = 'sawtooth';
+  f1.type = f2.type = 'bandpass';
+  f1.Q.value = c.q[0];
+  f2.Q.value = c.q[1];
+  lp.type = 'lowpass';
+  lp.frequency.value = c.body;
+  mix.gain.value = c.bodyMix;
+  env.gain.value = 0;
+  out.gain.value = c.level * AUDIO.sfxGain;
+  o.connect(f1).connect(env);
+  o.connect(f2).connect(env);
+  o.connect(lp).connect(mix).connect(env);
+  env.connect(out).connect(bus);
+  // each release ends a little before the next syllable starts: back to back, float rounding can put that start a hair
+  // before the ramp's end, and the gain then holds at full and drops in one sample
+  for (const s of plan.syl) {
+    const a = t0 + s.at;
+    o.frequency.setValueAtTime(s.hz, a);
+    f1.frequency.setValueAtTime(s.f1 * v.shift, a);
+    f2.frequency.setValueAtTime(s.f2 * v.shift, a);
+    env.gain.setValueAtTime(0, a);
+    env.gain.linearRampToValueAtTime(1, a + c.attack);
+    env.gain.setValueAtTime(1, a + s.dur * (1 - c.release));
+    env.gain.linearRampToValueAtTime(0, a + s.dur * (1 - c.edge));
+  }
+  voices++;
+  finish(o, [f1, f2, lp, mix, env, out]);
+  o.start(t0);
+  o.stop(t0 + plan.secs + .05);
+  speaking = { o, env };
+}
+
+// A call cut short: the voice fades in a moment from wherever its envelope stands, instead of clicking off. A plain
+// cancel mid-ramp would snap back to the last set value first, so the value is held (by hand where the browser can't).
+export function hushVoice() {
+  if (!speaking) return;
+  const { o, env } = speaking;
+  speaking = null;
+  try {
+    const now = ac.currentTime;
+    if (env.gain.cancelAndHoldAtTime) env.gain.cancelAndHoldAtTime(now);
+    else {
+      const v = env.gain.value;
+      env.gain.cancelScheduledValues(now);
+      env.gain.setValueAtTime(v, now);
+    }
+    env.gain.setTargetAtTime(0, now, .015);
+    o.stop(now + .08);
+  } catch (_) {}
 }

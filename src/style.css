@@ -123,6 +123,36 @@ body:not(.dev) .devOnly{display:none!important}
 #hangarTip{position:absolute;left:0;right:0;top:40%;margin-left:auto;margin-right:auto;width:fit-content;max-width:min(86vw,360px);z-index:2;pointer-events:auto;cursor:pointer;
   font-family:var(--body);font-weight:800;font-size:14px;min-height:40px;padding:0 16px;border-radius:20px;border:2px solid var(--cheese);background:rgba(26,20,48,.82);color:var(--cheese)}
 #hangarTip:focus-visible{outline:3px solid var(--cheese);outline-offset:2px}
+/* The incoming call: on the left under the toast band, clear of the altimeter and its height label, stepping under a
+   toast or the combo */
+#call{position:absolute;left:max(12px,env(safe-area-inset-left,0px));width:min(320px,calc(100% - 88px));box-sizing:border-box;display:grid;grid-template-columns:40px minmax(0,1fr) 44px;align-items:center;gap:8px;padding:7px;border-radius:18px;background:rgba(16,12,36,.9);border:1.5px solid rgba(127,224,168,.55);box-shadow:0 6px 18px rgba(0,0,0,.3);z-index:2;pointer-events:auto;touch-action:none;-webkit-user-select:none;user-select:none;transform:translateY(var(--callDrop,0px));transition:opacity .22s ease,transform .22s ease,margin-top var(--comboAnim) ease;animation:callIn .22s ease-out}
+#call[hidden],#wrap.home #call{display:none}
+@keyframes callIn{from{opacity:0;transform:translateY(calc(var(--callDrop,0px) - 10px)) scale(.96)}}
+#call.out{opacity:0}
+#call.faint{opacity:var(--callFaint,.3)}
+/* moved across, clear of the altimeter and its height label, while the left would cover the pointer or the aircraft */
+#call.east{left:auto;right:var(--callEast,76px)}
+#call.snap{transition:opacity .22s ease,margin-top var(--comboAnim) ease}
+#callFace{position:relative;width:40px;height:40px;border-radius:50%;background:var(--face,#e8492c);display:grid;place-items:center;font:400 17px/1 var(--display);font-style:normal;color:#fff3df;box-shadow:inset 0 0 0 2px rgba(255,243,223,.45)}
+#call.ring #callFace::after{content:"";position:absolute;top:-4px;right:-4px;bottom:-4px;left:-4px;border-radius:50%;border:2px solid var(--face,#e8492c);animation:callRipple 1s ease-out infinite}
+@keyframes callRipple{from{opacity:.8;transform:scale(.9)}to{opacity:0;transform:scale(1.35)}}
+#callText{display:grid;gap:1px;min-width:0}
+#callWho{font:400 17px/1.15 var(--display);color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#callLine{font-size:12px;font-weight:700;line-height:1.3;color:var(--soft);display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+#callLine span{transition:opacity .12s}
+#callLine .unsaid{opacity:0}
+#call.talk #callWho{font:800 11px/1.2 var(--body);letter-spacing:.06em;text-transform:uppercase;color:#7fe0a8}
+#call.talk #callLine{font-size:13.5px;color:var(--ink)}
+#callBtn{width:44px;height:44px;border-radius:50%;border:0;padding:0;display:grid;place-items:center;background:#2fbf6a;color:#fff;cursor:pointer}
+#callBtn .ico{width:22px;height:22px;transition:transform .2s}
+#call.ring #callBtn{animation:callWiggle 1.2s ease-in-out infinite}
+@keyframes callWiggle{0%,60%,100%{transform:rotate(0)}70%{transform:rotate(-12deg)}80%{transform:rotate(12deg)}90%{transform:rotate(-8deg)}}
+#call.talk #callBtn,#call.out #callBtn{background:#e8492c}
+#call.talk #callBtn .ico,#call.out #callBtn .ico{transform:rotate(135deg)}
+body.desk #call.ring #callLine::after{content:" · Enter"}
+#wrap.narrow.comboOn #call{margin-top:var(--comboStep)}
+@media (max-height:480px){#call{width:min(300px,calc(100% - 88px));padding:5px;grid-template-columns:34px minmax(0,1fr) 38px}#callFace{width:34px;height:34px;font-size:15px}#callBtn{width:38px;height:38px}}
+@media (prefers-reduced-motion:reduce){#call,#call.ring #callBtn,#call.ring #callFace::after{animation:none}#call{transition:opacity .22s}}
 .badge{font-size:11px;font-weight:800;line-height:1;padding:3px 7px 2px;border-radius:9px;color:#fff;background:#6b6259;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .badge.thrust{background:#7a3ea8}
 .badge.speed{background:#2a6a9c}

@@ -3,8 +3,9 @@ import { musicCue } from './music.js';
 import { nudgeShop } from './shop.js';
 import { paper, showToday } from './daily.js';
 import { showRushCard } from './rush.js';
-import { AIRCRAFT, ALTIMETER, BADGE, BOOST, CHAPTERS, COMBO, DAILY, DEV, DUST, FROST, FX, G, GATES, GIFTS, GROUND as G_LINE, HANGAR, HEALTH, JOY, KEY_HINT, LEVELS, LOCKS, MISSION, PERFECT, PICTURE, POINTER, QUALITY, RESCUE, RESULT, RUSH, SHAKE, SHOTS, SKIP, VIEW, WEATHER, WEATHER_HINT, WIND } from './config.js';
+import { AIRCRAFT, ALTIMETER, BADGE, BOOST, CALL, CHAPTERS, COMBO, DAILY, DEV, DUST, FROST, FX, G, GATES, GIFTS, GROUND as G_LINE, HANGAR, HEALTH, JOY, KEY_HINT, LEVELS, LOCKS, MISSION, PERFECT, PICTURE, POINTER, QUALITY, RESCUE, RESULT, RUSH, SHAKE, SHOTS, SKIP, VIEW, WEATHER, WEATHER_HINT, WIND } from './config.js';
 import { applyControls, touchUI } from './input.js';
+import { homeName, homeOf } from './homes.js';
 import { loadProgress, saveSettings, saveSkips, settings, skips } from './storage.js';
 
 const $ = id => document.getElementById(id);
@@ -172,6 +173,7 @@ export function measureHud() {
   view.mapH = $('map').clientHeight || view.mapH;
   $('toast').style.top = view.top + 12 + 'px';
   $('lesson').style.top = view.top + 8 + 'px';
+  $('call').style.top = view.top + CALL.below + 'px';
 }
 addEventListener('resize', resize);
 export { resize };
@@ -471,7 +473,13 @@ export function popSpot(q) {
 
 /* ---------- HUD ---------- */
 const PLACES = { street: 'Street', roof: 'Rooftop', ferry: 'Ferry', boat: 'Boat', pier: 'Pier', tower: 'Lifeguard tower', sand: 'Beach', rock: 'Rock top', camp: 'Camp', oasis: 'Oasis', cabin: 'Cabin roof', treehouse: 'Treehouse', lookout: 'Lookout tower', clearing: 'Clearing', crag: 'Crag top', hut: 'Mountain hut', basecamp: 'Base camp', station: 'Lift station', chalet: 'Chalet roof', igloo: 'Igloo', ice: 'Frozen lake' };
-export const placeName = t => (t.kind === 'bal' ? `Balcony, floor ${t.fl}` : PLACES[t.kind]);
+// A customer's spot by the household who lives there; PLACES names a spot no household was given.
+export const placeName = (t, stop = null) => homeName(t, stop?.place) ?? (t.kind === 'bal' ? `Balcony, floor ${t.fl}` : PLACES[t.kind]);
+// Where the order on board goes: the caller's home, or the caller at the spot they stepped over to ("Tara at Grace's").
+export function goingTo(st) {
+  const s = st.stop, o = st.order, home = s.parcels ? s.parcels[o.drop >= 2 ? 1 : 0].t : s.t;
+  return o.t === home ? placeName(o.t, s) : `${homeOf(home)?.first ?? 'Customer'} at ${placeName(o.t)}`;
+}
 
 // The HUD ticks ten times a second and most of it has not moved, so only changes reach the page.
 const shown = {};
@@ -525,7 +533,9 @@ export function hud(st) {
   const legs = st.level.stops.length, o = st.has ? st.order : null, run = st.stop.parcels;
   // a narrow phone marks the ring count instead of naming it, so the customer still fits
   const rings = o && st.stop.gates, at = (o?.gate ?? 0) + 1, ring = rings && at <= rings.length ? `${view.W < GATES.narrow ? '◎' : 'Ring '}${at}/${rings.length} · ` : '';
-  const tag = (o?.drop ? `Drop ${o.drop}/${run.length} · ` : legs > 1 ? `Stop ${st.stopAt + 1}/${legs} · ` : '') + ring;
+  // under hudShort the word before a drop's or a stop's count goes too, so the home's name still fits
+  const short = view.W < CALL.hudShort;
+  const tag = (o?.drop ? `${short ? '' : 'Drop '}${o.drop}/${run.length} · ` : legs > 1 ? `${short ? '' : 'Stop '}${st.stopAt + 1}/${legs} · ` : '') + ring;
   const left = o ? Math.max(0, o.deadline - st.t) : st.prep ? st.prep.left : 0, whole = Math.ceil(left);
   const r = st.rush, flash = !!r?.gain && st.t - r.gain.at < RUSH.gainShow;
   if (r) {
@@ -556,9 +566,9 @@ export function hud(st) {
   put('wind', Math.round(50 + Math.max(-1, Math.min(1, st.wind / reach)) * 50), v => { $('windNeedle').style.transform = `translateX(${v}%)`; });
   showWeatherNote(st);
   showCombo(st);
-  const item = o && (o.drop ? run[o.drop - 1].item : st.item);
-  text('oTitle', st.outcome ? st.outcome.why || 'Delivered' : o ? `${tag}${item.label}${item.urgent ? (r ? ` · URGENT ×${RUSH.points.urgent}` : ' · URGENT') : ''} → ${st.stop?.place ?? placeName(o.t)}`
-    : st.prep ? `${tag}Preparing ${st.prep.item.label}`
+  const item = o && (o.drop ? run[o.drop - 1].item : st.item), who = st.prep && !run && homeOf(st.stop.t)?.first;
+  text('oTitle', st.outcome ? st.outcome.why || 'Delivered' : o ? `${tag}${item.label}${item.urgent ? (r ? ` · URGENT ×${RUSH.points.urgent}` : ' · URGENT') : ''} → ${goingTo(st)}`
+    : st.prep ? `${tag}Preparing ${st.prep.item.label}${who ? ` for ${who}` : ''}`
     : st.level.training ? 'Training' : `${tag}Land on the green pad at ${st.stop.shop.shop.name}`);
 }
 
@@ -635,6 +645,14 @@ export function showLesson(step, title, body, teach = []) {
 // needs its note waits.
 export const noticeUp = () => view.W < COMBO.wideFrom && !($('toast').hidden && $('hangarTip').hidden);
 
+// Where the toast and the hangar's tip end on screen, for the call card to step under. Each is measured once as it
+// shows, without the combo's step, which the card takes by the same rule in the page's style.
+const band = { toast: 0, tip: 0 };
+export const bandBottom = () => Math.max(band.toast, band.tip);
+// What the call card and the shop's order note cover on screen ([left, top, right, bottom] or null), so the card can
+// move away from the note and the note can give way where the card still sits.
+export const covers = { card: null, note: null };
+
 let toastTimer = 0;
 export function showToast(title, detail, good, gold = false) {
   const el = $('toast');
@@ -643,8 +661,9 @@ export function showToast(title, detail, good, gold = false) {
   el.classList.toggle('bad', !good);
   el.classList.toggle('gold', gold);
   el.hidden = false;
+  band.toast = view.top + 12 + el.offsetHeight;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { el.hidden = true; }, MISSION.toastMs);
+  toastTimer = setTimeout(() => { el.hidden = true; band.toast = 0; }, MISSION.toastMs);
 }
 
 export function showBoost(on) {
@@ -816,6 +835,7 @@ export function fitBar() {
 export function hideModals() {
   for (const id of MODALS) $(id).hidden = true;
   $('toast').hidden = true;
+  band.toast = 0;
   clearTimeout(toastTimer);
 }
 
@@ -857,7 +877,7 @@ export function showLevels() {
 // What a mission asks and what can end it, for its card: the job, the run, the cost of a ruined order, the dangers.
 function missionRows(l) {
   const legs = l.stops, route = legs.length > 1;
-  const order = i => (i.urgent ? `${i.label} · urgent` : i.label), to = s => `${s.place ?? placeName(s.t)}${s.bull ? ', small mark' : ''}, ${Math.round(s.dist / 10)} m${s.hops?.length ? `, moves ${s.hops.length > 1 ? 'twice' : 'once'}` : ''}`;
+  const order = i => (i.urgent ? `${i.label} · urgent` : i.label), to = s => `${placeName(s.t, s)}${s.bull ? ', small mark' : ''}, ${Math.round(s.dist / 10)} m${s.hops?.length ? `, moves ${s.hops.length > 1 ? 'twice' : 'once'}` : ''}`;
   const { item, shop, limit, parcels } = legs[0];
   const jobs = parcels
     ? [['Double Run', 'Two orders, one trip'], ['Shop', `${shop.shop.name}, ${shop.zone.name}`], ...parcels.map((p, k) => [`Drop ${k + 1}`, `${order(p.item)} to ${to(p)}`]), ['Time', clockText(limit)]]
@@ -1268,9 +1288,11 @@ export function showHangarTip(hint) {
   tipText = text;
   const tip = $('hangarTip');
   tip.hidden = !text;
+  band.tip = 0;
   if (text) {
     tip.textContent = text;
     tip.style.top = view.top + HANGAR.tipGap + 'px';
+    band.tip = view.top + HANGAR.tipGap + tip.offsetHeight;
   }
 }
 

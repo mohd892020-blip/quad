@@ -5,11 +5,11 @@
 - النشر: `npm run build` يطلّع `dist/flying-pizza.html` للـArtifact بنفس المسار عشان يضل الرابط نفسه، والموقع العام github.io بيعرض فرع master مباشرة، فأي رفع على master بيحدّثه.
 - الـAPK: `npm run apk` بيطلّع flying-pizza.apk في جذر المشروع، ورفعه على master بيحدّث رابط التحميل github.io/quad/flying-pizza.apk. التطبيق بدون إذن إنترنت، فكل شي بيستعمله لازم يكون داخله: البناء بيدمج الخطوط من android/fonts وبيوقف إذا ضل شي بيحمّل من برّا. الأدوات ومفتاح التوقيع في ~/.flying-pizza.
 - prototype.html مرجع فيزياء الدرون والحبل: البيتزا تضل بقيم النموذج بالضبط، وباقي الطلبات مضاعفات فوقها.
-- الملفات في src/: main، config، drone، rope، world، skyline، camera، delivery، action، levels، challenge، daily، rush، menu، training، seaside، desert، forest، alpine، contrast، weather، shop، league، ui، input، audio، music، storage. ملف لكل مسؤولية.
+- الملفات في src/: main، config، drone، rope، world، skyline، camera، delivery، action، levels، challenge، daily، rush، menu، homes، call، training، seaside، desert، forest، alpine، contrast، weather، shop، league، ui، input، audio، music، storage. ملف لكل مسؤولية.
 - كل الأرقام القابلة للضبط في src/config.js فقط.
 - فيزياء بخطوة ثابتة 1/120 ثانية، والرسم يمزج بين آخر خطوتين.
 - كل النصوص إنجليزية فقط، ولا نص عربي بالواجهة. خطّا Lalezar وTajawal.
-- بدون أسماء زبائن، وبدون كلمات اصطدام (صوت وغبار فقط).
+- الزبائن إلهم أسماء: كل طلبية بتيجي بمكالمة من زبون، وبتروح لبيته المكتوب عليه اسمه (homes.js وcall.js). وبدون كلمات اصطدام (صوت وغبار فقط).
 - التحكم: لوحة مفاتيح على الكمبيوتر، ولمس على الموبايل (عمودي وأفقي)، والجويستيك أفقي فقط.
 - وضع المطور بكلمة السر 930933.
 - الحفظ في localStorage داخل try/catch.

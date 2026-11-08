@@ -1,5 +1,6 @@
 import { drawBoost, drawCars, drawEagles, drawHawks, drawRing, drawRival, stepAction, stepCloseCalls, stepEagles, stepSurprises, stepTraffic } from './action.js';
 import { initAudio, sfx, updateRotor } from './audio.js';
+import { callLive, initCall, stepCall } from './call.js';
 import { beginChallenge, drawChallenge, drawWeather, stepChallenge } from './challenge.js';
 import { stepContrast } from './contrast.js';
 import { drawCloudsBack, drawCloudsFront, drawFallBehind, drawFallFront, drawFog, drawHighClouds, drawOvercast, stepClouds } from './weather.js';
@@ -10,6 +11,7 @@ import { initLeague } from './league.js';
 import { drawHover, initMenu, menuFloor, menuOpen, showMenu } from './menu.js';
 import { initDaily } from './daily.js';
 import { beginRush, initRush, rushLevel, stepRush } from './rush.js';
+import { nameHomes } from './homes.js';
 import { buildLevels, surprisesFor } from './levels.js';
 import {
   autoDeliver, breakStreak, chargeDrone, drawBatteryCue, goal, drawHalos, drawOrderTime, drawPointer, drawPrep, drawTarget, explode, failMission, hangarHint, newGame, prepareFirstOrder, restrain, stepHealth, stepCargo,
@@ -33,7 +35,7 @@ import {
 } from './ui.js';
 import { world, drawCity, drawMap, drawSky, dropSprites, genWorld, setClock, stepClock, stepWind } from './world.js';
 
-let st = null, hudT = 0, last = performance.now(), levels = [];
+let st = null, hudT = 0, last = performance.now(), levels = [], spot = null;
 // how many times each mission has been started this session, so each try draws its own surprises
 const tries = {};
 const pace = { t: 0, n: 0, even: 0, last: 0, easy: 0, raised: false, tried: false };
@@ -152,10 +154,11 @@ function render() {
   drawSandstorm(s);
   drawWeather(s);
   ctx.restore();
-  drawPointer(s);
+  const spot = drawPointer(s);
   drawAltimeter(s, goal(s));
   drawBatteryCue(s);
   drawOrderTime(s);
+  return spot;
 }
 
 // Finds the sharpest picture the device keeps up with, and moves further the further off it is.
@@ -229,9 +232,11 @@ function loop(now) {
   }
   // a paused scene does not change, so the last picture stands until the canvas is resized
   if (!paused || view.dirty) {
-    render();
+    spot = render();
     view.dirty = false;
   }
+  // the incoming call runs on real time, so a perfect drop's slow motion never stretches it
+  stepCall(st, dt, paused, paused ? null : spot);
   showActions(zones(st), !!st.anchor, !!st.landing, st.boosting);
   showHangarTip(paused ? null : hangarHint(st));
   updateRotor(!paused && !st.wreck && !st.falling && st.d.bat > 0, rotorLoad(st, controls()), currentModel());
@@ -295,6 +300,7 @@ function musicState(paused) {
     mission: !st.done || !levelsOpen(), challenge: !!l.challenge || (r?.level ?? 0) >= RUSH.hotFrom,
     alt: Math.max(0, Math.min(1, (GROUND - d.y) / MUSIC.altSpan)), speed: Math.min(1, Math.hypot(d.vx, d.vy) / MUSIC.fastSpeed), wind: l.wind ? Math.min(1, Math.abs(st.wind) / l.wind) : 0,
     danger: Math.max(left < MUSIC.lateSecs ? 1 - left / MUSIC.lateSecs : 0, st.batWarn > 1 ? 1 : st.batWarn ? .5 : 0), boosting: st.boosting, holding: !!st.anchor,
+    call: callLive(),
   };
 }
 
@@ -343,6 +349,7 @@ initShop(price => { if (st) st.money = Math.max(0, st.money - price); },
 initLeague();
 initDaily();
 initRush();
+initCall();
 onStart(() => {
   hideOverlay();
   // a brand new player flies the lessons first
@@ -352,6 +359,8 @@ onStart(() => {
 onDevActions(() => autoDeliver(st), () => chargeDrone(st));
 genWorld(CITY_SEED);
 levels = buildLevels();
+// every customer spot gets its household before any card or call names one
+nameHomes(levels);
 initLevels(levels, {
   play: start,
   leave,
