@@ -11,6 +11,7 @@
   --gold:linear-gradient(#ffe391,#ffb52e);
   --display:"Lalezar","Tajawal",system-ui,sans-serif;
   --body:"Tajawal",system-ui,sans-serif;
+  --pageBg:radial-gradient(60% 40% at 12% 22%,rgba(255,112,84,.34),transparent 72%),radial-gradient(60% 46% at 92% 62%,rgba(84,170,255,.32),transparent 72%),radial-gradient(70% 40% at 28% 96%,rgba(255,196,90,.3),transparent 72%),linear-gradient(#241a4d,#3b2452 45%,#6e3358);
   color-scheme:dark;
 }
 html,body{height:100%}
@@ -38,7 +39,6 @@ kbd{display:inline-grid;place-items:center;min-width:24px;height:24px;box-sizing
 #shiftHint::after{content:"";position:absolute;right:-7px;top:50%;margin-top:-7px;border-left:8px solid rgba(20,15,40,.55);border-top:7px solid transparent;border-bottom:7px solid transparent}
 .brief{animation:hintFade var(--hint) linear both}
 @keyframes hintFade{85%{opacity:1}100%{opacity:0}}
-#overlay{position:absolute;top:0;right:0;bottom:0;left:0;z-index:4;display:grid;place-items:center;background:var(--dim);padding:16px max(16px,env(safe-area-inset-right,0px)) 16px max(16px,env(safe-area-inset-left,0px))}
 /* Liquid glass over a frozen, frosted copy of the scene: the card is brighter than what is behind it. Layers from the top:
    a highlight on the shoulder, a soft bounce in the far corner, the body of the glass, then the tint each screen sets.
    Everything here is painted once: no live blur, mask or filter, and the opening moves only opacity and transform. */
@@ -65,20 +65,13 @@ kbd{display:inline-grid;place-items:center;min-width:24px;height:24px;box-sizing
 #dev{position:absolute;left:max(16px,env(safe-area-inset-left,0px));bottom:calc(100px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:8px;align-items:flex-start;pointer-events:none}
 .act{font-family:var(--body);font-weight:800;font-size:15px;min-height:44px;padding:0 16px;border-radius:22px;border:2px solid rgba(255,243,223,.4);background:rgba(26,20,48,.72);color:var(--ink);pointer-events:auto;touch-action:none;cursor:pointer;white-space:nowrap}
 .act.on{background:rgba(79,194,124,.4);border-color:var(--basil)}
-#sheet{position:absolute;top:0;right:0;bottom:0;left:0;z-index:5;display:grid;place-items:start center;overflow:auto;touch-action:pan-y;background:var(--dim);padding:12px max(16px,env(safe-area-inset-right,0px)) 12px max(16px,env(safe-area-inset-left,0px))}
-#sheet .card{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;text-align:left;padding:20px 22px}
-#sheet h2{font-family:var(--display);font-weight:400;font-size:34px;line-height:1;margin:0;color:#fff}
-#sheet h3{font-size:13px;letter-spacing:.06em;text-transform:uppercase;margin:0 0 6px;color:var(--soft)}
-#sheet section{position:relative;z-index:1}
-#preview{display:block;width:100%;height:auto;aspect-ratio:12/5;background:linear-gradient(#3b2452,#b4505a);border-radius:18px}
-.seg{display:flex;gap:6px}
-.seg button,.chips button,#devForm button{font-family:var(--body);font-weight:700;font-size:14px;min-height:38px;padding:0 12px;border-radius:14px;border:1px solid transparent;background:rgba(255,255,255,.1);color:#fff;cursor:pointer}
-.seg button[aria-pressed=true],.chips button[aria-pressed=true]{background:rgba(255,255,255,.92);color:#1c1840;box-shadow:0 6px 16px -6px rgba(6,5,26,.6)}
-.chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:6px;margin-top:8px}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button,#devForm button{font-family:var(--body);font-weight:700;font-size:14px;min-height:38px;padding:0 12px;border-radius:14px;border:1px solid transparent;background:rgba(255,255,255,.1);color:#fff;cursor:pointer}
+.seg button[aria-pressed=true]{background:rgba(255,255,255,.92);color:#1c1840;box-shadow:0 6px 16px -6px rgba(6,5,26,.6)}
 #devForm{display:flex;gap:6px}
 #devCode{flex:1;min-width:0;font:inherit;font-size:16px;padding:0 10px;min-height:38px;border-radius:14px;border:1px solid transparent;background:var(--well);color:#fff;-webkit-user-select:text;user-select:text}
 #devMsg{margin:6px 0 0;font-size:13px;min-height:1em}
-.seg button:focus-visible,.chips button:focus-visible,#devForm button:focus-visible,.act:focus-visible,.icon:focus-visible,#devCode:focus-visible{outline:3px solid var(--cheese);outline-offset:2px}
+.seg button:focus-visible,#devForm button:focus-visible,.act:focus-visible,.icon:focus-visible,#devCode:focus-visible{outline:3px solid var(--cheese);outline-offset:2px}
 @media (max-width:420px){#joy{width:150px}}
 @media (max-height:480px){
   #actions{flex-direction:row;right:calc(124px + max(16px,env(safe-area-inset-right,0px)));bottom:calc(16px + env(safe-area-inset-bottom,0px))}
@@ -92,9 +85,8 @@ kbd{display:inline-grid;place-items:center;min-width:24px;height:24px;box-sizing
 #toast.bad b{color:#ff7a5c}
 #toast span{font-size:14px;font-weight:700;color:var(--ink)}
 @media (max-height:480px){#toast{max-width:min(70vw,560px)}}
-#cardStart{display:grid;gap:14px;justify-items:center}
 /* these open over the mission map, which is sharp and busy, so their glass is solid */
-#levelCard .card,#shop .card,#league .card,#sheet .card,#gifts .card,#chapterCard .card{--tint:#3d3580}
+#levelCard .card,#gifts .card,#chapterCard .card{--tint:#3d3580}
 #boost{width:64px;height:64px;font-size:15px;align-self:flex-end}
 @media (max-width:420px){#joy{width:140px}}
 @media (max-height:480px){#actions{right:calc(200px + max(16px,env(safe-area-inset-right,0px)))}}
@@ -131,23 +123,26 @@ body:not(.dev) .devOnly{display:none!important}
 #hangarTip{position:absolute;left:0;right:0;top:40%;margin-left:auto;margin-right:auto;width:fit-content;max-width:min(86vw,360px);z-index:2;pointer-events:auto;cursor:pointer;
   font-family:var(--body);font-weight:800;font-size:14px;min-height:40px;padding:0 16px;border-radius:20px;border:2px solid var(--cheese);background:rgba(26,20,48,.82);color:var(--cheese)}
 #hangarTip:focus-visible{outline:3px solid var(--cheese);outline-offset:2px}
-.chips button{display:grid;justify-items:center;align-content:center;gap:4px;min-height:50px;padding:5px 3px;font-size:13px;line-height:1.1;white-space:nowrap}
-.chips small{font-size:11px;font-weight:800;line-height:1;padding:3px 7px 2px;border-radius:9px;color:#fff;background:#6b6259}
-.chips small.thrust{background:#7a3ea8}
-.chips small.speed{background:#2a6a9c}
-.chips small.battery{background:#2b7a4b}
-.chips small.tough{background:#5a4030}
-#planeNote{margin:8px 0 6px;font-size:14px;font-weight:700}
+.badge{font-size:11px;font-weight:800;line-height:1;padding:3px 7px 2px;border-radius:9px;color:#fff;background:#6b6259;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.badge.thrust{background:#7a3ea8}
+.badge.speed{background:#2a6a9c}
+.badge.battery{background:#2b7a4b}
+.badge.tough{background:#5a4030}
+#planeNote{margin:0;font-size:13px;font-weight:700;color:var(--soft)}
 #planeStats{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;align-items:center;font-size:12px;font-weight:700}
 #planeStats i{height:7px;border-radius:4px;background:rgba(255,255,255,.14);overflow:hidden}
 #planeStats b{display:block;height:100%;background:var(--cheese)}
 #planeStats em{font-style:normal}
-#levels{position:absolute;top:0;right:0;bottom:0;left:0;z-index:4;display:flex;flex-direction:column;background:radial-gradient(60% 40% at 12% 22%,rgba(255,112,84,.34),transparent 72%),radial-gradient(60% 46% at 92% 62%,rgba(84,170,255,.32),transparent 72%),radial-gradient(70% 40% at 28% 96%,rgba(255,196,90,.3),transparent 72%),linear-gradient(#241a4d,#3b2452 45%,#6e3358)}
+/* the u tick marks the aircraft being flown, so a picked one reads against it */
+#planeStats i{position:relative;overflow:visible}
+#planeStats b{border-radius:4px}
+#planeStats u{position:absolute;top:-2px;bottom:-2px;width:2px;margin-left:-1px;background:rgba(255,255,255,.85);border-radius:1px}
+#levels{position:absolute;top:0;right:0;bottom:0;left:0;z-index:4;display:flex;flex-direction:column;background:var(--pageBg)}
 #levelsBar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;padding:calc(8px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 8px max(16px,env(safe-area-inset-left,0px));background:var(--panel)}
 #levelsBar>b{font-family:var(--display);font-weight:400;font-size:24px;color:var(--cheese);line-height:1}
 #levelsMoney{font-family:var(--display);font-size:20px;color:var(--ink)}
 #openShop{margin-left:auto}
-#levelsGear,#giftBtn{background:transparent;border:1px solid rgba(255,243,223,.3);border-radius:10px}
+#giftBtn{background:transparent;border:1px solid rgba(255,243,223,.3);border-radius:10px}
 #levelsScroll{flex:1;min-height:0;overflow-y:auto;touch-action:pan-y;overscroll-behavior:contain}
 #levelsPath{position:relative;max-width:520px;margin-left:auto;margin-right:auto}
 #levelsPath>svg{position:absolute;top:0;right:0;bottom:0;left:0;width:100%;height:100%}
@@ -162,7 +157,7 @@ body:not(.dev) .devOnly{display:none!important}
 .sign svg{width:22px;height:22px;fill:currentColor}
 .sign+.sign{width:27px;height:27px}
 .sign+.sign svg{width:17px;height:17px}
-.node.locked .sign{opacity:.82}
+.node.locked .sign{opacity:.7}
 .sign.eagle{background:linear-gradient(#7a1f14,#2c0c08)}
 .sign.hawk{background:linear-gradient(#a8703a,#5e3a1c)}
 .sign.rival{background:linear-gradient(#e8492c,#a0241a)}
@@ -231,23 +226,14 @@ body:not(.dev) .devOnly{display:none!important}
 .barBtn{font-family:var(--body);font-weight:800;font-size:14px;min-height:40px;padding:0 12px;border-radius:20px;border:2px solid var(--cheese);background:transparent;color:var(--cheese);cursor:pointer}
 .barBtn:focus-visible{outline:3px solid var(--cheese);outline-offset:3px}
 @media (max-width:430px){#levelsBar>b{display:none}}
-#shop .card,#league .card{text-align:start}
-.shopHead{display:flex;justify-content:space-between;align-items:center;position:relative;z-index:1}
-.shopHead b{font-family:var(--display);font-weight:400;font-size:26px;color:var(--cheese)}
-#shop h3{font-size:13px;letter-spacing:.06em;text-transform:uppercase;margin:6px 0 0;position:relative;z-index:1;color:var(--soft)}
-#shopParts,#shopPlanes{display:grid;gap:6px;position:relative;z-index:1}
 .shopRow{display:flex;align-items:center;gap:10px;min-height:52px;padding:6px 8px 6px 12px;border-radius:18px;background:var(--well);box-shadow:inset 0 -1px 0 rgba(255,255,255,.08)}
 .shopRow p{flex:1;min-width:0;line-height:1.2}
 .shopRow p b{display:block;font-size:15px}
 .shopRow p small{font-size:12px;font-weight:700;color:var(--soft)}
 .shopRow span{font-size:13px;letter-spacing:1px;color:var(--cheese);white-space:nowrap}
-.shopRow canvas{width:72px;height:36px;flex:none;border-radius:12px;background:linear-gradient(#3b2452,#b4505a)}
 .shopRow em{font-style:normal;font-weight:800;font-size:14px;color:#7fe0a8;min-width:56px;text-align:center}
 .shopRow .go,.shopRow .ghost{font-family:var(--body);font-weight:800;font-size:15px;min-height:38px;min-width:68px;padding:0 10px;border-radius:19px}
 .shopRow .go:disabled{background:rgba(255,255,255,.14);color:var(--soft);box-shadow:none;cursor:default}
-.chips button.locked{opacity:.55;border-style:dashed}
-#league .fine{font-size:13px;font-weight:700;color:var(--soft)}
-#leagueRank{font-size:18px}
 #leagueRows{list-style:none;margin:4px 0;padding:8px;border-radius:20px;background:var(--well);display:grid;gap:1px}
 #leagueRows li{display:grid;grid-template-columns:30px 1fr auto;gap:8px;align-items:center;min-height:28px;padding:0 10px;border-radius:10px;font-size:15px}
 #leagueRows li b{font-weight:800;color:var(--soft)}
@@ -285,7 +271,7 @@ body:not(.dev) .devOnly{display:none!important}
 /* the ring around the button is the boost that is left */
 #boostFill{position:absolute;top:0;right:0;bottom:0;left:0;border-radius:50%;background:conic-gradient(#7ad0ff calc(var(--fuel,100)*1%),rgba(255,255,255,.16) 0);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 5px),#000 calc(100% - 4.5px));mask:radial-gradient(farthest-side,transparent calc(100% - 5px),#000 calc(100% - 4.5px));pointer-events:none}
 #boost .ico{position:relative;width:78%;height:60%}
-#boost.back .ico{transform:scaleX(-1)}
+#boost.flipped .ico{transform:scaleX(-1)}
 :root{--stick:1}
 .btn{width:calc(64px*var(--stick));height:calc(64px*var(--stick));font-size:22px}
 #boost{width:calc(58px*var(--stick));height:calc(58px*var(--stick));font-size:13px}
@@ -394,11 +380,11 @@ body:not(.dev) .devOnly{display:none!important}
 /* Pause: one way back into the game, and the rest as a row of tiles. */
 #pauseCard .card{gap:6px}
 #pauseBack{margin-top:10px}
-.tools{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px}
+.tools{display:grid;grid-template-columns:repeat(auto-fit,minmax(64px,1fr));gap:8px;margin-top:8px}
 .tool{display:grid;justify-items:center;gap:3px;min-height:64px;padding:8px 2px 6px;border-radius:20px;font-size:12px}
-.corner{position:absolute;top:14px;right:14px;width:38px;height:38px;min-height:0}
-.corner .ico{width:16px;height:16px}
-#levelCard h2{padding-left:40px;padding-right:40px}
+.corner{position:absolute;top:14px;left:14px;z-index:2}
+#levelCard h2{padding-left:48px;padding-right:48px}
+.card>.kicker,#chapterName,#gifts h2{padding-left:48px;padding-right:48px}
 .go:active,.ghost:active{transform:scale(.97)}
 @media (hover:hover){.go:hover:enabled,.ghost:hover{filter:brightness(1.08)}}
 @media (prefers-reduced-motion:reduce){.card,#resultCard *{animation:none!important}.card::after{display:none}}
@@ -488,7 +474,7 @@ button:focus:not(:focus-visible),[tabindex]:focus:not(:focus-visible){outline:no
 /* today's mission: a card in the map bar, inline beside the money, and on an upright phone a row of its own above the buttons */
 @media (max-width:959px){#levelsBar.withToday>b{display:none}}
 #today{flex:1 1 0;max-width:460px;min-width:0}
-@media (max-width:699px) and (min-height:481px){#today{order:-1;flex:1 0 100%;max-width:none}}
+@media (max-width:699px) and (min-height:481px){#today{order:-1;flex:1 1 0;max-width:none}#levelsBar.withToday #levelsBack{order:-2}}
 #todayCard{position:relative;width:100%;height:56px;box-sizing:border-box;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:0 10px;padding:0 12px 0 8px;border-radius:18px;border:2px solid rgba(255,243,223,.3);background:rgba(255,255,255,.07);color:var(--ink);font-family:var(--body);text-align:start;cursor:pointer}
 #todayCard:focus-visible,#giftBtn:focus-visible{outline:3px solid var(--cheese);outline-offset:3px}
 #todayCard.ready{border-color:var(--cheese);animation:nudgeGlow 2.4s ease-in-out infinite}
@@ -512,7 +498,7 @@ button:focus:not(:focus-visible),[tabindex]:focus:not(:focus-visible){outline:no
 #giftBtn.ready{border:2px solid var(--cheese);animation:nudgeGlow 2.4s ease-in-out infinite}
 #levelsMoney.bump{display:inline-block;animation:comboBumpA .42s ease-out}
 .kicker{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--cheese)}
-#levelKicker{margin-bottom:-4px;padding:0 40px}
+#levelKicker{margin-bottom:-4px;padding:0 48px}
 #gifts .fine{font-size:13px;font-weight:700;color:var(--soft);text-wrap:balance}
 #giftDays{list-style:none;margin:4px 0 6px;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
 #giftDays li{position:relative;display:grid;justify-items:center;align-content:center;gap:3px;min-height:84px;border-radius:18px;background:var(--well);box-shadow:inset 0 1px 2px rgba(6,5,26,.22),inset 0 -1px 0 rgba(255,255,255,.1)}
@@ -539,3 +525,140 @@ button:focus:not(:focus-visible),[tabindex]:focus:not(:focus-visible){outline:no
 @keyframes paper{60%{opacity:1}to{transform:translate(var(--dx),var(--dy)) rotate(var(--r));opacity:0}}
 #resultTip.note{color:#fff;background:rgba(255,255,255,.12)}
 @media (prefers-reduced-motion:reduce){#todayCard.ready,#giftBtn.ready,.dotNew,#giftDays li.now,#giftDays li.got,#levelsMoney.bump{animation:none}.paper{display:none}}
+/* Pages: Settings, the Shop and High Score fill the screen over the map's colours, with a bar on top and a back arrow at its
+   left. They sit above the cards, so one opened from the pause card covers it. */
+.page{position:absolute;top:0;right:0;bottom:0;left:0;z-index:6;display:flex;flex-direction:column;background:var(--pageBg)}
+.pageBar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;padding:calc(8px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 8px max(16px,env(safe-area-inset-left,0px));background:var(--panel)}
+.pageBar{min-height:44px}
+.pageBar h2{font-family:var(--display);font-weight:400;font-size:28px;line-height:1;margin:0;color:#fff}
+.pageBody{flex:1;min-height:0;overflow-y:auto;touch-action:pan-y;overscroll-behavior:contain;padding:12px max(16px,env(safe-area-inset-right,0px)) calc(24px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.page p{margin:0}
+.column{max-width:560px;margin:0 auto;display:grid;gap:12px}
+.wallet{margin-left:auto;font-family:var(--display);font-weight:400;font-size:22px;color:var(--cheese)}
+.settings{display:block;max-width:760px;columns:2 320px;column-gap:12px}
+.panel{break-inside:avoid;margin:0 0 12px;padding:14px 16px;border-radius:20px;background:rgba(10,8,44,.32);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+.panel h3{font-size:13px;letter-spacing:.06em;text-transform:uppercase;margin:0 0 6px;color:var(--soft)}
+.page .go:disabled{background:rgba(255,255,255,.14);color:var(--soft);box-shadow:none;font-size:17px;cursor:default}
+.page .fine{font-size:13px;font-weight:700;color:var(--soft);text-align:center}
+/* the back arrow, the same on every screen that is not the flight */
+.back{flex:none;width:44px;height:44px;padding:0;border-radius:50%;display:grid;place-items:center;border:1.5px solid rgba(255,243,223,.35);background:rgba(255,255,255,.1);color:#fff;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.3)}
+.back .ico{width:22px;height:22px;stroke-width:2.6}
+.back:focus-visible{outline:3px solid var(--cheese);outline-offset:3px}
+.back:active{transform:scale(.94)}
+@media (max-height:480px){.back{width:40px;height:40px}.pageBar{padding-top:calc(6px + env(safe-area-inset-top,0px));padding-bottom:6px}.pageBar h2{font-size:24px}}
+/* the Shop's two tabs: a row of their own under the title on an upright phone, beside it elsewhere */
+.tabs{display:flex;gap:6px;padding:4px;border-radius:16px;background:rgba(255,255,255,.08)}
+.tabs button{font:800 14px var(--body);min-height:36px;padding:0 14px;border-radius:12px;border:0;background:transparent;color:#fff;cursor:pointer}
+.tabs button[aria-selected=true]{background:rgba(255,255,255,.92);color:#1c1840}
+.tabs button:focus-visible{outline:3px solid var(--cheese);outline-offset:2px}
+@media (max-width:699px) and (min-height:481px){.tabs{order:3;flex:1 0 100%}.tabs button{flex:1}}
+@media (min-width:700px),(max-height:480px){.tabs{margin-left:auto}.pageBar .wallet{margin-left:4px}}
+/* The hangar: the picked aircraft large over its stats and its one action, kept in view while the tiles scroll under it;
+   beside the tiles on a wide or turned screen. */
+#hangar{display:grid;gap:14px;max-width:560px;margin:0 auto}
+#hangarDetail{position:sticky;top:-12px;z-index:1;display:grid;gap:8px;padding:10px;border-radius:24px;background:#2c2358;box-shadow:0 10px 24px -10px rgba(4,3,24,.8),inset 0 0 0 1.4px rgba(255,255,255,.16)}
+#stage{position:relative;border-radius:18px;overflow:hidden;background:radial-gradient(60% 50% at 50% 80%,rgba(255,200,140,.35),transparent 70%),linear-gradient(#3b2452,#b4505a)}
+#preview{display:block;width:100%;height:auto;aspect-ratio:5/2;background:none;border-radius:0}
+.stageName{position:absolute;left:12px;top:8px;margin:0;display:grid;justify-items:start;gap:3px;pointer-events:none}
+.stageName b{font-family:var(--display);font-weight:400;font-size:24px;line-height:1;color:#fff}
+.tag{position:absolute;top:6px;right:6px;font:800 13px/1 var(--body);padding:4px 8px 3px;border-radius:10px;background:var(--gold);color:#3a2200;pointer-events:none}
+.tag.short{background:rgba(10,8,30,.8);color:var(--cheese);box-shadow:inset 0 0 0 1.5px rgba(255,194,61,.6)}
+.tag.owned{background:rgba(20,15,40,.8);color:#7fe0a8}
+.tag.flying{background:#7fe0a8;color:#123a24}
+#stage .tag{top:10px;right:10px;font-size:16px;padding:5px 10px 4px}
+.tag.bump{animation:comboBumpA .42s ease-out}
+/* a tile's price or state sits on its top edge like a sticker, off the picture */
+.tile .tag{top:-9px;right:-4px;font-size:12px;padding:3px 7px 2px;box-shadow:0 3px 8px -2px rgba(6,5,26,.6)}
+#hangarAct{min-height:48px}
+#hangarAct.flying:disabled{background:rgba(127,224,168,.18);color:#7fe0a8;font-size:18px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px}
+.tile{position:relative;min-width:0;display:grid;gap:3px;justify-items:center;align-content:start;padding:6px 6px 9px;border-radius:18px;border:2px solid transparent;background:rgba(10,8,44,.32);color:#fff;font-family:var(--body);cursor:pointer}
+.tile canvas{width:100%;height:auto;aspect-ratio:2/1;border-radius:12px;background:linear-gradient(#3b2452,#b4505a)}
+/* a long name on a narrow tile takes a second line rather than losing its end */
+.tile b{font-size:14px;font-weight:800;line-height:1.15;max-width:100%;text-align:center;text-wrap:balance;overflow-wrap:anywhere}
+.tile .badge{font-size:10px}
+.tile[aria-pressed=true]{border-color:var(--cheese);box-shadow:0 0 0 3px rgba(255,194,61,.22)}
+.tile:focus-visible{outline:3px solid var(--cheese);outline-offset:2px}
+.tile:active{transform:scale(.97)}
+@media (min-width:700px),(max-height:480px){#hangar{grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);max-width:980px;align-items:start}#hangarDetail{top:0}}
+@media (max-height:480px){#preview{aspect-ratio:3/1}#planeStats{grid-template-columns:auto 1fr auto 1fr}.stageName b{font-size:20px}}
+@media (min-width:700px) and (min-height:481px){#preview{aspect-ratio:2/1}}
+#partsPanel{max-width:560px;margin:0 auto;display:grid;gap:8px}
+#shopParts{display:grid;gap:8px}
+/* High Score: the player's place large, then the ladder with medals on the first three */
+#leagueHero{display:grid;justify-items:center;gap:2px;padding:14px;border-radius:22px;background:rgba(10,8,44,.32)}
+#leagueRank{font-family:var(--display);font-weight:400;font-size:56px;line-height:1;color:var(--cheese)}
+#leagueOf{font-size:15px;font-weight:800;color:var(--soft)}
+#leagueRows li:nth-child(-n+3) b{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;color:#3a2200}
+#leagueRows li:nth-child(1) b{background:var(--gold)}
+#leagueRows li:nth-child(2) b{background:linear-gradient(#f2f4f8,#aeb6c2)}
+#leagueRows li:nth-child(3) b{background:linear-gradient(#f0b27a,#a8642c)}
+@media (max-height:480px){#leagueRank{font-size:40px}}
+/* The front screen: the title over the drifting city, the room where the aircraft hovers, and the choices under it; on a
+   turned screen the choices stand in a column beside the title and the aircraft. */
+#overlay{position:absolute;top:0;right:0;bottom:0;left:0;z-index:4;padding:0;background:linear-gradient(rgba(14,10,40,.6),rgba(14,10,40,.05) 34%,rgba(14,10,40,0) 50%,rgba(8,6,28,.74))}
+#menu{box-sizing:border-box;height:100%;max-width:560px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto minmax(96px,1fr) auto;grid-template-areas:"money" "title" "stage" "nav";padding:calc(10px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(20px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+#menuMoney{grid-area:money;justify-self:end;font-family:var(--display);font-weight:400;font-size:22px;line-height:1.2;color:var(--cheese);background:rgba(26,20,48,.6);border-radius:14px;padding:4px 12px}
+#menuTitle{grid-area:title;margin:clamp(4px,3vh,32px) 0 0;font-family:var(--display);font-weight:400;font-size:clamp(56px,17vw,100px);line-height:.9;text-align:center;color:#fff;text-shadow:0 5px 0 #8a2a14,0 12px 30px rgba(6,5,26,.6);animation:glassIn .6s cubic-bezier(.2,1.1,.3,1) both}
+#menuTitle span,#menuTitle em{display:block;font-style:normal}
+#menuTitle em{color:var(--cheese)}
+#menuTitle small{display:block;margin-top:8px;font:800 13px var(--body);letter-spacing:.3em;text-transform:uppercase;color:#ffe9b8;text-shadow:0 1px 3px rgba(20,15,40,.8)}
+#menuStage{grid-area:stage;min-height:0}
+#menuNav{grid-area:nav;justify-self:center;width:min(360px,100%);display:grid;grid-template-columns:1fr 1fr;gap:12px}
+#menuNav>*{animation:rowIn .4s ease-out backwards}
+#menuNav>:nth-child(2){animation-delay:.08s}
+#menuNav>:nth-child(3){animation-delay:.12s}
+#menuNav>:nth-child(4){animation-delay:.16s}
+#start{grid-column:1/-1;display:grid;justify-items:center;gap:2px;min-height:66px;font-size:30px;line-height:1;padding:8px 20px}
+#start .playLine{display:flex;align-items:center;gap:8px}
+#start .ico{width:22px;height:22px}
+#start small{font:800 13px var(--body);opacity:.75}
+#start small:empty{display:none}
+.menuBtn{position:relative;display:flex;align-items:center;justify-content:center;gap:8px;min-height:56px;padding:0 12px;border:0;border-radius:28px;background:rgba(26,20,48,.97);color:#fff;font:800 17px var(--body);cursor:pointer;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.3),inset 0 1px 0 rgba(255,255,255,.4),0 12px 24px -14px rgba(4,3,24,.9)}
+.menuBtn .ico{color:var(--cheese)}
+.menuBtn.quiet{grid-column:1/-1;min-height:44px;font-size:15px;background:rgba(26,20,48,.92)}
+.menuBtn.nudge{animation:nudgeGlow 2.4s ease-in-out infinite}
+.menuBtn:focus-visible{outline:3px solid var(--cheese);outline-offset:3px}
+.menuBtn:active,#start:active{transform:scale(.97)}
+@media (orientation:landscape){#menu{max-width:1100px;grid-template-columns:minmax(0,1fr) minmax(260px,340px);grid-template-rows:auto auto minmax(0,1fr);grid-template-areas:"money money" "title nav" "stage nav";column-gap:clamp(16px,5vw,64px)}#menuTitle{margin:0;font-size:clamp(44px,calc(8vh + 3vw),96px)}#menuTitle span,#menuTitle em{display:inline}#menuNav{align-self:center}}
+@media (orientation:landscape) and (max-height:480px){#menu{grid-template-rows:0 auto minmax(0,1fr)}#menuMoney{position:absolute;top:calc(10px + env(safe-area-inset-top,0px));right:max(16px,env(safe-area-inset-right,0px))}#start{min-height:56px;font-size:26px}.menuBtn{min-height:48px}#menuTitle small{margin-top:4px}}
+@media (prefers-reduced-motion:reduce){#menuTitle,#menuNav>*{animation:none}}
+/* the menu hides the flight's controls; visibility keeps the HUD's layout, which measureHud reads */
+#wrap.home #hud,#wrap.home #controls,#wrap.home #actions,#wrap.home #dev,#wrap.home #keys,#wrap.home #shiftHint,#wrap.home #lesson,#wrap.home #toast,#wrap.home #hangarTip{visibility:hidden}
+/* the map bar's High Score button drops its word when it would wrap off the Shop's row */
+#openLeague{display:inline-flex;align-items:center;gap:6px}
+#openLeague .ico{width:18px;height:18px}
+#levelsBar.tight #openLeague span{display:none}
+#levelsBar.tight #openLeague{padding:0 9px}
+/* A mission not open yet: a small padlock in place of its stars, dimmed a little; a tap shakes it and names the one to pass. */
+.node.locked b{opacity:.8}
+.node .lockMark svg{width:15px;height:15px;color:#e6dcf2;margin-top:2px}
+.node.shake{animation:lockShake var(--shake,.42s) ease-in-out}
+@keyframes lockShake{20%{transform:translateX(-5px)}40%{transform:translateX(5px)}60%{transform:translateX(-3px)}80%{transform:translateX(2px)}}
+.node.hinting{z-index:3}
+/* the hint stands beside the node, toward the middle of the map, so it never covers the next mission on the path */
+.node .tip{position:absolute;z-index:3;top:50%;left:calc(100% + 8px);transform:translateY(-50%);padding:6px 10px;border-radius:10px;background:#1a1430;border:1px solid rgba(255,194,61,.55);color:var(--ink);font:700 13px/1.2 var(--body);letter-spacing:0;white-space:nowrap;pointer-events:none;animation:tipIn .25s ease both;box-shadow:0 6px 18px rgba(0,0,0,.3)}
+.node.west .tip{left:auto;right:calc(100% + 8px)}
+@keyframes tipIn{from{opacity:0}}
+.chapter .lockIco{width:12px;height:12px;vertical-align:-1px;margin-right:4px;color:var(--soft)}
+@media (prefers-reduced-motion:reduce){.node.shake{animation:none}}
+/* on a 360 px phone the five camera chips share their row */
+#camModes button{flex:1 1 auto;padding:0 8px}
+/* an upright phone's hangar sets its stats in two pairs a row, so more tiles show under the picked aircraft */
+@media (max-width:699px) and (min-height:481px){#planeStats{grid-template-columns:auto 1fr auto 1fr}}
+/* a card taller than a turned phone scrolls, and its back arrow stays in view at the top while it does */
+@media (max-height:480px){
+  .modal .card>.corner{position:sticky;top:4px;justify-self:start;margin:-4px 0 -40px -8px;background:#50498d}
+  .modal .card>:is(.corner+:not([hidden]),.corner+[hidden]+*){margin-top:-8px}
+  /* a mission, Today or Rush card on a turned phone: the name, stars and Start on the left, the facts beside them, so
+     the whole card and its Start fit the short screen */
+  #levelCard .card{max-width:760px;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);grid-template-rows:1fr repeat(5,auto) 1fr;column-gap:16px;padding:14px 18px}
+  #levelCard .card>*{grid-column:1}
+  #levelCard .corner{grid-row:1;align-self:start}
+  #levelKicker{grid-row:2}
+  #levelTitle{grid-row:3}
+  #levelBest{grid-row:4}
+  #levelPlay{grid-row:5;margin-top:6px}
+  #levelSideways{grid-row:6;margin-top:0}
+  #levelCard #levelRows{grid-column:2;grid-row:1/-1;align-self:center;margin:0;gap:3px 10px;padding:10px 14px;font-size:13px;line-height:1.25}
+}

@@ -92,7 +92,7 @@ function tick() {
   if ($('levels').hidden) { clearInterval(timer); timer = 0; return; }
   if (dayNumber() !== shownDay) {
     // a new date while the map is up (a phone left on it overnight) is a first visit too, unless a card is open over it
-    showToday(!document.querySelector('.modal:not([hidden])') && $('sheet').hidden);
+    showToday(!document.querySelector('.modal:not([hidden]),.page:not([hidden])'));
     if (!$('gifts').hidden) renderGifts();
     return;
   }

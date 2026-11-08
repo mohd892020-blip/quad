@@ -309,6 +309,9 @@ function paintOrder(key, size, dmg) {
   ctx.restore();
 }
 
+// An order drawn on its own at scale k around (0,0), for the front screen.
+export function drawCargoAt(key, k) { ctx.save(); ctx.scale(k, k); DRAW[key](hex => hex); ctx.restore(); }
+
 export function drawRope(st) {
   if (!st.has) return;
   const d = st.d, bx = st.box, S = view.S, item = st.item;

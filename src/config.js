@@ -459,22 +459,45 @@ export const SHOP = {
   ],
 };
 
-// The player's score against computer pilots. The ladder was set so a full 120 stars plus steady replays reach the top;
-// missions 51-55 make 165 stars possible, and Chapter 2 makes 240, so its three pilots stand above the old top.
+// The player's score against a fixed ladder of pilots kept on this device. The ladder was set so a full 120 stars plus
+// steady replays reach the top; missions 51-55 make 165 stars possible, and Chapter 2 makes 240, so its three pilots stand
+// above the old top.
 export const LEAGUE = {
   perStar: 100,
   perDelivery: 5,
   pilots: [
-    ['Ace Falcon', 24500], ['Storm Rider', 20000], ['Polar Kite', 16000], ['Sky Fox', 12600], ['Rotor Rex', 11200], ['Night Owl', 9800], ['Blue Kite', 8400], ['Iron Wing', 7000], ['Copper Hawk', 5800],
-    ['Dust Devil', 4600], ['Zero Wind', 3500], ['Captain Prop', 2500], ['Mint Comet', 1600], ['Low Battery', 800], ['Rookie Rotor', 300],
+    ['Lina Haddad', 24500], ['Mateo Ruiz', 20000], ['Aiko T.', 16000], ['Jonas Becker', 12600], ['Priya N.', 11200], ['Omar Saleh', 9800], ['Sofia Marino', 8400], ['Daniel K.', 7000],
+    ['Amara Okafor', 5800], ['Lucas Moreau', 4600], ['Yara M.', 3500], ['Ethan Brooks', 2500], ['Mei Chen', 1600], ['Noor R.', 800], ['Erik Lindqvist', 300],
   ],
 };
 
 // When a shop suggests another aircraft while it makes the order. An aircraft slower than chaseSpeed hears, on an
 // avalanche stop and on the card of a mission with one, that Boost or a faster aircraft helps; one slower than boostFloor
 // is caught even with Boost (or flattens its battery boosting), so it hears only to take a faster aircraft.
-// previewEvery: seconds between pictures of the spinning aircraft in settings, which need not keep up with the screen.
-export const HANGAR = { heavyFrom: 1.8, fragileFrom: 1.6, windyFrom: 1.6, rotate: 3, chaseSpeed: 1, boostFloor: .65, tipGap: 10, previewHeight: 68, previewEvery: .05 };
+// previewEvery: seconds between pictures of the aircraft in the Shop's hangar, which need not keep up with the screen.
+// tile: the canvas pixels of a hangar tile's picture; stageDpr caps the big preview's pixel ratio. The preview hovers bob
+// body units every bobSecs seconds over a soft shadow floor body units below it, shadowW wide and shadowH tall. pitch: the
+// sound label is the first entry whose limit is above the aircraft's idle hz (m.hz[0]). shadow is the floor shadow's
+// colour. The big preview also fits stageFill of its width across the aircraft's span, so a wide one clears the name in
+// its corner; a tile draws its aircraft at tileFill of the tile's height scale, tileDrop body units low, under the price
+// that sits on the tile's top edge.
+export const HANGAR = {
+  heavyFrom: 1.8, fragileFrom: 1.6, windyFrom: 1.6, rotate: 3, chaseSpeed: 1, boostFloor: .65, tipGap: 10, previewHeight: 68, previewEvery: .05,
+  tile: [240, 120], stageDpr: 2, bob: 3, bobSecs: 2.4, floor: 24, shadowW: 30, shadowH: 3.5, shadow: 'rgba(10,6,30,.28)', stageFill: .7, tileFill: .9, tileDrop: 4,
+  pitch: [[90, 'Deep rumble'], [160, 'Steady hum'], [250, 'Light buzz'], [Infinity, 'High whine']],
+};
+
+// The front screen. The aircraft the player flies hovers in the room the menu leaves it (#menuStage), with a pizza
+// swinging under it on a short rope: scaled to fill of that room across twice its span and down tall body units (the
+// aircraft, rope and order together), never above maxScale; raise lifts it so the order hangs in the middle. It bobs bob
+// body units every bobSecs, tilts tilt radians every tiltSecs, and the order swings swing radians every swingSecs on a
+// rope of rope units, hanging hang units below it at cargo times its drawn size. A screen that asks for less motion gets
+// it still. On an upright screen the street runs groundAt of the way down the choices, so the rooftops stand between the
+// aircraft and the buttons rather than all behind them.
+export const MENU = { fill: .62, maxScale: 4, tall: 80, raise: 19, bob: 3, bobSecs: 2.6, tilt: .05, tiltSecs: 3.4, swing: .14, swingSecs: 2.1, rope: 30, hang: 8, cargo: 1.1, order: 'pizza', ropeColor: '#1d1420', ropeWidth: 1.4, glow: 'rgba(255,194,61,.22)', glowSize: 1.6, groundAt: .45 };
+// A locked mission on the map shakes for shake seconds when tapped and names the mission to pass for hint seconds;
+// buzz is the tap's buzz in ms.
+export const LOCKS = { shake: .42, hint: 1.8, buzz: 12 };
 
 // A Double Run is one long trip with two orders tied together on the rope. The lower one comes off at the
 // nearer customer and the aircraft jumps, suddenly lighter. near and gap are how far out each customer is.
@@ -488,10 +511,11 @@ export const DOUBLE = {
 export const STOPS = { twoFrom: 6, threeFrom: 21 };
 
 // resultDelay stays under HEALTH.respawnDelay, so a wreck is still on screen when the card opens.
-// signs is how many marks stand beside a mission on the map.
+// signs is how many marks stand beside a mission on the map. wrapSlack: pixels the map bar's last button may sit below
+// the Shop button before it counts as wrapped to a new row.
 // regions names where each generated mission flies, one letter a mission: C city, B beach, D desert, F forest,
 // M mountains, S snowfield. The first ten visit every one; the Double Runs (12, 17, 22, 27, 32, 37) stay in the city.
-export const LEVELS = { regions: 'CBCFDCBMCSFCDCBMCSCFDCBMSCCFDBCCMSBFCDCB', count: 40, seed: 2026, maxDist: 6500, resultDelay: 2, passDelay: 2.2, rowGap: 92, pathWave: .85, pathWidth: 30, balconyMaxSize: 1.3, wayMargin: 24, signs: 2 };
+export const LEVELS = { regions: 'CBCFDCBMCSFCDCBMCSCFDCBMSCCFDBCCMSBFCDCB', count: 40, seed: 2026, maxDist: 6500, resultDelay: 2, passDelay: 2.2, rowGap: 92, pathWave: .85, pathWidth: 30, balconyMaxSize: 1.3, wayMargin: 24, signs: 2, wrapSlack: 4 };
 
 // The map's chapters after the first. Chapter n opens at mission from, its banner standing in gap extra pixels between
 // that mission and the one before. Its card shows by itself once, the first time the chapter is open on the map (or

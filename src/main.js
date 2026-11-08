@@ -4,9 +4,10 @@ import { beginChallenge, drawChallenge, drawWeather, stepChallenge } from './cha
 import { stepContrast } from './contrast.js';
 import { drawCloudsBack, drawCloudsFront, drawFallBehind, drawFallFront, drawFog, drawHighClouds, drawOvercast, stepClouds } from './weather.js';
 import { updateMusic } from './music.js';
-import { BEACH, CAMERA, CITY_SEED, CLOCK, DRONE, DUST, FIXED_DT, GROUND, HANGAR, HUD_INTERVAL, MAX_FRAME_DT, MUSIC, PERFECT, QUALITY, RUSH } from './config.js';
+import { BEACH, CAMERA, CITY_SEED, CLOCK, DRONE, DUST, FIXED_DT, GROUND, HUD_INTERVAL, MAX_FRAME_DT, MUSIC, PERFECT, QUALITY, RUSH } from './config.js';
 import { saveSettings, settings as picked } from './storage.js';
 import { initLeague } from './league.js';
+import { drawHover, initMenu, menuFloor, menuOpen, showMenu } from './menu.js';
 import { initDaily } from './daily.js';
 import { beginRush, initRush, rushLevel, stepRush } from './rush.js';
 import { buildLevels, surprisesFor } from './levels.js';
@@ -14,11 +15,11 @@ import {
   autoDeliver, breakStreak, chargeDrone, drawBatteryCue, goal, drawHalos, drawOrderTime, drawPointer, drawPrep, drawTarget, explode, failMission, hangarHint, newGame, prepareFirstOrder, restrain, stepHealth, stepCargo,
   stepMission, stepShop, streak, strikeDown, zones,
 } from './delivery.js';
-import { currentModel, drawAirframe, drawDrone, drawShadow, rotorLoad, stepBoost, stepDrone, stepHold, stepLand } from './drone.js';
+import { currentModel, drawDrone, drawShadow, rotorLoad, stepBoost, stepDrone, stepHold, stepLand } from './drone.js';
 import { beginTraining, drawLesson, stepTraining, trainingLevel } from './training.js';
 import { initInput, keys, PARKED } from './input.js';
 import { drawRope, stepRope, stepRopeLength } from './rope.js';
-import { initShop } from './shop.js';
+import { drawHangar, initShop, shopOpen } from './shop.js';
 import { drawSandstorm, touchesSink } from './desert.js';
 import { touchesRiver } from './forest.js';
 import { stepDraft, touchesIce } from './alpine.js';
@@ -28,7 +29,7 @@ import { touchesSea } from './seaside.js';
 import { loadProgress, settings } from './storage.js';
 import {
   ctx, drawAltimeter, drawFx, drawMarks, frost, hideModals, hideOverlay, hud, initLevels, initSheet, kickDust, levelsOpen, lowerQuality, measureHud, resize, modalOpen, onDevActions, onStart,
-  previewCanvas, raiseQuality, resetWeatherNote, setZoom, shakeOffset, sheetOpen, showActions, showHangarTip, showKeyHints, showLesson, showLevels, showResult, stepFx, view,
+  pagesOpen, raiseQuality, resetWeatherNote, setZoom, shakeOffset, showActions, showHangarTip, showKeyHints, showLesson, showLevels, showResult, stepFx, view,
 } from './ui.js';
 import { world, drawCity, drawMap, drawSky, dropSprites, genWorld, setClock, stepClock, stepWind } from './world.js';
 
@@ -157,16 +158,6 @@ function render() {
   drawOrderTime(s);
 }
 
-let previewAt = 0;
-function drawPreview(time) {
-  if (time - previewAt < HANGAR.previewEvery) return;
-  previewAt = time;
-  const c = previewCanvas(), g = c.getContext('2d'), k = c.height / HANGAR.previewHeight;
-  g.setTransform(k, 0, 0, k, c.width / 2, c.height / 2);
-  g.clearRect(-c.width, -c.height, c.width * 2, c.height * 2);
-  drawAirframe(g, settings.plane, time);
-}
-
 // Finds the sharpest picture the device keeps up with, and moves further the further off it is.
 function watchPace(frame) {
   const c = QUALITY;
@@ -219,7 +210,7 @@ function loop(now) {
   const paused = modalOpen();
   frost(paused && !levelsOpen());
   if (!paused) watchPace(frame);
-  if (sheetOpen()) drawPreview(now / 1000);
+  if (shopOpen()) drawHangar(now / 1000);
   if (!paused) {
     st.acc += dt * timeRate(dt);
     while (st.acc >= FIXED_DT) {
@@ -245,7 +236,6 @@ function loop(now) {
   showHangarTip(paused ? null : hangarHint(st));
   updateRotor(!paused && !st.wreck && !st.falling && st.d.bat > 0, rotorLoad(st, controls()), currentModel());
   updateMusic(musicState(paused));
-  requestAnimationFrame(loop);
 }
 
 function start(level) {
@@ -291,8 +281,11 @@ function leave() {
   }
 }
 
-// Idle demo city behind the start card, until play begins.
+// The demo city drifting behind the front screens.
 const demo = { x: 0, at: performance.now() };
+// the front screens' music: quiet, in the city, at the hour the scene shows
+const QUIET = { active: false, paused: false, place: 'city', time: 0, alt: .3, speed: 0, wind: 0, danger: 0 };
+const quiet = () => ({ ...QUIET, time: Math.floor(world.palKey) % 3 });
 // What the music follows: where the mission is, the time of day, and how the flight is going.
 function musicState(paused) {
   const l = st.level, d = st.d, o = st.has ? st.order : null, r = st.rush, left = r?.end != null ? r.end - st.t : o ? o.deadline - st.t : Infinity;
@@ -305,32 +298,48 @@ function musicState(paused) {
   };
 }
 
-function idle(now = demo.at) {
-  if (st) { requestAnimationFrame(loop); return; }
-  updateMusic({ active: false, paused: false, place: 'city', time: Math.floor(world.palKey) % 3, alt: .3, speed: 0, wind: 0, danger: 0 });
+// The front screens' scene: the demo city drifting by and, on the menu, the aircraft hovering; a mission left behind
+// the menu neither steps nor draws, and its rotor goes quiet.
+function demoFrame(now) {
   const frame = (now - demo.at) / 1000, dt = Math.min(MAX_FRAME_DT, frame);
-  demo.at = now;
-  if (!levelsOpen()) {
+  demo.at = last = now;
+  updateMusic(quiet());
+  if (st) updateRotor(false, 0, currentModel());
+  frost(false);
+  if (!levelsOpen() && !pagesOpen()) {
     watchPace(frame);
     ctx.setTransform(view.DPR, 0, 0, view.DPR, 0, 0);
     setZoom(1);
     demo.x += CAMERA.idleSpeed * dt;
     const fake = {
-      cam: { x: demo.x - CAMERA.idleLead, y: GROUND + CAMERA.floorBelow - view.viewH },
+      cam: { x: demo.x - CAMERA.idleLead, y: GROUND + Math.max(CAMERA.floorBelow, menuOpen() ? menuFloor() : 0) - view.viewH },
       t: demo.x / CAMERA.idleTimeDiv, wind: 0,
     };
     view.cam = fake.cam;
     drawSky(fake);
     drawCity(fake);
+    if (menuOpen()) drawHover(now / 1000);
   }
-  if (sheetOpen()) drawPreview(performance.now() / 1000);
-  requestAnimationFrame(idle);
+  if (shopOpen()) drawHangar(now / 1000);
+}
+
+// One driver for every frame: the front screens' scene until a mission is in play, then the mission.
+function frame(now) {
+  if (!st || menuOpen()) demoFrame(now);
+  else {
+    demo.at = now;
+    loop(now);
+  }
+  requestAnimationFrame(frame);
 }
 
 initInput();
 initAudio();
 initSheet();
-initShop();
+// a purchase mid-mission comes off the mission's own copy of the money too, or its next save would hand it back; an order
+// aboard holds back what ruining it costs (as failMission charges it), so the Shop cannot spend that charge away
+initShop(price => { if (st) st.money = Math.max(0, st.money - price); },
+  () => (st?.has && !st.outcome && !st.level.training && !st.level.daily && !st.rush ? Math.min(st.money, st.item.price) : 0));
 initLeague();
 initDaily();
 initRush();
@@ -362,6 +371,9 @@ initLevels(levels, {
   level: () => st.level,
   rush: () => st.rush,
 });
+// Back waits while a finished mission's result card is on its way
+initMenu(levels, { busy: () => !!st?.outcome });
+showMenu();
 // building sprites hold shop signs, so repaint them once the web fonts arrive
 document.fonts?.ready.then(dropSprites);
-idle();
+requestAnimationFrame(frame);

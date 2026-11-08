@@ -11,6 +11,7 @@ import android.os.Vibrator;
 import android.view.View;
 import android.view.WindowManager;
 import android.webkit.JavascriptInterface;
+import android.webkit.ValueCallback;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.widget.Toast;
@@ -22,8 +23,8 @@ public class MainActivity extends Activity {
   private static final long EXIT_WINDOW_MS = 2000;
   private static final int FULL_SCREEN = View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY | View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
     | View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION;
-  // pauses a mission in flight, and leaves every other screen alone
-  private static final String PAUSE = "if(!document.querySelector('#levels:not([hidden]),#overlay:not([hidden]),.modal:not([hidden]),#sheet:not([hidden])'))document.getElementById('toMap').click()";
+  // asks the page's own Back; an old or unloaded page answers nothing and counts as having nowhere to go
+  private static final String BACK = "window.pizzaBack?pizzaBack():'exit'";
 
   private WebView web;
   private long backAt;
@@ -94,16 +95,22 @@ public class MainActivity extends Activity {
     super.onDestroy();
   }
 
-  // A stray thumb on Back should not lose a mission: the first press pauses, a second one soon after leaves.
+  // Back walks back through the screens like the arrow on each, and pauses a flight; only with nowhere back to go does a
+  // second press soon after leave.
   @Override
   public void onBackPressed() {
-    long now = SystemClock.uptimeMillis();
-    if (now - backAt < EXIT_WINDOW_MS) {
-      super.onBackPressed();
-      return;
-    }
-    backAt = now;
-    web.evaluateJavascript(PAUSE, null);
-    Toast.makeText(this, "Press back again to exit", Toast.LENGTH_SHORT).show();
+    web.evaluateJavascript(BACK, new ValueCallback<String>() {
+      @Override
+      public void onReceiveValue(String value) {
+        if ("\"back\"".equals(value) || "\"pause\"".equals(value)) return;
+        long now = SystemClock.uptimeMillis();
+        if (now - backAt < EXIT_WINDOW_MS) {
+          finish();
+          return;
+        }
+        backAt = now;
+        Toast.makeText(MainActivity.this, "Press back again to exit", Toast.LENGTH_SHORT).show();
+      }
+    });
   }
 }

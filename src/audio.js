@@ -194,6 +194,10 @@ const SOUNDS = {
   // Rush Hour: a tick for each of the clock's last seconds, and three notes climbing for a new rush level
   tick: t => tone(1568, 1568, t, .05, .25),
   rush: t => { tone(784, 784, t, .09, .35); tone(1175, 1175, t + .08, .09, .35); tone(1568, 2093, t + .16, .28, .4); },
+  // a purchase: a bright two-note ring
+  buy: t => { tone(988, 988, t, .07, .35); tone(1319, 1976, t + .07, .22, .4); },
+  // a shut mission: two soft low taps
+  locked: t => { tone(330, 300, t, .06, .22, 'sine'); tone(262, 247, t + .07, .08, .2, 'sine'); },
 };
 
 // A short buzz where the phone has one and the player wants it; the app hands it to Android itself.

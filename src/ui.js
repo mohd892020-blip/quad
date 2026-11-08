@@ -3,9 +3,9 @@ import { musicCue } from './music.js';
 import { nudgeShop } from './shop.js';
 import { paper, showToday } from './daily.js';
 import { showRushCard } from './rush.js';
-import { AIRCRAFT, ALTIMETER, BADGE, BOOST, CHAPTERS, COMBO, DAILY, DEV, DUST, FROST, FX, G, GATES, GIFTS, GROUND as G_LINE, HANGAR, HEALTH, JOY, KEY_HINT, LEVELS, MISSION, PERFECT, PICTURE, POINTER, QUALITY, RESCUE, RESULT, RUSH, SHAKE, SHOP, SHOTS, SKIP, VIEW, WEATHER, WEATHER_HINT, WIND } from './config.js';
+import { AIRCRAFT, ALTIMETER, BADGE, BOOST, CHAPTERS, COMBO, DAILY, DEV, DUST, FROST, FX, G, GATES, GIFTS, GROUND as G_LINE, HANGAR, HEALTH, JOY, KEY_HINT, LEVELS, LOCKS, MISSION, PERFECT, PICTURE, POINTER, QUALITY, RESCUE, RESULT, RUSH, SHAKE, SHOTS, SKIP, VIEW, WEATHER, WEATHER_HINT, WIND } from './config.js';
 import { applyControls, touchUI } from './input.js';
-import { bought, loadProgress, owns, saveSettings, saveSkips, settings, skips } from './storage.js';
+import { loadProgress, saveSettings, saveSkips, settings, skips } from './storage.js';
 
 const $ = id => document.getElementById(id);
 
@@ -551,7 +551,7 @@ export function hud(st) {
   bar('bHeat', o && st.item.heat ? st.heat : 0);
   bar('bBox', o ? st.integ : 0);
   put('boost', Math.round(st.boost), v => { $('boostFill').style.setProperty('--fuel', v); });
-  if (Math.abs(st.d.vx) > BOOST.flipSpeed) put('boostBack', st.d.vx < 0, v => { $('boost').classList.toggle('back', v); });
+  if (Math.abs(st.d.vx) > BOOST.flipSpeed) put('boostBack', st.d.vx < 0, v => { $('boost').classList.toggle('flipped', v); });
   const reach = WIND.base + WIND.maxDeliveries * WIND.perDelivery;
   put('wind', Math.round(50 + Math.max(-1, Math.min(1, st.wind / reach)) * 50), v => { $('windNeedle').style.transform = `translateX(${v}%)`; });
   showWeatherNote(st);
@@ -653,6 +653,7 @@ export function showBoost(on) {
 
 export function hideOverlay() {
   $('overlay').hidden = true;
+  $('wrap').classList.remove('home');
 }
 
 // Writes only on change: this runs every frame.
@@ -682,6 +683,14 @@ export function showActions(zone, anchored, landing, boosting) {
 
 /* ---------- settings ---------- */
 export const sheetOpen = () => !$('sheet').hidden;
+// Settings, the Shop and High Score cover the whole screen, so nothing behind them needs drawing.
+export const pagesOpen = () => !$('sheet').hidden || !$('shop').hidden || !$('league').hidden;
+export function openSheet() {
+  // only a phone that can buzz is offered the switch
+  $('vibeSection').hidden = !(touchUI() && canBuzz());
+  $('sheet').hidden = false;
+  $('sheet').querySelector('.pageBody').scrollTop = 0;
+}
 const MODALS = ['levels', 'levelCard', 'resultCard', 'pauseCard', 'shop', 'league', 'adCard', 'gifts', 'chapterCard'];
 export const modalOpen = () => sheetOpen() || MODALS.some(id => !$(id).hidden);
 // The level map is opaque, so nothing behind it needs drawing.
@@ -710,7 +719,7 @@ const scoreFmt = new Intl.NumberFormat('en-US');
 export const scoreText = n => scoreFmt.format(n);
 export const clockText = s => `${Math.floor(Math.ceil(s) / 60)}:${String(Math.ceil(s) % 60).padStart(2, '0')}`;
 // The first level without a star is the furthest one open.
-function reachedLevel(stars) {
+export function reachedLevel(stars) {
   let n = 1;
   while (stars[n] || skips.skipped.includes(n)) n++;
   return n;
@@ -797,6 +806,13 @@ function signsFor(l) {
   ].filter(Boolean).slice(0, LEVELS.signs);
 }
 
+// The High Score button drops its word when it would wrap off the Shop's row; a turned screen asks again.
+export function fitBar() {
+  const bar = $('levelsBar'), last = $('giftBtn').hidden ? $('openLeague') : $('giftBtn');
+  bar.classList.remove('tight');
+  if (last.offsetTop > $('openShop').offsetTop + LEVELS.wrapSlack) bar.classList.add('tight');
+}
+
 export function hideModals() {
   for (const id of MODALS) $(id).hidden = true;
   $('toast').hidden = true;
@@ -815,11 +831,13 @@ export function showLevels() {
     const p = spot(l), best = stars[l.n] || 0, skipped = !best && skips.skipped.includes(l.n);
     const state = !unlocked(l.n) ? 'locked' : l.n === open ? 'next' : 'done', signs = signsFor(l);
     const marks = signs.map(([key, name]) => `<i class="sign ${key}" title="${name}"><svg aria-hidden="true"><use href="#s-${key}"/></svg></i>`).join('');
-    return `<button class="node ${state}${p.x > 50 ? ' west' : ''}${l.n > open && unlocked(l.n) ? ' devMark' : ''}" data-n="${l.n}" style="left:${p.x}%;top:${p.y}px;--zone:${l.shop.zone.map}" aria-label="${[`Mission ${l.n}`, ...signs.map(s => s[1])].join(', ')}"><b>${l.n}</b><small${skipped ? ' title="Skipped. Replay for stars"' : ''}>${best ? starText(best) : skipped ? '⏭ skipped' : ''}</small><span class="signs">${marks}</span></button>`;
+    const shut = state === 'locked', label = [`Mission ${l.n}`, ...signs.map(s => s[1])].join(', ') + (shut ? `, locked. Pass Mission ${open} first` : '');
+    const under = shut ? '<small class="lockMark"><svg aria-hidden="true"><use href="#i-lock"/></svg></small>' : `<small${skipped ? ' title="Skipped. Replay for stars"' : ''}>${best ? starText(best) : skipped ? '⏭ skipped' : ''}</small>`;
+    return `<button class="node ${state}${p.x > 50 ? ' west' : ''}${l.n > open && unlocked(l.n) ? ' devMark' : ''}" data-n="${l.n}" style="left:${p.x}%;top:${p.y}px;--zone:${l.shop.zone.map}" aria-label="${label}"><b>${l.n}</b>${under}<span class="signs">${marks}</span></button>`;
   }).join('');
   const banners = CHAPTERS.filter(c => c.from <= levelList.length).map(c => {
     const shut = !unlocked(c.from);
-    return `<button class="chapter${shut ? ' locked' : ''}" data-chapter="${c.n}" style="top:${(rowY(c.from - 1) + rowY(c.from)) / 2}px" aria-label="${c.kicker}, ${c.name}, ${shut ? c.locked : c.span}"><small>${c.kicker}</small><b>${c.name}</b><span>${shut ? c.locked : c.span}</span></button>`;
+    return `<button class="chapter${shut ? ' locked' : ''}" data-chapter="${c.n}" style="top:${(rowY(c.from - 1) + rowY(c.from)) / 2}px" aria-label="${c.kicker}, ${c.name}, ${shut ? c.locked : c.span}"><small>${c.kicker}</small><b>${c.name}</b><span>${shut ? `<svg class="lockIco" aria-hidden="true"><use href="#i-lock"/></svg>${c.locked}` : c.span}</span></button>`;
   }).join('');
   const path = $('levelsPath');
   path.style.height = height + 'px';
@@ -829,6 +847,7 @@ export function showLevels() {
   // the Today and Rush cards change the bar's height, so they come before the shop note is placed
   showToday(true);
   showRushCard();
+  fitBar();
   nudgeShop();
   chapterIntro();
   const scroll = $('levelsScroll');
@@ -905,7 +924,7 @@ function openChapter(c, go = null) {
 // A chapter newly open on the map shows its card once, unless another card is up; the gift calendar's close asks again.
 export function chapterIntro() {
   const open = reachedLevel(loadProgress().stars), c = CHAPTERS.filter(c => open >= c.from && settings.chapterSeen < c.n).pop();
-  if (c && !$('levels').hidden && MODALS.every(id => id === 'levels' || $(id).hidden)) openChapter(c);
+  if (c && !$('levels').hidden && $('sheet').hidden && MODALS.every(id => id === 'levels' || $(id).hidden)) openChapter(c);
 }
 
 // The first mission of a chapter not yet introduced starts from the chapter's card.
@@ -1037,6 +1056,31 @@ function openPause() {
     : cost ? `Leaving loses the order: -$${cost}${combo ? ' and your combo' : ''}` : combo ? 'Leaving ends your combo' : '';
   $('pauseCard').hidden = false;
 }
+// the pause card's money and leaving cost are read when it opens, so a purchase made over it asks again
+export function refreshPause() {
+  if (!$('pauseCard').hidden) openPause();
+}
+
+// A shut mission shakes and names the one to pass; its card never opens.
+function lockHint(node, open) {
+  clearTimeout(node.tipTimer);
+  node.querySelector('.tip')?.remove();
+  const tip = document.createElement('span');
+  tip.className = 'tip';
+  tip.setAttribute('role', 'status');
+  tip.textContent = `Pass Mission ${open} first`;
+  node.append(tip);
+  node.style.setProperty('--shake', `${LOCKS.shake}s`);
+  node.classList.remove('shake');
+  void node.offsetWidth;
+  node.classList.add('shake', 'hinting');
+  sfx('locked');
+  buzz(LOCKS.buzz);
+  node.tipTimer = setTimeout(() => {
+    tip.remove();
+    node.classList.remove('shake', 'hinting');
+  }, LOCKS.hint * 1000);
+}
 
 export function initLevels(levels, handlers) {
   levelList = levels;
@@ -1047,12 +1091,18 @@ export function initLevels(levels, handlers) {
       openChapter(CHAPTERS.find(c => c.n === +chapter.dataset.chapter));
       return;
     }
-    const n = e.target.closest?.('[data-n]')?.dataset.n;
-    if (n) openLevelCard(+n);
+    const node = e.target.closest?.('[data-n]');
+    if (!node) return;
+    if (node.classList.contains('locked')) lockHint(node, reachedLevel(loadProgress().stars));
+    else openLevelCard(+node.dataset.n);
   });
   $('levelClose').addEventListener('click', () => { $('levelCard').hidden = true; });
   // the chapter card only closes: it already counts as seen, and a card from Next leaves the result card under it
   $('chapterClose').addEventListener('click', () => { $('chapterCard').hidden = true; });
+  // a tap on the dim around a card goes back as its arrow does
+  for (const [card, back] of [['levelCard', 'levelClose'], ['gifts', 'giftsClose'], ['chapterCard', 'chapterClose']]) {
+    $(card).addEventListener('click', e => { if (e.target === e.currentTarget) $(back).click(); });
+  }
   $('levelPlay').addEventListener('click', () => playLevel(picked));
   $('openTraining').addEventListener('click', () => {
     $('sheet').hidden = true;
@@ -1061,10 +1111,6 @@ export function initLevels(levels, handlers) {
   $('lessonSkip').addEventListener('click', () => {
     acts.leave();
     showLevels();
-  });
-  $('levelsGear').addEventListener('click', () => {
-    $('vibeSection').hidden = !(touchUI() && canBuzz());
-    $('sheet').hidden = false;
   });
   $('toMap').addEventListener('click', openPause);
   $('pauseBack').addEventListener('click', () => { $('pauseCard').hidden = true; });
@@ -1078,7 +1124,6 @@ export function initLevels(levels, handlers) {
   $('resultMap').addEventListener('click', showLevels);
   $('resultSkip').addEventListener('click', () => playAd(resultLevel.n));
 }
-export const previewCanvas = () => $('preview');
 
 function markPicture() {
   for (const b of $('pictureModes').children) b.setAttribute('aria-pressed', settings.picture === b.dataset.value);
@@ -1214,20 +1259,7 @@ export function badgeFor(m) {
   return badge;
 }
 
-export function markPlanes() {
-  for (const b of $('planes').children) {
-    b.setAttribute('aria-pressed', b.dataset.key === settings.plane);
-    b.classList.toggle('locked', !owns(b.dataset.key));
-    b.classList.toggle('devMark', settings.dev && !bought(b.dataset.key));
-  }
-  const m = AIRCRAFT.find(a => a.key === settings.plane) || AIRCRAFT[0];
-  $('planeNote').textContent = m.note;
-  const rows = [['Power', m.thrust, 1.6], ['Speed', m.speed, 1.7], ['Battery', m.battery, 1.4], ['Toughness', m.tough, 1.9]];
-  const pitch = m.hz[0] < 90 ? 'Deep rumble' : m.hz[0] < 160 ? 'Steady hum' : m.hz[0] < 250 ? 'Light buzz' : 'High whine';
-  $('planeStats').innerHTML = rows.map(([name, v, top]) => `<span>${name}</span><i><b style="width:${v / top * 100}%"></b></i>`).join('') + `<span>Sound</span><em>${pitch}</em>`;
-}
-
-// A pulsing dot on settings, plus the shop's suggestion while the order is made.
+// The shop's suggestion while the order is made; a tap opens the Shop's hangar with that aircraft picked.
 let tipText = null;
 export function showHangarTip(hint) {
   // a toast takes the same spot, and says the more pressing thing
@@ -1257,23 +1289,6 @@ function showDev() {
 }
 
 export function initSheet() {
-  const planes = $('planes');
-  for (const a of AIRCRAFT) {
-    const b = document.createElement('button'), badge = badgeFor(a);
-    b.innerHTML = `${a.name}<small class="${badge.stat}">${badge.text}</small>`;
-    b.dataset.key = a.key;
-    b.addEventListener('click', () => {
-      if (!owns(a.key)) {
-        $('planeNote').textContent = `${a.name} costs $${SHOP.aircraft[a.key]} in the Shop on the mission map`;
-        return;
-      }
-      settings.plane = a.key;
-      saveSettings();
-      markPlanes();
-    });
-    planes.appendChild(b);
-  }
-  markPlanes();
   buildStickOptions();
   markControls();
   buildPicture();
@@ -1283,18 +1298,23 @@ export function initSheet() {
   // a buzz says what On means
   buildSwitch('vibeModes', 'vibration', on => on && buzz(PERFECT.buzz));
   showDev();
-  const openSheet = () => {
-    // only a phone that can buzz is offered the switch
-    $('vibeSection').hidden = !(touchUI() && canBuzz());
-    $('sheet').hidden = false;
-  };
   $('gear').addEventListener('click', openSheet);
-  $('hangarTip').addEventListener('click', openSheet);
   $('mute').classList.toggle('off', settings.muted);
+  // On and Off for every sound; M, the pause card's Sound and this switch stay in step
+  const markSound = () => { for (const b of $('soundModes').children) b.setAttribute('aria-pressed', String((b.dataset.value === 'on') === !settings.muted)); };
   const flipMute = () => {
     toggleMute();
     $('mute').classList.toggle('off', settings.muted);
+    markSound();
   };
+  for (const [value, label] of [['on', 'On'], ['off', 'Off']]) {
+    const b = document.createElement('button');
+    b.textContent = label;
+    b.dataset.value = value;
+    b.addEventListener('click', () => { if ((value === 'on') === settings.muted) flipMute(); });
+    $('soundModes').appendChild(b);
+  }
+  markSound();
   $('mute').addEventListener('click', flipMute);
   addEventListener('keydown', e => {
     if (e.code === 'KeyM' && !e.repeat && e.target?.tagName !== 'INPUT') flipMute();
@@ -1309,7 +1329,6 @@ export function initSheet() {
       settings.dev = true;
       saveSettings();
       showDev();
-      markPlanes();
       if (levelsOpen()) showLevels();
     } else $('devMsg').textContent = 'Wrong password. Try again.';
     code.value = '';
