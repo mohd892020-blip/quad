@@ -7,7 +7,8 @@ import {
   AIRCRAFT, BATTERY, BOOSTS, BOX, BULLSEYE, CAMERA, CARGO, COMBO, CONTRAST, DELIVERY, DEV, DOUBLE, DRONE, FIXED_DT, FX, HANGAR, HEALTH, HOMES, LAND, LEVELS, MISSION, ORDER_TIME, ORDERS, PERFECT, POINTER, PREP, RESCUE, RESTAURANT, RIVAL, ROPE, RUSH, SKIP, ROPE_CTL, SURPRISE, WIND,
 } from './config.js';
 import { currentModel } from './drone.js';
-import { homeName } from './homes.js';
+import { homeName, homeOf } from './homes.js';
+import { touchUI } from './input.js';
 import { endRun, rushDelivered, rushLoaded } from './rush.js';
 import { boosts, landReady, loadProgress, noteResult, owns, payDaily, saveProgress, settings, spendDrop } from './storage.js';
 import { addMark, blast, clockText, confetti, covers, ctx, glow, hud, placeName, pop, puff, showToast, view, X, Y } from './ui.js';
@@ -37,7 +38,7 @@ export function newGame(level) {
     has: false, heat: 100, integ: 100, order: null, item: null, hold: 0, readyAt: 0,
     wind: 0, windT: 0, windNext: WIND.firstAt, pops: [], parts: [], shake: 0, acc: 0,
     dust: [], dustN: 0, onGround: true, ropeLen: level.rope ?? ROPE, anchor: null,
-    boost: 100, boosting: false, boostDir: 1, boostWait: 0, hawks: [], eagles: [], falling: false, rival: null, prep: null,
+    boost: 100, boosting: false, boostDir: 1, boostWait: 0, hawks: [], eagles: [], falling: false, rival: null, prep: null, ticket: null,
     hp: 100, wreck: 0, lastHit: null, smokeDue: 0, marks: [], smoke: [], blasts: [], batWarn: 0, charging: false, ready: 0,
     leg: { t: 0, x: p.x }, charge: 0, standout: standout(),
     // the boosts are read once, so a flight started before midnight keeps Auto Land and no date is built per step
@@ -74,9 +75,9 @@ export function startMission(st, shop, item) {
   st.item = item;
   const surprises = st.plan.filter(s => s.stop === st.stopAt).sort((a, b) => a.share - b.share);
   // bonus: close calls and rings banked on the way, paid with the tip; added: seconds a moved customer put on the clock;
-  // grace: what the extra way takes, which the tip and the time star never count; hand: how calm the handover has
-  // been, for a perfect drop
-  st.order = { t, shop, start: st.t, deadline: st.t + limit, limit, drop: parcels ? 1 : 0, next: parcels ? parcels[1] : null, bonus: 0, added: 0, grace: 0, hand: null, fromX: st.d.x, surprises };
+  // grace: what the extra way takes, which the tip and the time star never count; held: seconds it waited on its call in
+  // the air, which nothing counts; hand: how calm the handover has been, for a perfect drop
+  st.order = { t, shop, start: st.t, deadline: st.t + limit, limit, drop: parcels ? 1 : 0, next: parcels ? parcels[1] : null, bonus: 0, added: 0, grace: 0, held: 0, hand: null, fromX: st.d.x, surprises };
   if (st.rush) rushLoaded(st);
   st.heat = 100;
   st.integ = 100;
@@ -93,16 +94,38 @@ export function startMission(st, shop, item) {
   hud(st);
 }
 
-// A level opens on the pad with the shop starting on its first order, which takes the item's own prep time.
-// This one order holds the aircraft down until it is loaded.
+// An order has a call when someone is there to make it; training and Rush keep their own way.
+const callsOn = (st, t) => !st.level.training && !st.level.rush && !!homeOf(t);
+// where a stop's order is picked up for: its first parcel's customer, or its own
+const padTarget = s => s.parcels?.[0].t ?? s.t;
+
+// Whether the first order waits on its call, not on the shop.
+export const opensOnCall = st => callsOn(st, padTarget(st.stop));
+
+// A level opens on the pad with its first order waiting on its call, which holds the aircraft down until it is loaded;
+// training and Rush wait on the shop's prep time instead. The wind's first change keeps its time after takeoff: it
+// comes as long before as the shop's making took, and its clock waits with the call (stepMission).
 export function prepareFirstOrder(st) {
-  const { shop, item } = st.stop;
-  st.prep = { shop, item, left: item.prep, opening: true, nudge: 0 };
+  const { shop, item } = st.stop, call = opensOnCall(st), left = call ? Infinity : item.prep;
+  if (call) {
+    st.ticket = { stop: st.stop, opening: true, air: false, answered: false };
+    st.windNext -= item.prep;
+  }
+  st.prep = { shop, item, left, full: left, opening: true, nudge: 0, call };
+}
+
+// The call is answered: a pad order loads on the next step it is on its pad, one in the air flies on at once.
+export function answerOrder(st) {
+  const k = st.ticket;
+  if (!k) return;
+  k.answered = true;
+  if (k.air) st.ticket = null;
 }
 
 // Reaching for the controls too soon only shakes the notice that says why nothing moves.
 export function restrain(st, keys) {
-  if (keys.l || keys.r || keys.u || keys.dn || keys.rd || keys.boost || keys.axis) st.prep.nudge = PREP.nudge;
+  const w = st.prep ?? st.ticket;
+  if (w && (keys.l || keys.r || keys.u || keys.dn || keys.rd || keys.boost || keys.axis)) w.nudge = PREP.nudge;
   keys.holdTap = keys.landTap = keys.dropTap = 0;
 }
 
@@ -113,6 +136,7 @@ function endMission(st) {
   st.hold = 0;
   st.anchor = null;
   st.drop = null;
+  st.ticket = null;
   st.readyAt = st.t + MISSION.cooldown;
   clearAction(st);
 }
@@ -166,6 +190,7 @@ function dropLower(st) {
   st.d.vy -= c.kick;
   st.box.py = st.box.y + c.boxKick * FIXED_DT;
   notice(st, 'First drop done', `Next: ${item.label} to ${placeName(t)}`);
+  holdForCall(st);
 }
 
 // The customer ties the next order on: it leaves from here on the rope with its own clock and a fresh box, no shop and
@@ -176,7 +201,7 @@ function handOn(st, next) {
   st.stopAt++;
   st.stop = next;
   st.item = item;
-  st.order = { t, shop, start: st.t, deadline: st.t + limit, limit, drop: 0, next: null, bonus: 0, added: 0, grace: 0, hand: null, fromX: st.d.x, surprises: [] };
+  st.order = { t, shop, start: st.t, deadline: st.t + limit, limit, drop: 0, next: null, bonus: 0, added: 0, grace: 0, held: 0, hand: null, fromX: st.d.x, surprises: [] };
   st.heat = st.integ = 100;
   st.hold = 0;
   // the swap leaves the order over the roof, which is no close call
@@ -188,6 +213,14 @@ function handOn(st, next) {
   sfx('pickup');
   musicCue('pickup');
   notice(st, `Stop ${st.stopAt} done`, `Handed on: ${item.label} to ${placeName(t)}`);
+  holdForCall(st);
+}
+
+// An order that starts in the air waits for its call on Hold, its clock standing still.
+function holdForCall(st) {
+  if (!callsOn(st, st.order.t)) return;
+  st.ticket = { stop: st.stop, opening: false, air: true, answered: false, nudge: 0 };
+  st.anchor ??= { x: st.d.x, y: st.d.y, armed: false };
 }
 
 // The notice naming the next stop comes a moment after the delivery, so the tip and a perfect drop are read first;
@@ -213,7 +246,7 @@ function passMission(st) {
     spendDrop();
   }
   // a moved customer's extra way counts neither against the clock nor against the warmth of a hot order
-  const c = DELIVERY, o = st.order, item = st.item, secs = st.t - o.start, fair = secs - o.grace, heat = Math.min(100, st.heat + o.grace * c.heatLoss * item.heat);
+  const c = DELIVERY, o = st.order, item = st.item, secs = st.t - o.start - o.held, fair = secs - o.grace, heat = Math.min(100, st.heat + o.grace * c.heatLoss * item.heat);
   const base = c.tipBase + heat * c.tipHeat + st.integ * c.tipBox + (fair < c.tipFastSecs ? c.tipFastBonus : fair < c.tipOkSecs ? c.tipOkBonus : 0);
   const beat = st.rival ? RIVAL.bonus : 0, care = Math.round((item.urgent ? base * c.urgentTip : base) * (auto ? BOOSTS.drop.tip : 1));
   // a clean delivery adds to the run, and the run raises the tip; the bonuses banked on the way are paid with it
@@ -268,6 +301,7 @@ function passMission(st) {
     const name = next.shop.shop.name;
     notice(st, `Stop ${++st.stopAt} done`, `Next: ${next.item.label} at ${name}${name === next.item.label ? ' shop' : ''}`);
     st.stop = next;
+    if (callsOn(st, padTarget(next))) st.ticket = { stop: next, opening: false, air: false, answered: false };
     saveProgress(st.del, st.money);
   } else {
     // today's mission pays its reward on the date's first pass and keeps its stars apart, so they count for nothing else
@@ -302,17 +336,42 @@ function perfectDrop(st, at, paper) {
   buzz(p.buzz);
 }
 
-// Landing on a green pad orders a job; the shop needs the item's prep time to make it,
-// and taking off first cancels the order. A running job ends on time or power.
+// The order is ready the moment its call is answered on the pad. The pad gives at once the charge and repair the shop's
+// making used to give, and the trip's charge is earned first, before startMission opens the next leg.
+function loadOrder(st, shop, item) {
+  const d = st.d;
+  if (st.leg?.away && d.bat < BATTERY.chargingBelow) earnCharge(st);
+  const top = Math.max(0, Math.min(st.charge, item.prep * RESTAURANT.chargeRate, 100 - d.bat));
+  d.bat += top;
+  st.charge -= top;
+  st.hp = Math.min(100, st.hp + item.prep * HEALTH.repairRate);
+  st.ready = PREP.flash;
+  startMission(st, shop, item);
+}
+
+// Landing on the green pad picks up an order whose call is answered at once (and waits there on one not answered yet);
+// training and Rush keep the shop's prep time, which taking off first cancels. A running job ends on time or power, and
+// one waiting on its call in the air keeps its clock still.
 export function stepMission(st, dt) {
   const d = st.d, c = MISSION;
   st.ready = Math.max(0, st.ready - dt);
-  if (st.notice && st.t >= st.notice.at) {
+  // the notice naming the next stop waits while its call rings in the air, where the note asks for the answer
+  if (st.notice && st.t >= st.notice.at && !st.ticket?.air) {
     if (!st.outcome && !st.done) showToast(st.notice.title, st.notice.detail, true);
     st.notice = null;
   }
   if (st.has) {
-    if (st.t >= st.order.deadline) failMission(st, "Time's up");
+    // the whole order stands still while its call rings: held keeps the ring out of the tip and the time star (and
+    // stepCargo keeps the order warm), leg.t keeps it out of the fair charge time
+    const k = st.ticket;
+    if (k) {
+      const o = st.order;
+      o.deadline += dt;
+      o.held += dt;
+      if (st.leg) st.leg.t += dt;
+      k.nudge = Math.max(0, k.nudge - dt);
+    }
+    if (!k && st.t >= st.order.deadline) failMission(st, "Time's up");
     else if (d.bat <= 0) failMission(st, 'Battery dead');
     return;
   }
@@ -322,6 +381,25 @@ export function stepMission(st, dt) {
   }
   const { shop } = st.stop, p = shopPad(shop);
   const parked = Math.abs(d.x - p.x) < c.padReach && d.y < p.y && d.y > p.y - DRONE.radius - c.padGap && Math.hypot(d.vx, d.vy) < c.padSpeed;
+  const k = st.ticket;
+  if (k) {
+    if (!k.opening && (!parked || st.t < st.readyAt)) {
+      st.prep = null;
+      return;
+    }
+    if (k.answered) {
+      st.ticket = st.prep = null;
+      loadOrder(st, shop, st.stop.item);
+      return;
+    }
+    if (!st.prep) {
+      st.prep = { shop, item: st.stop.item, left: Infinity, full: Infinity, nudge: 0, call: true, opening: false };
+      hud(st);
+    }
+    st.prep.nudge = Math.max(0, st.prep.nudge - dt);
+    if (k.opening) st.windNext += dt;
+    return;
+  }
   if (!st.prep?.opening && (!parked || st.t < st.readyAt)) {
     st.prep = null;
     return;
@@ -432,7 +510,8 @@ export function chargeDrone(st) {
 // Everything the carried order does each step after the rope has moved it.
 export function stepCargo(st, dt) {
   const d = st.d, bx = st.box, c = DELIVERY, item = st.item;
-  st.heat = Math.max(0, st.heat - dt * c.heatLoss * item.heat);
+  // an order waiting on its call in the air keeps its warmth, as it keeps its clock
+  if (!st.ticket) st.heat = Math.max(0, st.heat - dt * c.heatLoss * item.heat);
   if (Math.random() < dt * c.steamRate && item.heat && st.heat > c.steamMinHeat) {
     st.parts.push({ x: bx.x + (Math.random() - .5) * 14, y: bx.y - 8, vy: -30 - Math.random() * 20, t: 0 });
   }
@@ -607,14 +686,19 @@ function ringPaint() {
 
 // A fine ring of ticks around the aircraft while the shop makes the order, lighting up clockwise from the top over a
 // faint sweep of light, so the scene still shows through. Once loaded it stands whole for a moment, spreading as it fades.
+// An order waiting on its call has no ring, only the note saying so.
 export function drawPrep(st) {
-  const p = st.prep, c = PREP;
-  if (!p && !st.ready) {
+  const p = st.prep, c = PREP, wait = p?.call || st.ticket?.air;
+  if (!p && !st.ready && !wait) {
     covers.note = null;
     return;
   }
   const S = view.S, x = X(st.d.x), y = Y(st.d.y), fade = p ? 1 : st.ready / c.flash, done = p ? 1 - p.left / (p.full ?? p.item.prep) : 1, step = Math.PI * 2 / c.ticks, top = -Math.PI / 2;
   const r = Math.max(c.minRadius, (currentModel().span * CONTRAST.scale + c.gap) * S) + (1 - fade) * c.flashGrow * S, w = Math.max(c.minWidth, c.width * S);
+  if (wait) {
+    drawPrepNote(st, x, y - r - w / 2 - c.note.gap, 1);
+    return;
+  }
   const lit = Math.ceil(done * c.ticks), paint = ringPaint(), head = top + done * c.ticks * step;
   const tick = i => {
     const a = top + i * step;
@@ -650,12 +734,13 @@ export function drawPrep(st) {
 }
 
 // Over the ring, against the open sky: what the shop is doing, and what that means for the player. Where it stands is
-// kept for the call card, which moves away from it as it rings; a card that still sits over it moves the note aside by
-// clear to the nearer side with room, and with room on neither the card says the same and the note waits.
+// kept for the call card; a card that sits over it moves the note aside by clear to the nearer side with room, and with
+// room on neither the card says the same and the note waits.
 const noteBox = [0, 0, 0, 0];
 function drawPrepNote(st, x, bottom, fade) {
-  const c = PREP.note, p = st.prep, nudge = p ? p.nudge / PREP.nudge : 0, name = p?.opening ? 'YOUR ORDER' : p?.item.label.toUpperCase();
-  const title = p ? `PREPARING ${name}  ${Math.ceil(p.left)}s` : 'ORDER READY', sub = !p ? '' : p.opening ? 'Takeoff when it is ready' : 'Stay on the pad', h = sub ? c.tall : c.h;
+  const c = PREP.note, p = st.prep, wait = p?.call || st.ticket?.air, held = p ?? st.ticket, nudge = held?.nudge ? held.nudge / PREP.nudge : 0, name = p?.opening ? 'YOUR ORDER' : p?.item.label.toUpperCase();
+  const title = wait ? 'ANSWER THE CALL' : p ? `PREPARING ${name}  ${Math.ceil(p.left)}s` : 'ORDER READY';
+  const sub = wait ? (touchUI() ? 'Tap the call to take the order' : 'Press Enter to take the order') : !p ? '' : p.opening ? 'Takeoff when it is ready' : 'Stay on the pad', h = sub ? c.tall : c.h;
   ctx.save();
   ctx.font = `800 ${c.title}px Tajawal,sans-serif`;
   const titleW = ctx.measureText(title).width;
@@ -692,7 +777,7 @@ function drawPrepNote(st, x, bottom, fade) {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.font = `800 ${c.title}px Tajawal,sans-serif`;
-  ctx.fillStyle = p ? '#ffd879' : '#7fe0a8';
+  ctx.fillStyle = wait || p ? '#ffd879' : '#7fe0a8';
   ctx.fillText(title, cx, y + (sub ? c.titleY : h / 2) + 1);
   if (sub) {
     ctx.font = `700 ${c.sub}px Tajawal,sans-serif`;
@@ -839,7 +924,8 @@ export function drawBatteryCue(st) {
 // The time left on the order and a bar running down with it, quiet over the aircraft and clear of the battery cue.
 export function drawOrderTime(st) {
   const c = ORDER_TIME, o = st.order, r = st.rush;
-  if (st.wreck || st.outcome || st.done || (r ? r.end == null || st.prep : !st.has || !o || o.limit === Infinity)) return;
+  // an order waiting on its call in the air keeps its still time in the HUD, and the note asking for the answer has its place
+  if (st.wreck || st.outcome || st.done || st.ticket?.air || (r ? r.end == null || st.prep : !st.has || !o || o.limit === Infinity)) return;
   const left = Math.max(0, (r ? r.end : o.deadline) - st.t), low = left < MISSION.lowTime, cue = st.batWarn > 0 || st.charging;
   // between Rush orders the HUD clock has the run; over the aircraft only its last seconds, once the drop's words are gone
   if (r && !st.has && (!low || st.t - (r.gain?.at ?? -Infinity) < FX.popLife)) return;

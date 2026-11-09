@@ -6,7 +6,8 @@ import { paper, showToday } from './daily.js';
 import { showRushCard } from './rush.js';
 import { AIRCRAFT, ALTIMETER, BADGE, BOOST, BOOSTS, CALL, CHAPTERS, COMBO, DAILY, DEV, DUST, FROST, FX, G, GATES, GIFTS, GROUND as G_LINE, HANGAR, HEALTH, JOY, KEY_HINT, LEVELS, LOCKS, MISSION, PERFECT, PICTURE, POINTER, QUALITY, RESCUE, RESULT, RUSH, SHAKE, SHOTS, SKIP, VIEW, WEATHER, WEATHER_HINT, WIND } from './config.js';
 import { applyControls, touchUI } from './input.js';
-import { homeName, homeOf } from './homes.js';
+import { ringingFor } from './call.js';
+import { callerAt, homeName } from './homes.js';
 import { loadProgress, saveSettings, saveSkips, settings, skips } from './storage.js';
 
 const $ = id => document.getElementById(id);
@@ -476,10 +477,10 @@ export function popSpot(q) {
 const PLACES = { street: 'Street', roof: 'Rooftop', ferry: 'Ferry', boat: 'Boat', pier: 'Pier', tower: 'Lifeguard tower', sand: 'Beach', rock: 'Rock top', camp: 'Camp', oasis: 'Oasis', cabin: 'Cabin roof', treehouse: 'Treehouse', lookout: 'Lookout tower', clearing: 'Clearing', crag: 'Crag top', hut: 'Mountain hut', basecamp: 'Base camp', station: 'Lift station', chalet: 'Chalet roof', igloo: 'Igloo', ice: 'Frozen lake' };
 // A customer's spot by the household who lives there; PLACES names a spot no household was given.
 export const placeName = (t, stop = null) => homeName(t, stop?.place) ?? (t.kind === 'bal' ? `Balcony, floor ${t.fl}` : PLACES[t.kind]);
-// Where the order on board goes: the caller's home, or the caller at the spot they stepped over to ("Tara at Grace's").
+// Where the order on board goes: the caller's home, or the caller at the spot they stepped over to ("Ms. Tara at Grace's").
 export function goingTo(st) {
   const s = st.stop, o = st.order, home = s.parcels ? s.parcels[o.drop >= 2 ? 1 : 0].t : s.t;
-  return o.t === home ? placeName(o.t, s) : `${homeOf(home)?.first ?? 'Customer'} at ${placeName(o.t)}`;
+  return o.t === home ? placeName(o.t, s) : `${callerAt(home, st)?.who ?? 'Customer'} at ${placeName(o.t)}`;
 }
 
 // The HUD ticks ten times a second and most of it has not moved, so only changes reach the page.
@@ -567,10 +568,17 @@ export function hud(st) {
   put('wind', Math.round(50 + Math.max(-1, Math.min(1, st.wind / reach)) * 50), v => { $('windNeedle').style.transform = `translateX(${v}%)`; });
   showWeatherNote(st);
   showCombo(st);
-  const item = o && (o.drop ? run[o.drop - 1].item : st.item), who = st.prep && !run && homeOf(st.stop.t)?.first;
-  text('oTitle', st.outcome ? st.outcome.why || 'Delivered' : o ? `${tag}${item.label}${item.urgent ? (r ? ` · URGENT ×${RUSH.points.urgent}` : ' · URGENT') : ''} → ${goingTo(st)}`
-    : st.prep ? `${tag}Preparing ${st.prep.item.label}${who ? ` for ${who}` : ''}`
-    : st.level.training ? 'Training' : `${tag}Land on the green pad at ${st.stop.shop.shop.name}`);
+  // an order waiting on its call names who to answer once the call rings (waiting on the pad, at once), ahead of the
+  // order it will be; one answered in flight is ready for the landing
+  const k = st.ticket, ask = k && !k.answered && (st.prep?.call || ringingFor() === k);
+  const from = ask ? (k.air ? st.order.t : st.stop.parcels?.[0].t ?? st.stop.t) : null, caller = from && callerAt(from, st);
+  const item = o && (o.drop ? run[o.drop - 1].item : st.item), who = st.prep && !run && callerAt(st.stop.t, st)?.who, shop = st.stop.shop.shop.name, label = st.stop.item.label;
+  text('oTitle', st.outcome ? st.outcome.why || 'Delivered' : caller ? `${tag}Answer ${caller.who}'s call`
+    : o ? `${tag}${item.label}${item.urgent ? (r ? ` · URGENT ×${RUSH.points.urgent}` : ' · URGENT') : ''} → ${goingTo(st)}`
+    : st.prep && !st.prep.call ? `${tag}Preparing ${st.prep.item.label}${who ? ` for ${who}` : ''}`
+    : st.level.training ? 'Training'
+    : k?.answered ? `${tag}${label} ready · land at ${shop}${shop === label ? ' shop' : ''}`
+    : `${tag}Land on the green pad at ${shop}`);
 }
 
 // The run of clean deliveries, under the HUD on the right. It bumps when it grows and shakes away when it breaks. On a

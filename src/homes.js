@@ -1,13 +1,10 @@
 import { FERRY, HOMES, SNOW } from './config.js';
+import { callerOf, HOUSEHOLDS, turnOf } from './voice.js';
 import { world } from './world.js';
 
 // Each customer spot has one household for the whole session, decided at load from the levels, with no randomness, so
 // the same spot reads the same name on every device and in every mission.
-const homes = [
-  ...HOMES.city.map(([sign, caller]) => ({ sign, caller })),
-  ...HOMES.country.map(([name, caller]) => ({ own: name.startsWith('The ') && name.endsWith('s') ? `${name}'` : `${name}'s`, caller: caller ?? name })),
-];
-homes.forEach((h, i) => { h.i = i; h.first = h.caller.split(' ')[0]; });
+const homes = HOUSEHOLDS;
 const cities = HOMES.city.length;
 
 // target → household index; world targets carry nothing of ours
@@ -69,3 +66,9 @@ export function homeName(t, place = null, plate = false) {
   const name = h.sign ?? `${h.own} ${HOMES.words[t.kind]}`;
   return t.kind === 'bal' && !plate ? `${name}, floor ${t.fl}` : name;
 }
+
+// The caller of a target's household for this order: a couple's two take turns from order to order.
+export const callerAt = (t, st) => {
+  const h = homeOf(t);
+  return h ? callerOf(h, turnOf(st)) : null;
+};

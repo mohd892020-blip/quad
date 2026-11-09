@@ -70,8 +70,12 @@ function build() {
 // lifts, so this keeps listening until the context is really running.
 export function initAudio() {
   const gestures = ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'];
+  // a page that may play sound without a tap: the app's (MainActivity turns the gesture rule off), or a browser that says so
+  const free = !!window.PizzaScreen || navigator.getAutoplayPolicy?.('audiocontext') === 'allowed';
   const stop = () => gestures.forEach(n => removeEventListener(n, unlock));
   const unlock = () => {
+    // a touch going down is no gesture yet: a context built then starts suspended, with a warning, so it waits for the lift
+    if (!ac && !free && navigator.userActivation && !navigator.userActivation.isActive) return;
     if (!ac) try { build(); } catch (_) { ac = null; }
     if (!ac) return stop();
     wake()?.then?.(() => { if (ac.state === 'running') stop(); });
@@ -82,7 +86,49 @@ export function initAudio() {
     if (document.hidden) ac.suspend();
     else wake();
   });
+  // The app's page may play sound without a tap, so the menu's music starts at once there; a browser waits for the first
+  // tap or key.
+  if (free) unlock();
 }
+
+// A recorded file's bytes: packed into the page by the one-file builds (a data-<kind> block), otherwise the file beside the
+// page.
+export async function packedBytes(kind, dir, file) {
+  const packed = document.querySelector(`script[data-${kind}="${file}"]`);
+  if (!packed) {
+    const r = await fetch(new URL(`${dir}/${file}`, document.baseURI));
+    if (!r.ok) throw new Error(`${file}: ${r.status}`);
+    return r.arrayBuffer();
+  }
+  const text = atob(packed.textContent.trim()), bytes = new Uint8Array(text.length);
+  for (let i = 0; i < text.length; i++) bytes[i] = text.charCodeAt(i);
+  return bytes.buffer;
+}
+
+// The callers' recorded lines, decoded when a call rings and kept a few at a time. A one-file build packs them all, so a
+// line it lacks is missing for good and is never fetched.
+const clips = new Map();
+let packedVoices = null;
+export function loadClip(name) {
+  if (!ac || clips.has(name)) return;
+  packedVoices ??= !!document.querySelector('script[data-voice]');
+  if (packedVoices && !document.querySelector(`script[data-voice="${name}"]`)) {
+    keepClip(name, null);
+    return;
+  }
+  clips.set(name, 'loading');
+  packedBytes('voice', 'voices', name).then(b => ac.decodeAudioData(b)).then(buf => keepClip(name, buf), () => keepClip(name, null));
+}
+function keepClip(name, buf) {
+  clips.delete(name);
+  for (const [key, c] of clips) if (clips.size >= CALL.speech.kept && c !== 'loading') clips.delete(key);
+  clips.set(name, buf);
+}
+export const clipOf = name => {
+  const c = clips.get(name);
+  return c && c !== 'loading' ? c : null;
+};
+export const clipLoading = name => clips.get(name) === 'loading';
 
 function wake() {
   return ac.resume()?.catch?.(() => {});
@@ -201,6 +247,7 @@ const SOUNDS = {
   // an incoming call: a phone's four-note trill, quicker in Rush, a lift as it answers and a drop as it hangs up (ring is
   // the bonus ring's)
   phone: t => { tone(1319, 1319, t, .08, .28, 'sine'); tone(1568, 1568, t + .09, .08, .28, 'sine'); tone(1319, 1319, t + .18, .08, .28, 'sine'); tone(1760, 1760, t + .27, .12, .3, 'sine'); },
+  phoneSoft: t => { tone(1319, 1319, t, .08, .1, 'sine'); tone(1568, 1568, t + .09, .08, .1, 'sine'); tone(1319, 1319, t + .18, .08, .1, 'sine'); tone(1760, 1760, t + .27, .12, .12, 'sine'); },
   phoneQuick: t => { tone(1568, 1568, t, .07, .26, 'sine'); tone(1976, 1976, t + .08, .1, .28, 'sine'); },
   answer: t => tone(880, 1320, t, .06, .22, 'sine'),
   hangup: t => tone(620, 410, t, .1, .18, 'sine'),
@@ -263,6 +310,27 @@ export function speak(plan, v) {
   o.start(t0);
   o.stop(t0 + plan.secs + .05);
   speaking = { o, env };
+}
+
+// A recorded line down the phone: its caller's rate, the line's band, one voice through the limiter, so the mute silences
+// it; muted, nothing is built at all.
+export function sayClip(buf, rate) {
+  hushVoice();
+  // one caller speaks at a time (hushVoice), so the line has a place of its own outside the short sounds' count:
+  // a ring still sounding never silences it, and it never takes the place of the pickup that follows
+  if (!ac || ac.state !== 'running' || settings.muted) return;
+  const c = CALL.speech, src = ac.createBufferSource(), hp = ac.createBiquadFilter(), lp = ac.createBiquadFilter(), g = ac.createGain();
+  src.buffer = buf;
+  src.playbackRate.value = rate;
+  hp.type = 'highpass';
+  hp.frequency.value = c.band[0];
+  lp.type = 'lowpass';
+  lp.frequency.value = c.band[1];
+  g.gain.value = c.level * AUDIO.sfxGain;
+  src.connect(hp).connect(lp).connect(g).connect(bus);
+  src.onended = () => [src, hp, lp, g].forEach(n => n.disconnect());
+  src.start(ac.currentTime + .02);
+  speaking = { o: src, env: g };
 }
 
 // A call cut short: the voice fades in a moment from wherever its envelope stands, instead of clicking off. A plain

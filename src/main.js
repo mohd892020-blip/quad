@@ -41,7 +41,11 @@ let st = null, hudT = 0, last = performance.now(), levels = [], spot = null;
 const tries = {};
 const pace = { t: 0, n: 0, even: 0, last: 0, easy: 0, raised: false, tried: false };
 
-const controls = () => (st.prep?.opening || st.falling ? PARKED : keys);
+// an order waiting on its call holds the aircraft: the opening one and a later stop's on their pad, one handed on in the air
+const waits = () => st.prep?.opening || st.prep?.call || st.ticket?.air;
+const controls = () => (waits() || st.falling ? PARKED : keys);
+// while it waits, no action button shows, since none would do anything
+const STILL = { rope: false, hold: false, land: null };
 
 export function step(dt) {
   st.t += dt;
@@ -60,7 +64,7 @@ export function step(dt) {
   // once a mission has failed the aircraft holds still where it is until the card shows
   const held = st.outcome && !st.outcome.passed && !st.falling;
   const zone = zones(st), pilot = held ? PARKED : controls();
-  if (st.prep?.opening) restrain(st, keys);
+  if (waits()) restrain(st, keys);
   keys.sink = keys.dn || (keys.rd && !zone.rope) ? 1 : 0;
   stepHold(st, pilot, zone.hold);
   stepLand(st, pilot, zone.land);
@@ -240,8 +244,8 @@ function loop(now) {
   }
   // the incoming call runs on real time, so a perfect drop's slow motion never stretches it
   stepCall(st, dt, paused, paused ? null : spot);
-  const zone = zones(st);
-  showActions(zone, !!st.anchor, !!st.landing, st.boosting, !!st.drop);
+  const still = waits(), zone = still ? STILL : zones(st);
+  showActions(zone, !still && !!st.anchor, !still && !!st.landing, st.boosting, !still && !!st.drop);
   if (zone.drop) dropHint();
   showHangarTip(paused ? null : hangarHint(st));
   updateRotor(!paused && !st.wreck && !st.falling && st.d.bat > 0, rotorLoad(st, controls()), currentModel());
