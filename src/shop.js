@@ -1,5 +1,5 @@
 import { sfx } from './audio.js';
-import { AIRCRAFT, HANGAR, SHOP } from './config.js';
+import { AIRCRAFT, HANGAR, SHOP, TEASE } from './config.js';
 import { drawAirframe } from './drone.js';
 import { bought, garage, loadProgress, owns, saveGarage, saveProgress, saveSettings, settings } from './storage.js';
 import { badgeFor, fitBar, refreshPause } from './ui.js';
@@ -166,12 +166,12 @@ function affordable(money) {
   const planes = AIRCRAFT.filter(a => !owns(a.key) && SHOP.aircraft[a.key]).map(a => ({ key: `plane:${a.key}`, name: `the ${a.name}`, price: SHOP.aircraft[a.key] }));
   return [...parts, ...planes].filter(i => i.price <= money).sort((a, b) => a.price - b.price);
 }
-const freshNow = () => affordable(loadProgress().money).filter(i => !settings.shopSeen.includes(i.key));
+export const freshNow = () => affordable(loadProgress().money).filter(i => !settings.shopSeen.includes(i.key));
 
-// When the money first covers something new, the Shop buttons glow, and on the map a soft note under the Shop button says
-// what; opening the Shop settles it.
+// When the money first covers something new, the Shop buttons glow once, and on the map a soft note under the Shop button
+// says what; opening the Shop settles it. All of it waits until the Shop's introduction mission is passed.
 export function nudgeShop() {
-  const { money } = loadProgress(), fresh = freshNow(), note = $('shopNudge'), btn = $('openShop');
+  const { money, stars } = loadProgress(), fresh = settings.dev || stars[TEASE.shop.intro] ? freshNow() : [], note = $('shopNudge'), btn = $('openShop');
   for (const id of ['openShop', 'menuShop']) $(id).classList.toggle('nudge', fresh.length > 0);
   $('menuShop').querySelector('.dotNew').hidden = !fresh.length;
   // the bubble belongs to the map
@@ -211,7 +211,7 @@ export function openShop({ tab: t = 'planes', pick: p = null } = {}) {
 
 // The note's own button opens on Upgrades when only parts are new; read before settleNudge marks them seen. A developer
 // owns every aircraft, so only parts are ever new there, and the hangar opens first.
-function openFromNudge() {
+export function openFromNudge() {
   const f = freshNow();
   openShop({ tab: !settings.dev && f.length && f.every(i => i.key.startsWith('part')) ? 'parts' : 'planes' });
 }

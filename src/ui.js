@@ -1,9 +1,10 @@
 import { buzz, canBuzz, sfx, toggleMute } from './audio.js';
+import { boostStrip, leaveTease, markDropKeys, resultBoost, showBoostBtn } from './boosts.js';
 import { musicCue } from './music.js';
 import { nudgeShop } from './shop.js';
 import { paper, showToday } from './daily.js';
 import { showRushCard } from './rush.js';
-import { AIRCRAFT, ALTIMETER, BADGE, BOOST, CALL, CHAPTERS, COMBO, DAILY, DEV, DUST, FROST, FX, G, GATES, GIFTS, GROUND as G_LINE, HANGAR, HEALTH, JOY, KEY_HINT, LEVELS, LOCKS, MISSION, PERFECT, PICTURE, POINTER, QUALITY, RESCUE, RESULT, RUSH, SHAKE, SHOTS, SKIP, VIEW, WEATHER, WEATHER_HINT, WIND } from './config.js';
+import { AIRCRAFT, ALTIMETER, BADGE, BOOST, BOOSTS, CALL, CHAPTERS, COMBO, DAILY, DEV, DUST, FROST, FX, G, GATES, GIFTS, GROUND as G_LINE, HANGAR, HEALTH, JOY, KEY_HINT, LEVELS, LOCKS, MISSION, PERFECT, PICTURE, POINTER, QUALITY, RESCUE, RESULT, RUSH, SHAKE, SHOTS, SKIP, VIEW, WEATHER, WEATHER_HINT, WIND } from './config.js';
 import { applyControls, touchUI } from './input.js';
 import { homeName, homeOf } from './homes.js';
 import { loadProgress, saveSettings, saveSkips, settings, skips } from './storage.js';
@@ -689,15 +690,18 @@ function flip(id, on, idle, active) {
   el.classList.toggle('on', on);
 }
 
-export function showActions(zone, anchored, landing, boosting) {
+// While Auto Drop flies, it works the rope and Hold itself, so only its CANCEL shows.
+export function showActions(zone, anchored, landing, boosting, dropping) {
   const boost = $('boost');
   if (boost.classList.contains('on') !== boosting) boost.classList.toggle('on', boosting);
-  show('ropeDown', zone.rope);
-  show('ropeUp', zone.rope);
-  show('hold', zone.hold || anchored);
+  show('ropeDown', zone.rope && !dropping);
+  show('ropeUp', zone.rope && !dropping);
+  show('hold', (zone.hold || anchored) && !dropping);
   show('land', !!zone.land || landing);
+  show('autoDrop', zone.drop || dropping);
   flip('hold', anchored, 'HOLD', 'RELEASE');
   flip('land', landing, 'LAND', 'CANCEL');
+  flip('autoDrop', dropping, 'AUTO DROP', 'CANCEL');
 }
 
 /* ---------- settings ---------- */
@@ -710,7 +714,7 @@ export function openSheet() {
   $('sheet').hidden = false;
   $('sheet').querySelector('.pageBody').scrollTop = 0;
 }
-const MODALS = ['levels', 'levelCard', 'resultCard', 'pauseCard', 'shop', 'league', 'adCard', 'gifts', 'chapterCard'];
+const MODALS = ['levels', 'levelCard', 'resultCard', 'pauseCard', 'shop', 'league', 'adCard', 'gifts', 'chapterCard', 'boostCard'];
 export const modalOpen = () => sheetOpen() || MODALS.some(id => !$(id).hidden);
 // The level map is opaque, so nothing behind it needs drawing.
 export const levelsOpen = () => !$('levels').hidden;
@@ -773,10 +777,11 @@ function showSkip(n) {
   $('resultSkipNote').textContent = s.ok ? 'Watch an ad · no stars, tips or score' : s.why;
 }
 
-// A stand-in for a rewarded ad: it counts down, then the skip is granted and the next mission opens.
+// A stand-in for a rewarded ad: it counts down, then Done hands over the reward its button names (a skip, a boost).
 let adTimer = 0;
-function playAd(n) {
+export function playAd(label, reward) {
   const card = $('adCard'), end = Date.now() + SKIP.adSecs * 1000;
+  $('adDone').textContent = label;
   $('adDone').disabled = true;
   card.hidden = false;
   clearInterval(adTimer);
@@ -794,12 +799,7 @@ function playAd(n) {
   $('adDone').onclick = () => {
     $('adDone').onclick = null;
     card.hidden = true;
-    if (!skips.skipped.includes(n)) skips.skipped.push(n);
-    skips.since = 0;
-    delete skips.fails[n];
-    saveSkips();
-    if (levelList[n]) playLevel(levelList[n]);
-    else showLevels();
+    reward();
   };
   $('adClose').onclick = () => {
     clearInterval(adTimer);
@@ -827,7 +827,7 @@ function signsFor(l) {
 
 // The High Score button drops its word when it would wrap off the Shop's row; a turned screen asks again.
 export function fitBar() {
-  const bar = $('levelsBar'), last = $('giftBtn').hidden ? $('openLeague') : $('giftBtn');
+  const bar = $('levelsBar'), last = !$('giftBtn').hidden ? $('giftBtn') : !$('boostBtn').hidden ? $('boostBtn') : $('openLeague');
   bar.classList.remove('tight');
   if (last.offsetTop > $('openShop').offsetTop + LEVELS.wrapSlack) bar.classList.add('tight');
 }
@@ -867,6 +867,7 @@ export function showLevels() {
   // the Today and Rush cards change the bar's height, so they come before the shop note is placed
   showToday(true);
   showRushCard();
+  showBoostBtn();
   fitBar();
   nudgeShop();
   chapterIntro();
@@ -898,8 +899,8 @@ function missionRows(l) {
 
 // A mission's card, from the map or today's mission: head rows first, then the job and its dangers, then tail rows; go
 // is the Start button's word, and lock names the mission to pass first; rows replaces the job and its dangers, and mark
-// the stars.
-export function openMissionCard(l, { kicker = '', title, best = 0, head = [], tail = [], go = 'Start', lock = 0, rows = null, mark = null }) {
+// the stars; boosts shows the strip of boosts over Start (the map's own missions only).
+export function openMissionCard(l, { kicker = '', title, best = 0, head = [], tail = [], go = 'Start', lock = 0, rows = null, mark = null, boosts = false }) {
   picked = l;
   $('levelKicker').hidden = !kicker;
   $('levelKicker').textContent = kicker;
@@ -911,11 +912,12 @@ export function openMissionCard(l, { kicker = '', title, best = 0, head = [], ta
   $('levelPlay').disabled = locked;
   $('levelPlay').classList.toggle('devMark', !!lock && !locked);
   $('levelPlay').textContent = locked ? `Finish mission ${lock} first` : go;
+  boostStrip(l, boosts && !locked);
   $('levelCard').hidden = false;
 }
 function openLevelCard(n) {
   const l = levelList[n - 1], { stars } = loadProgress(), open = reachedLevel(stars), ch = CHAPTERS.filter(c => n >= c.from).pop();
-  openMissionCard(l, { kicker: ch?.kicker ?? '', title: `Mission ${n}`, best: stars[n] || 0, head: l.challenge ? [['Challenge', l.challenge.name], ['Rule', l.challenge.note]] : [], lock: n > open ? open : 0 });
+  openMissionCard(l, { kicker: ch?.kicker ?? '', title: `Mission ${n}`, best: stars[n] || 0, head: l.challenge ? [['Challenge', l.challenge.name], ['Rule', l.challenge.note]] : [], lock: n > open ? open : 0, boosts: true });
 }
 
 // A chapter's card. Opened with the chapter open it counts as seen, so it comes by itself only once; go is what its
@@ -982,6 +984,7 @@ function passTip(o, level) {
     const { stars } = loadProgress(), c = CHAPTERS[CHAPTERS.length - 1], left = levelList.filter(l => (stars[l.n] || 0) < 3).length;
     return `${c.kicker} complete: ${c.name}. ${left ? `${left} ${left > 1 ? 'missions' : 'mission'} left for three stars` : 'Every mission at three stars'}`;
   }
+  if (o.auto) return BOOSTS.text.usedTip;
   return '';
 }
 
@@ -1006,7 +1009,7 @@ export function showResult(o, level, hasNext) {
     : [0, 1, 2].map(i => `<svg style="--n:${i}" viewBox="0 0 48 48"><use href="#i-star${i < earned ? '' : '-off'}"/></svg>`).join('');
   hero.setAttribute('aria-label', won ? `${o.stars} of 3 stars` : '');
   const rows = won ? [['Delivery tips', `+$${o.tip - o.beat - o.bonus}`], ...(o.bonus ? [['Combo and bonuses', `+$${o.bonus}`]] : []), ...(o.beat ? [['Rival beaten', `+$${o.beat}`]] : []),
-    ...(o.reward ? [['Daily reward', `+$${o.reward}`]] : []), ['Order condition', `${Math.round(o.integ)}%`], ['Flight time', clockText(o.secs)]]
+    ...(o.reward ? [['Daily reward', `+$${o.reward}`]] : []), ...(o.auto ? [BOOSTS.text.usedRow] : []), ['Order condition', `${Math.round(o.integ)}%`], ['Flight time', clockText(o.secs)]]
     : o.passed ? []
     : [...(legs > 1 ? [['Reached', `Stop ${o.reached + 1} of ${legs}`]] : []), ...(o.cost ? [['Order lost', `-$${o.cost}`]] : [])];
   $('resultStats').innerHTML = rows.map(([k, v], i) => `<dt style="--n:${i}">${k}</dt><dd style="--n:${i}">${v}</dd>`).join('');
@@ -1024,6 +1027,7 @@ export function showResult(o, level, hasNext) {
   $('resultNext').hidden = !next;
   if (o.passed || o.training || daily) $('resultSkip').hidden = true;
   else showSkip(level.n);
+  resultBoost(o, level, next ? levelList[level.n] : null);
   card.hidden = false;
   sfx(o.passed ? 'win' : 'lose');
   musicCue(o.passed ? 'win' : 'lose');
@@ -1055,6 +1059,7 @@ function rushResult(o) {
   $('resultMap').className = 'ghost round';
   $('resultNext').hidden = true;
   $('resultSkip').hidden = true;
+  $('resultBoost').hidden = true;
   card.hidden = false;
   sfx(best ? 'win' : 'lose');
   musicCue(best ? 'win' : 'lose');
@@ -1074,6 +1079,7 @@ function openPause() {
   $('pauseStats').textContent = rush ? `${scoreText(rush.score)} points · ${rush.del} ${rush.del === 1 ? 'delivery' : 'deliveries'}` : `$${money} · ${del} ${del === 1 ? 'delivery' : 'deliveries'}`;
   $('pauseWhy').textContent = rush ? (rush.del ? 'Leaving ends the run. Your score still counts' : '')
     : cost ? `Leaving loses the order: -$${cost}${combo ? ' and your combo' : ''}` : combo ? 'Leaving ends your combo' : '';
+  markDropKeys(level);
   $('pauseCard').hidden = false;
 }
 // the pause card's money and leaving cost are read when it opens, so a purchase made over it asks again
@@ -1116,14 +1122,21 @@ export function initLevels(levels, handlers) {
     if (node.classList.contains('locked')) lockHint(node, reachedLevel(loadProgress().stars));
     else openLevelCard(+node.dataset.n);
   });
-  $('levelClose').addEventListener('click', () => { $('levelCard').hidden = true; });
+  // leaving a card or a result settles a teaser left untouched
+  $('levelClose').addEventListener('click', () => {
+    leaveTease();
+    $('levelCard').hidden = true;
+  });
   // the chapter card only closes: it already counts as seen, and a card from Next leaves the result card under it
   $('chapterClose').addEventListener('click', () => { $('chapterCard').hidden = true; });
   // a tap on the dim around a card goes back as its arrow does
   for (const [card, back] of [['levelCard', 'levelClose'], ['gifts', 'giftsClose'], ['chapterCard', 'chapterClose']]) {
     $(card).addEventListener('click', e => { if (e.target === e.currentTarget) $(back).click(); });
   }
-  $('levelPlay').addEventListener('click', () => playLevel(picked));
+  $('levelPlay').addEventListener('click', () => {
+    leaveTease();
+    playLevel(picked);
+  });
   $('openTraining').addEventListener('click', () => {
     $('sheet').hidden = true;
     acts.training();
@@ -1139,10 +1152,30 @@ export function initLevels(levels, handlers) {
     acts.leave();
     showLevels();
   });
-  $('resultNext').addEventListener('click', () => playLevel(levelList[resultLevel.n]));
-  $('resultRetry').addEventListener('click', () => acts.play(resultLevel));
-  $('resultMap').addEventListener('click', showLevels);
-  $('resultSkip').addEventListener('click', () => playAd(resultLevel.n));
+  $('resultNext').addEventListener('click', () => {
+    leaveTease();
+    playLevel(levelList[resultLevel.n]);
+  });
+  $('resultRetry').addEventListener('click', () => {
+    leaveTease();
+    acts.play(resultLevel);
+  });
+  $('resultMap').addEventListener('click', () => {
+    leaveTease();
+    showLevels();
+  });
+  // the skip is granted once the ad is done, and the next mission opens
+  $('resultSkip').addEventListener('click', () => {
+    const n = resultLevel.n;
+    playAd(BOOSTS.text.skip, () => {
+      if (!skips.skipped.includes(n)) skips.skipped.push(n);
+      skips.since = 0;
+      delete skips.fails[n];
+      saveSkips();
+      if (levelList[n]) playLevel(levelList[n]);
+      else showLevels();
+    });
+  });
 }
 
 function markPicture() {

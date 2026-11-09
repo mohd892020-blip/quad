@@ -62,7 +62,7 @@ export function drawHover(time) {
 
 // Back: the topmost screen closes as its own arrow does (the pause card resumes, the result card leads to the map), the
 // map goes back to the menu, a flight pauses. On the menu there is nowhere back to go, so the app may close.
-const BACKS = [['sheet', 'sheetClose'], ['shop', 'shopClose'], ['league', 'leagueClose'], ['adCard', 'adClose'], ['chapterCard', 'chapterClose'], ['gifts', 'giftsClose'], ['levelCard', 'levelClose'], ['pauseCard', 'pauseBack'], ['resultCard', 'resultMap'], ['levels', 'levelsBack']];
+const BACKS = [['sheet', 'sheetClose'], ['shop', 'shopClose'], ['league', 'leagueClose'], ['adCard', 'adClose'], ['boostCard', 'boostClose'], ['chapterCard', 'chapterClose'], ['gifts', 'giftsClose'], ['levelCard', 'levelClose'], ['pauseCard', 'pauseBack'], ['resultCard', 'resultMap'], ['levels', 'levelsBack']];
 export function goBack() {
   const top = BACKS.find(([id]) => !$(id).hidden);
   if (top) {

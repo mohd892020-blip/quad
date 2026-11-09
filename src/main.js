@@ -1,12 +1,13 @@
 import { drawBoost, drawCars, drawEagles, drawHawks, drawRing, drawRival, stepAction, stepCloseCalls, stepEagles, stepSurprises, stepTraffic } from './action.js';
 import { initAudio, sfx, updateRotor } from './audio.js';
 import { callLive, initCall, stepCall } from './call.js';
+import { dropHint, initBoosts, markFlight } from './boosts.js';
 import { beginChallenge, drawChallenge, drawWeather, stepChallenge } from './challenge.js';
 import { stepContrast } from './contrast.js';
 import { drawCloudsBack, drawCloudsFront, drawFallBehind, drawFallFront, drawFog, drawHighClouds, drawOvercast, stepClouds } from './weather.js';
 import { updateMusic } from './music.js';
 import { BEACH, CAMERA, CITY_SEED, CLOCK, DRONE, DUST, FIXED_DT, GROUND, HUD_INTERVAL, MAX_FRAME_DT, MUSIC, PERFECT, QUALITY, RUSH } from './config.js';
-import { saveSettings, settings as picked } from './storage.js';
+import { notePlay, saveSettings, settings as picked } from './storage.js';
 import { initLeague } from './league.js';
 import { drawHover, initMenu, menuFloor, menuOpen, showMenu } from './menu.js';
 import { initDaily } from './daily.js';
@@ -17,7 +18,7 @@ import {
   autoDeliver, breakStreak, chargeDrone, drawBatteryCue, goal, drawHalos, drawOrderTime, drawPointer, drawPrep, drawTarget, explode, failMission, hangarHint, newGame, prepareFirstOrder, restrain, stepHealth, stepCargo,
   stepMission, stepShop, streak, strikeDown, zones,
 } from './delivery.js';
-import { currentModel, drawDrone, drawShadow, rotorLoad, stepBoost, stepDrone, stepHold, stepLand } from './drone.js';
+import { currentModel, drawDrone, drawShadow, rotorLoad, stepAutoDrop, stepBoost, stepDrone, stepHold, stepLand } from './drone.js';
 import { beginTraining, drawLesson, stepTraining, trainingLevel } from './training.js';
 import { initInput, keys, PARKED } from './input.js';
 import { drawRope, stepRope, stepRopeLength } from './rope.js';
@@ -63,7 +64,9 @@ export function step(dt) {
   keys.sink = keys.dn || (keys.rd && !zone.rope) ? 1 : 0;
   stepHold(st, pilot, zone.hold);
   stepLand(st, pilot, zone.land);
-  stepRopeLength(st, pilot, zone, dt);
+  stepAutoDrop(st, pilot, zone.drop, dt);
+  // Auto Drop works the rope itself
+  if (!st.drop) stepRopeLength(st, pilot, zone, dt);
   stepBoost(st, pilot, dt);
   const fall = st.d.vy;
   if (held) st.d.vx = st.d.vy = 0;
@@ -237,7 +240,9 @@ function loop(now) {
   }
   // the incoming call runs on real time, so a perfect drop's slow motion never stretches it
   stepCall(st, dt, paused, paused ? null : spot);
-  showActions(zones(st), !!st.anchor, !!st.landing, st.boosting);
+  const zone = zones(st);
+  showActions(zone, !!st.anchor, !!st.landing, st.boosting, !!st.drop);
+  if (zone.drop) dropHint();
   showHangarTip(paused ? null : hangarHint(st));
   updateRotor(!paused && !st.wreck && !st.falling && st.d.bat > 0, rotorLoad(st, controls()), currentModel());
   updateMusic(musicState(paused));
@@ -246,7 +251,10 @@ function loop(now) {
 function start(level) {
   // Rush starts a fresh run from its card, the pause card's Retry and the result card's Retry alike
   if (level.rush) level = rushLevel();
+  // the teasers count numbered missions played, retries included
+  if (!level.daily && !level.rush && !level.training) notePlay();
   st = newGame(level);
+  markFlight(st);
   resetWeatherNote();
   // most missions open in daylight; a few keep the sunset or the night, and today's mission picks its own hour
   setClock((level.rush ? RUSH.hour : level.daily ? level.daily.time : CLOCK.night.includes(level.n) ? 1 : CLOCK.sunset.includes(level.n) ? 0 : 2) * (CLOCK.hold + CLOCK.fade));
@@ -350,6 +358,7 @@ initLeague();
 initDaily();
 initRush();
 initCall();
+initBoosts();
 onStart(() => {
   hideOverlay();
   // a brand new player flies the lessons first

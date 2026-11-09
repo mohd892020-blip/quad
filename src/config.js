@@ -29,6 +29,87 @@ export const SKIP = {
   blockSize: 10, perBlock: 2, challengeFrom: 41, challengePerBlock: 1, open: 3, adSecs: 5,
 };
 
+// Rewarded-ad boosts, got before flying only: the mission card, the result card's pill and the map's Boosts card. devOnly
+// keeps every ad offer in developer mode until real ads exist, as SKIP.devOnly; the stand-in ad runs SKIP.adSecs. What a
+// player already holds works either way. land: one ad unlocks Auto Land until the date changes; rush and training say
+// whether it works there (a developer keeps LAND everywhere, as before). drop: one ad gives one Auto Drop, kept until a
+// handover uses it; the next can be got only once it is used and on a later date. It is used from mission `from`, never
+// on checkpoints (SKIP.never), today's mission, Rush Hour or training. A handover made by Auto Drop is never PERFECT,
+// leaves the combo as it was, pays `tip` of the tip without the combo's raise, and holds the mission to `stars`.
+// Its button shows in Hold's zone below maxSpeed, with the aircraft at least `above` over the order's shortest rope and
+// every ring of the stop flown. The autopilot steers Hold's own anchor: the aim walks to the spot at `slew`, riding a
+// ferry; the anchor follows the order's swing by `sway` and leads for wind and ferry the way Hold's spring trails; an
+// integral `ki` (at most biasMax) trims the last offset once the order is within `near` of the customer's height; the
+// aircraft stays between `rope` and the shortest rope over the customer, and `ice` above thin ice's wash line; it climbs
+// at `rise` once more than `slack` too low, and sinks at `sink` only once the order is within lineUp of the customer and
+// swinging less than `calm`; within `settle` of its height the rope pays out at ROPE_CTL.speed, easing to `touch` +
+// `ease` times the distance left; over traffic the order stays
+// carClear above a vehicle within carGap, or due within carSecs. After `secs` it hands back on plain Hold and the drop is
+// kept. buzz: the phone's tap when it starts and when a boost is got.
+export const BOOSTS = {
+  devOnly: true, from: 6,
+  land: { rush: false, training: false },
+  drop: {
+    tip: .5, stars: 2, maxSpeed: 220, above: 12, slew: 120, rise: 140, sink: 100, lineUp: 16, calm: 10, rope: 150, ki: .8, biasMax: 40,
+    near: 20, slack: 4, settle: 20, touch: 30, ease: 2.5, ice: 30, sway: 1.2, secs: 12, carSecs: 2.5, carGap: 20, carClear: 24, buzz: 25,
+  },
+  text: {
+    land: 'Auto Land', drop: 'Auto Drop', free: 'Free', ready: 'Ready', newTag: 'NEW',
+    landIntro: 'New: Auto Land sets you down on any shop pad by itself. Free all day with one ad',
+    dropIntro: 'New: over the customer, Auto Drop lowers the order and hands it over for you',
+    landWhy: {
+      climb: 'Gusty mountain pads. Auto Land sets you down on them',
+      long: 'A long route. Auto Land takes you down to a pad to recharge',
+      cold: 'The cold drains your battery. Auto Land gets you onto a pad to recharge',
+      battery: 'Only {bat}% battery. Auto Land brings you down on a pad to recharge',
+      dark: 'Pickups in the dark. Auto Land finds the pad for you',
+      battFail: 'Out of power? Auto Land sets you on a shop pad to recharge',
+      padFail: 'Auto Land sets you down on a shop pad to recharge and repair',
+    },
+    dropWhy: {
+      street: 'Street drops in traffic. Auto Drop waits for a gap and lowers it',
+      fragile: 'A fragile order. Auto Drop lowers it gently',
+      double: 'Two drops in one trip. Auto Drop can hand one over for you',
+      glass: 'Glass on a rope. Auto Drop lowers it gently',
+      moving: 'A customer on the move. Auto Drop rides along and hands it over',
+      mark: 'A small mark. Auto Drop sets the order right on it',
+      fail: 'So close! Auto Drop hands the order over for you',
+    },
+    fine: 'One delivery · tip halved · 2 stars at most',
+    pillLand: 'Auto Land · free with an ad', pillDrop: 'Auto Drop · free with an ad',
+    shop: 'You can afford {names}', shopGo: 'Open the Shop',
+    landReady: 'Auto Land ready today', dropReady: 'Auto Drop ready', dropNext: 'Next one tomorrow', landUntil: 'Ready until midnight',
+    getLand: 'Get Auto Land', getDrop: 'Get Auto Drop', skip: 'Skip mission', watch: 'Watch ad',
+    landLine: 'Lands you on any shop pad nearby, until midnight',
+    dropLine: 'Over the customer, it lowers the order and hands it over',
+    landWhere: 'Not in Rush Hour or flight school',
+    dropWhere: "Not on checkpoints, Rush Hour, Today's Mission or flight school",
+    paused: ['Auto Drop paused', 'Fly it in yourself. Your Auto Drop is kept'],
+    hint: ['Auto Drop', 'Tap AUTO DROP to hand this order over'], hintKeys: ['Auto Drop', 'Press G to hand this order over'],
+    usedRow: ['Auto Drop', 'Tip halved · 2 stars at most'], usedTip: 'Fly the drop yourself for full tips and three stars',
+    reset: 'Reset boosts', title: 'Boosts', pop: 'AUTO',
+  },
+};
+
+// The golden teasers: one shared gold pill, one soft glow of `glow` seconds after glowDelay when it shows, never a
+// blink. One per screen. None on a mission below `from` (the Shop's introduction, the first pass from shop.intro with
+// something new to afford, is the one exception). None on a checkpoint (SKIP.never), a chapter's first mission
+// (CHAPTERS[].from past 1), today's mission, Rush Hour, training or in flight. A teaser on a result card is for the
+// flight that comes next: the next mission after a pass (Next skips the card), the same one after a fail. Ad teasers come
+// at least adGap missions played apart and once per flight (card and result together); each feature at least gap missions
+// played after its own last one. A feature introduces itself once from `intro`, then shows on the cards of its missions
+// (each with the reason key of its line), and on a fail's result card after the fails it answers: Auto Land after a dead
+// battery, or after padWhys near a shop pad; Auto Drop after any fail over the customer except skipWhys. Ignored `ignore`
+// times in a row, a feature rests for `rest` missions played. The Shop's pill shows on a pass when something not yet
+// named can be afforded, at most once per shop.every missions played. Missions played count every start of a numbered
+// mission, retries included; no clock.
+export const TEASE = {
+  from: 6, adGap: 2, gap: 5, ignore: 3, rest: 5, glow: 1.2, glowDelay: .3,
+  shop: { intro: 3, every: 3 },
+  land: { intro: 8, cards: { 16: 'climb', 24: 'long', 34: 'cold', 45: 'battery', 65: 'dark', 78: 'cold' }, padWhys: ["TIME'S UP", 'AIRCRAFT DESTROYED'] },
+  drop: { intro: 14, cards: { 19: 'street', 26: 'fragile', 37: 'double', 42: 'glass', 47: 'moving', 61: 'mark', 68: 'mark', 75: 'moving' }, skipWhys: ['LEFT THE MISSION'] },
+};
+
 // Clouds at flying height. amount is the share of slots that hold a cloud (a level may set its own); each is a cluster of
 // puffs that the aircraft pushes (push, within reach of a puff's edge, with wash pressing down and carry dragging along)
 // and that springs back. A pushed puff thins and swells; frontShare of the puffs are drawn over the aircraft. No more

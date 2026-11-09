@@ -1,9 +1,9 @@
 import { JOY } from './config.js';
 import { settings } from './storage.js';
 
-// l/r/u/dn/rd/ru are held states, axis is the joystick in -1..1, holdTap and landTap are one-shot presses.
+// l/r/u/dn/rd/ru are held states, axis is the joystick in -1..1, holdTap, landTap and dropTap are one-shot presses.
 // sink is worked out each step: the DOWN button, or the rope key anywhere the rope has nothing to do.
-export const keys = { l: 0, r: 0, u: 0, dn: 0, sink: 0, rd: 0, ru: 0, boost: 0, axis: 0, holdTap: 0, landTap: 0 };
+export const keys = { l: 0, r: 0, u: 0, dn: 0, sink: 0, rd: 0, ru: 0, boost: 0, axis: 0, holdTap: 0, landTap: 0, dropTap: 0 };
 // What flight sees while the aircraft is held on its pad.
 export const PARKED = { ...keys };
 
@@ -141,6 +141,7 @@ export function initInput() {
     if (e.target?.tagName === 'INPUT') return;
     if (e.code === 'KeyH' && !e.repeat) keys.holdTap = 1;
     if (e.code === 'KeyL' && !e.repeat) keys.landTap = 1;
+    if (e.code === 'KeyG' && !e.repeat) keys.dropTap = 1;
     const k = km[e.code];
     if (k) { keys[k] = 1; e.preventDefault(); }
   });
@@ -153,7 +154,7 @@ export function initInput() {
   bindJoystick();
   bindRocker();
   // a second finger never produces a click, and these buttons are pressed while steering
-  [['hold', 'holdTap'], ['land', 'landTap']].forEach(([id, k]) => $(id).addEventListener('pointerdown', e => {
+  [['hold', 'holdTap'], ['land', 'landTap'], ['autoDrop', 'dropTap']].forEach(([id, k]) => $(id).addEventListener('pointerdown', e => {
     e.preventDefault();
     keys[k] = 1;
   }));
