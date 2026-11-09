@@ -43,6 +43,7 @@ mkdirSync(assets);
 mkdirSync(classes);
 writeFileSync(join(assets, 'index.html'), selfContained(readFileSync(join('dist', 'pages', 'index.html'), 'utf8')));
 for (const license of ['OFL-lalezar.txt', 'OFL-tajawal.txt']) copyFileSync(join('android', 'fonts', license), join(assets, license));
+copyFileSync(join('voices', 'CREDITS.txt'), join(assets, 'CREDITS-voices.txt'));
 
 run(join(build, 'aapt2.exe'), ['compile', '--dir', join('android', 'res'), '-o', resources]);
 run(join(build, 'aapt2.exe'), [

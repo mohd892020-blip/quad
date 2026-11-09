@@ -2,8 +2,8 @@ import { iceAt } from './alpine.js';
 import { sfx } from './audio.js';
 import { moveCustomer } from './action.js';
 import { clearBay } from './seaside.js';
-import { AVALANCHE, BEACH, BLACKOUT, BOX, BULLSEYE, DELIVERY, DRONE, FERRY, GALE, GATES, GROUND, HOP, JET, RADAR, RESCUE, SNOW, STORM, SURPRISE, THIN_ICE } from './config.js';
-import { drawHalos, drawTarget, failMission, pointerSpot } from './delivery.js';
+import { AVALANCHE, BEACH, BLACKOUT, BOX, BULLSEYE, DELIVERY, DRONE, FERRY, FIXED_DT, GALE, GATES, GROUND, HOP, JET, RADAR, RESCUE, SNOW, STORM, SURPRISE, THIN_ICE } from './config.js';
+import { drawHalos, drawTarget, failMission, opensOnCall, pointerSpot } from './delivery.js';
 import { ctx, glow, kickDust, pop, popSpot, shade, showBoost, showToast, view, X, Y } from './ui.js';
 import { world } from './world.js';
 
@@ -19,6 +19,10 @@ export function beginChallenge(st) {
     if (s.t.speed) s.t.dir = 1;
   }
   clearBay(stops.find(s => s.t.ferry && s.t.from != null)?.t);
+  // the first order waits on its call now, not on the shop, so its ferry sets out as far on as the making used to take
+  // and waits with the call: at takeoff it is where it always was, however soon or late the call is answered
+  const first = stops[0];
+  if (first.twist === 'ferry' && opensOnCall(st)) for (let k = Math.round(first.item.prep / FIXED_DT); k > 0; k--) sail(st, first.t, FIXED_DT);
   // a challenge, or today's mission, names its rule as it starts
   const intro = challenge ?? st.level.daily?.theme;
   if (intro) showToast(intro.name, intro.note, true);
@@ -52,9 +56,14 @@ function radar(st, dt) {
   }
 }
 
-// The ferry shuttles along the bay; an aircraft on Hold rides along with it.
+// The ferry shuttles along the bay; an aircraft on Hold rides along with it. It waits with the first order's call.
 function ferry(st, dt) {
-  const c = FERRY, t = st.stop.t, from = t.from ?? c.from, to = t.to ?? c.to;
+  if (st.ticket?.opening && !st.ticket.answered) st.stop.t.vx = 0;
+  else sail(st, st.stop.t, dt);
+}
+
+function sail(st, t, dt) {
+  const c = FERRY, from = t.from ?? c.from, to = t.to ?? c.to;
   t.dir = t.dir || 1;
   const step = t.dir * (t.speed ?? c.speed) * dt;
   t.x += step;

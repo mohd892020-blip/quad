@@ -133,6 +133,9 @@ body:not(.dev) .devOnly{display:none!important}
 /* moved across, clear of the altimeter and its height label, while the left would cover the pointer or the aircraft */
 #call.east{left:auto;right:var(--callEast,76px)}
 #call.snap{transition:opacity .22s ease,margin-top var(--comboAnim) ease}
+/* reaching for the controls before answering shakes it; translate, so the drop's transform and the entry stay as they are */
+#call.nudge{animation:callIn .22s ease-out,callNudge .35s ease-in-out}
+@keyframes callNudge{25%{translate:-5px 0}75%{translate:5px 0}}
 #callFace{position:relative;width:40px;height:40px;border-radius:50%;background:var(--face,#e8492c);display:grid;place-items:center;font:400 17px/1 var(--display);font-style:normal;color:#fff3df;box-shadow:inset 0 0 0 2px rgba(255,243,223,.45)}
 #call.ring #callFace::after{content:"";position:absolute;top:-4px;right:-4px;bottom:-4px;left:-4px;border-radius:50%;border:2px solid var(--face,#e8492c);animation:callRipple 1s ease-out infinite}
 @keyframes callRipple{from{opacity:.8;transform:scale(.9)}to{opacity:0;transform:scale(1.35)}}
@@ -152,7 +155,7 @@ body:not(.dev) .devOnly{display:none!important}
 body.desk #call.ring #callLine::after{content:" · Enter"}
 #wrap.narrow.comboOn #call{margin-top:var(--comboStep)}
 @media (max-height:480px){#call{width:min(300px,calc(100% - 88px));padding:5px;grid-template-columns:34px minmax(0,1fr) 38px}#callFace{width:34px;height:34px;font-size:15px}#callBtn{width:38px;height:38px}}
-@media (prefers-reduced-motion:reduce){#call,#call.ring #callBtn,#call.ring #callFace::after{animation:none}#call{transition:opacity .22s}}
+@media (prefers-reduced-motion:reduce){#call,#call.nudge,#call.ring #callBtn,#call.ring #callFace::after{animation:none}#call{transition:opacity .22s}}
 .badge{font-size:11px;font-weight:800;line-height:1;padding:3px 7px 2px;border-radius:9px;color:#fff;background:#6b6259;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .badge.thrust{background:#7a3ea8}
 .badge.speed{background:#2a6a9c}

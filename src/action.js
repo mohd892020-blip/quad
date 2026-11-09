@@ -1,7 +1,7 @@
 import { buzz, sfx } from './audio.js';
 import { BEACH, BOX, CARS, CLOSE, CONTRAST, DESERT, FIXED_DT, FOREST, FX, MISSION, MOUNTAIN, SNOW, DRONE, EAGLES, EDGE, G, GROUND, HAWKS, HEALTH, RIVAL, RUSH, SURPRISE } from './config.js';
 import { currentModel, drawAirframe } from './drone.js';
-import { homeOf } from './homes.js';
+import { callerAt } from './homes.js';
 import { confetti, ctx, glow, hud, kickDust, noticeUp, placeName, pop, shade, showToast, view, X, Y } from './ui.js';
 import { nearby, roofAt, world } from './world.js';
 
@@ -115,7 +115,7 @@ function stepHawks(st, dt) {
     if (h.state === 'circle') {
       h.x = h.homeX + Math.cos(h.t * c.circleRate + h.phase) * c.orbit;
       h.y = h.homeY + Math.sin(h.t * c.circleRate * 2 + h.phase) * c.orbit * .3;
-      if (st.has && Math.hypot(bx.x - h.x, bx.y - h.y) < c.trigger) {
+      if (st.has && !st.ticket && Math.hypot(bx.x - h.x, bx.y - h.y) < c.trigger) {
         h.state = 'dive';
         h.t = 0;
         pop(st, h.x, h.y - 26, 'Hawk!', '#ff7a5c');
@@ -187,7 +187,7 @@ export function stepEagles(st, dt) {
     if (e.state === 'soar') {
       e.x = e.homeX + Math.cos(e.t * c.circleRate + e.phase) * c.orbit;
       e.y = e.homeY + Math.sin(e.t * c.circleRate * 2 + e.phase) * c.orbit * .3;
-      if (st.has && gap < c.trigger) markPrey(st, e);
+      if (st.has && !st.ticket && gap < c.trigger) markPrey(st, e);
     } else if (e.state === 'mark') {
       e.aim = want;
       e.y -= c.markRise * dt;
@@ -440,7 +440,7 @@ export function moveCustomer(st, to) {
   o.added += extra;
   o.grace += Math.ceil(further / MISSION.speed * c.pace);
   st.hold = 0;
-  showToast(`${homeOf(st.stop.t)?.first ?? 'The customer'} moved`, `To ${placeName(to)}, ${Math.round(Math.abs(dx) / 10)} m ${dx > 0 ? '→' : '←'} · +${extra}s`, true);
+  showToast(`${callerAt(st.stop.t, st)?.who ?? 'The customer'} moved`, `To ${placeName(to)}, ${Math.round(Math.abs(dx) / 10)} m ${dx > 0 ? '→' : '←'} · +${extra}s`, true);
   sfx('gate');
   hud(st);
   return true;

@@ -1,0 +1,14 @@
+Caller voices: lines recorded ahead of time with Piper text-to-speech (https://github.com/rhasspy/piper, GPL-3.0).
+Piper was used as a tool only; none of its code ships in the game.
+
+Voice models from rhasspy/piper-voices (https://huggingface.co/rhasspy/piper-voices, MIT), trained by Bryce Beattie
+(https://brycebeattie.com/files/tts/) on public-domain recordings:
+
+en_US-ljspeech-high   female  LJ Speech dataset, public domain, trained from scratch
+en_US-kristin-medium  female  LibriVox recordings, public domain, trained from scratch
+en_US-norman-medium   male    LibriVox recordings, public domain, trained from scratch
+en_US-john-medium     male    LibriVox recordings, public domain, fine-tuned from kristin
+
+Commercial use is allowed. No voice built on lessac or any non-commercial dataset is used.
+
+Remake: set PIPER_PY and PIPER_MODELS, then npm run voices.

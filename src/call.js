@@ -1,25 +1,30 @@
-import { buzz, hushVoice, sfx, speak } from './audio.js';
+import { buzz, clipLoading, clipOf, hushVoice, loadClip, sayClip, sfx, speak } from './audio.js';
 import { CALL } from './config.js';
+import { answerOrder } from './delivery.js';
 import { homeName, homeOf } from './homes.js';
 import { bandBottom, covers, modalOpen, view, X, Y } from './ui.js';
+import { askLine, callerOf, clipName, greetLine, turnOf } from './voice.js';
 import { rng } from './world.js';
 
-// Every order comes in as a phone call: a card rings on the left under the HUD, answers itself (or a tap or Enter does),
-// and the caller says what they want in a babble made on the device while the words show one by one. It runs once a
-// frame in real time from the loop and only reads the game, so it never moves the flight; a pause ends it (a call not
-// yet answered rings again after), and it never shows on the last stretch to the customer.
-let clock = 0, live = null, queue = [], held = [], owner = null, calledFor = null, lastEnd = -Infinity, rect = null, measuredAt = 0, drop = 0, faint = false, east = false;
-// the aircraft's guard box and the card's other side, filled in place each frame
-const plane = [0, 0, 0, 0], other = [0, 0, 0, 0];
+// Every order comes in as a phone call. The card rings on the left under the HUD until the player answers it (a tap on
+// the card or its button, or Enter); an order waits for its call (delivery.js), and the moment it is answered it is
+// ready. The caller then says it in a recorded voice, a man's or a woman's as their title says, with the words showing
+// as they are said; a missing line falls back to a babble made on the device. Rush rings once and lifts off as the
+// answer. It runs once a frame in real time and only reads the game, except answerOrder.
+let clock = 0, live = null, next = null, owner = null, calledFor = null, again = false, lastEnd = -Infinity, rect = null, measuredAt = 0, drop = 0, faint = false, east = false, back = false, nudged = false;
+// what has been answered, so a Rush order never rings twice
+const heard = new WeakSet();
+// the aircraft's guard box and the card's two sides, filled in place
+const plane = [0, 0, 0, 0], other = [0, 0, 0, 0], west = [0, 0, 0, 0];
 const $ = id => document.getElementById(id);
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const meets = (a, b) => a[0] < b[2] && a[2] > b[0] && a[1] < b[3] && a[3] > b[1];
 
-// A caller's voice from their household's place in the list, so the five on the first missions all sound apart.
-export function voiceOf(h) {
-  const v = CALL.voice, k = (h.i * 5 + v.offset) % v.steps;
+// A caller's babble voice: its pitch by title, the rest from the household's place in the list, so neighbours sound apart.
+export function voiceOf(h, c) {
+  const v = CALL.voice, k = (h.i * 5 + v.offset) % v.steps, pitch = v.pitch[c.male ? 'm' : 'f'];
   return {
-    hz: v.pitch[0] + (v.pitch[1] - v.pitch[0]) * k / (v.steps - 1),
+    hz: pitch[0] + (pitch[1] - pitch[0]) * k / (v.steps - 1),
     speed: v.speed[0] + (v.speed[1] - v.speed[0]) * ((h.i * 3) % 4) / 3,
     shift: 1 + (((h.i * 7) % 5) - 2) * v.shift,
   };
@@ -56,71 +61,90 @@ export function babblePlan(text, h, v, room) {
   return { secs, syl: kept, words, fast: s, cut: syl.length - kept.length };
 }
 
-// What the caller asks for, in their words: one item, or a tied pair as two of one or one and another.
-const one = i => CALL.ask[i.key]?.[0] ?? `a ${i.label.toLowerCase()}`;
-const ask = item => (item.parts ? (item.parts[0] === item.parts[1] ? CALL.ask[item.parts[0].key]?.[1] ?? `two of ${one(item.parts[0])}` : `${one(item.parts[0])} and ${one(item.parts[1])}`) : one(item));
-const cap = s => s[0].toUpperCase() + s.slice(1);
-const fill = (tpl, h, item, prev, home = '') => tpl.replace('{who}', h.first).replace('{prev}', prev ?? '').replace('{Ask}', cap(ask(item))).replace('{ask}', ask(item)).replace('{home}', home);
+// What a call is for: an order waiting on its call, or a Rush order once its shop starts on it.
+const gateOf = st => (st.ticket && !st.ticket.answered ? st.ticket : st.rush && (st.prep || st.has) && !heard.has(st.stop) ? st.stop : null);
 
-// The calls an order brings: one for each customer, a Double Run's second one waiting. A later stop's call is shorter,
-// a handed-on order's caller says who passes it on, and Rush keeps them quick.
-export function callsFor(st) {
-  if (st.level.training) return [];
-  const s = st.stop, rush = !!st.level.rush, prev = homeOf(st.level.stops[st.stopAt - 1]?.t)?.first;
-  const list = s.parcels ? s.parcels.map((p, k) => ({ t: p.t, item: p.item, k })) : [{ t: s.t, item: s.item, k: 0 }];
-  return list.flatMap(({ t, item, k }) => {
-    const h = homeOf(t);
-    if (!h) return [];
-    const kind = rush ? 'rush' : s.handOn ? 'hand' : st.stopAt > 0 || k > 0 ? 'short' : 'first';
-    const set = CALL.lines[kind === 'rush' ? 'rush' : s.rescue ? 'rescue' : item.urgent && (kind === 'first' || kind === 'short') ? 'urgent' : kind];
-    const v = (h.i + (rush ? st.rush?.del ?? 0 : st.level.n - 1 + st.stopAt)) % set.length, vo = voiceOf(h);
-    const say = text => {
-      const talk = clamp(babblePlan(text, h, vo, Infinity).secs + CALL.linger, ...CALL.kinds[kind].talk);
-      return { text, talk, plan: babblePlan(text, h, vo, talk - CALL.linger) };
-    };
-    // a line too long to show, or to say whole in its time, gives way to the short one of its kind
-    let line = say(fill(set[v], h, item, prev));
-    if (line.text.length > CALL.maxChars || line.plan.cut) line = say(fill(CALL.lines.tight[rush ? 'rush' : item.urgent ? 'urgent' : 'plain'], h, item, prev));
-    const home = homeName(t, t === s.t ? s.place : null, true);
-    const state = fill(k > 0 ? CALL.states.waiting : CALL.states.ring, h, item, prev, home);
-    return [{ h, t, item, kind, ...line, state, ring: CALL.kinds[kind].ring, vo }];
-  });
+// The call an order brings: its caller (a couple's two take turns), the greeting and the request in that caller's
+// recorded voice, and the line under the name while it rings. An order with nobody to call it never waits.
+function callFor(st, gate, at) {
+  const ticket = gate === st.ticket ? gate : null, s = st.stop, t = ticket?.air ? st.order.t : s.parcels?.[0].t ?? s.t;
+  const item = ticket?.air ? st.item : s.parcels?.[0].item ?? s.item, h = homeOf(t);
+  if (!h) {
+    if (ticket) {
+      console.warn('call: no caller for this order');
+      answerOrder(st);
+    }
+    return null;
+  }
+  const turn = turnOf(st), c = callerOf(h, turn), rush = !!st.rush;
+  const set = rush ? 'rush' : s.rescue ? 'rescue' : item.urgent ? 'urgent' : 'plain';
+  const segs = [rush ? null : greetLine(c), askLine(set, item, h.i + turn)].filter(Boolean).map(text => ({ text, name: clipName(c.voice, text) }));
+  const kind = rush ? 'rush' : ticket?.air ? (st.order.drop === 2 ? 'drop' : 'hand') : 'ring';
+  const state = CALL.states[kind].replace('{home}', homeName(t, t === s.t ? s.place : null, true));
+  return { h, c, t, gate, ticket, rush, segs, state, vo: voiceOf(h, c), at };
 }
 
-// Initials for the avatar: a couple's home both of theirs ("Bill & Louise Home" B&L), otherwise the caller's ("Tara" T,
-// "Anna Miller" AM).
-function initials(h) {
-  const words = (h.sign ?? h.own).split(' '), amp = words.indexOf('&');
-  if (amp > 0 && words[amp + 1]) return `${words[amp - 1][0]}&${words[amp + 1][0]}`.toUpperCase();
-  return h.caller.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
-}
+// the card's class: its phase, faint, the side it moved to (kept until the call is gone), and a shake
+const show = phase => { $('call').className = phase + (faint ? ' faint' : '') + (east ? ' east' : '') + (nudged ? ' nudge' : ''); };
 
-// the card's class: its phase, faint, and the side it moved to, which it keeps until the call is gone
-const show = phase => { $('call').className = phase + (faint ? ' faint' : '') + (east ? ' east' : ''); };
-
-function ring(c) {
-  Object.assign(c, { phase: 'ring', start: clock, answerAt: clock + c.ring, nextRing: clock + CALL.ringEvery, said: 1 });
-  $('callWho').textContent = c.h.caller;
-  $('callLine').textContent = c.state;
-  $('callFace').textContent = initials(c.h);
-  const el = $('call');
-  el.style.setProperty('--face', CALL.faces[c.h.i % CALL.faces.length]);
-  faint = east = false;
+function ring() {
+  const c = live.c, el = $('call');
+  Object.assign(live, { phase: 'ring', rings: 1, nextRing: clock + CALL.ringEvery, seg: -1, pend: null, pendAt: null });
+  $('callWho').textContent = c.who;
+  $('callLine').textContent = live.state;
+  $('callFace').textContent = c.initials;
+  el.style.setProperty('--face', CALL.faces[live.h.i % CALL.faces.length]);
+  $('callBtn').setAttribute('aria-label', `Answer call from ${c.who}`);
+  faint = east = back = false;
   show('ring');
   el.hidden = false;
-  $('callBtn').setAttribute('aria-label', 'Answer call');
   rect = null;
-  sfx(c.kind === 'rush' ? 'phoneQuick' : 'phone');
-  if (c.kind !== 'rush') buzz(CALL.buzz);
+  // decoded while it rings, so the voice is ready the moment it is answered
+  for (const s of live.segs) loadClip(s.name);
+  sfx(live.rush ? 'phoneQuick' : 'phone');
+  if (!live.rush) buzz(CALL.buzz);
 }
 
 function answer() {
-  Object.assign(live, { phase: 'talk', answeredAt: clock, talkEnd: clock + live.talk });
+  live.phase = 'talk';
+  heard.add(live.gate);
+  if (live.ticket) answerOrder(owner);
   show('talk');
   $('callBtn').setAttribute('aria-label', 'End call');
-  // one span a word, each shown as the voice reaches it; built as text, so a name can never become markup
+  sfx('answer');
+  startSeg(0);
+}
+
+// One line of the call: its recorded voice at the caller's rate, each word showing as the voice reaches where it starts
+// in the line; with no recording, the babble's own timing. A line still decoding is waited for a moment. Muted, or with
+// no sound at all, the words keep the same time.
+function startSeg(i) {
+  const s = live.segs[i], c = live.c, buf = clipOf(s.name);
+  if (!buf && clipLoading(s.name) && clock - (live.pendAt ??= clock) < CALL.speech.wait) {
+    live.pend = i;
+    return;
+  }
+  live.pend = live.pendAt = null;
+  const words = s.text.split(/\s+/).filter(Boolean);
+  let secs, at;
+  if (buf) {
+    secs = buf.duration / c.rate;
+    let from = 0;
+    at = words.map(w => {
+      const k = s.text.indexOf(w, from);
+      from = k + w.length;
+      return secs * k / s.text.length;
+    });
+    sayClip(buf, c.rate);
+  } else {
+    const plan = babblePlan(s.text, live.h, live.vo, Infinity);
+    secs = plan.secs;
+    at = plan.words.map(w => w.at);
+    speak(plan, live.vo);
+  }
+  // one span a word, built as text, so a name can never become markup
   const line = $('callLine'), frag = document.createDocumentFragment();
-  live.text.split(/\s+/).filter(Boolean).forEach((w, k) => {
+  words.forEach((w, k) => {
     const span = document.createElement('span');
     span.textContent = k ? ` ${w}` : w;
     if (k) span.className = 'unsaid';
@@ -128,10 +152,8 @@ function answer() {
   });
   line.textContent = '';
   line.appendChild(frag);
-  live.spans = line.children;
+  Object.assign(live, { seg: i, at, said: 1, spans: line.children, segAt: clock, segEnd: clock + secs });
   rect = null;
-  sfx('answer');
-  speak(live.plan, live.vo);
 }
 
 // hard: gone at once (a pause, a new mission, the mission decided); otherwise it fades, quietly on the approach.
@@ -155,7 +177,10 @@ function endCall(hard, quiet = false) {
   }
 }
 
-export const callLive = () => !!live && live.phase !== 'out';
+// the music steps back while a call rings loud or talks, not through a long quiet wait
+export const callLive = () => !!live && (live.phase === 'talk' || (live.phase === 'ring' && live.rings <= CALL.loud));
+// what the ringing card is for, so the HUD asks for an answer only once there is a call to answer
+export const ringingFor = () => (live?.phase === 'ring' ? live.gate : null);
 
 // The card's tap and Enter: answer a ringing call, end one that talks.
 function press() {
@@ -166,50 +191,70 @@ function press() {
 export function stepCall(st, dt, paused, spot) {
   if (st !== owner) {
     endCall(true);
-    queue = [];
-    held = [];
+    next = null;
     calledFor = null;
+    again = false;
     owner = st;
   }
-  // a pause card, the map or a result card never sits on a call; a pause keeps the calls not yet answered for after
+  // a pause card, the map or a result card never sits on a call; an order not yet answered rings again once play goes on
   if (paused || st.done || st.outcome || st.wreck || st.falling || st.level.training) {
-    if (live || queue.length) {
-      held = paused ? (live?.phase === 'ring' ? [live, ...queue] : queue) : [];
+    if (live || next) {
+      again = !!next || live.phase === 'ring';
       endCall(true);
-      queue = [];
-    } else if (!paused) held = [];
+      next = null;
+      calledFor = null;
+    }
     return;
   }
   clock += dt;
-  if (held.length) {
-    for (const c of held) queue.push({ ...c, at: clock + CALL.laterAt });
-    held = [];
+  const gate = gateOf(st);
+  if (!gate) again = false;
+  else if (gate !== calledFor) {
+    calledFor = gate;
+    const k = st.ticket === gate ? gate : null;
+    next = callFor(st, gate, clock + (again ? CALL.resumeAt : k?.opening ? CALL.firstAt : k?.air ? CALL.airAt : st.rush ? CALL.rushAt : CALL.nextAt));
+    again = false;
+    if (live && live.phase === 'talk') endCall(false);
   }
-  // the order comes in: a shop starts making it, or a customer ties the next one on; the stop object marks it, so landing
-  // again never calls twice, and Rush's fresh stop for each order always rings
-  if (calledFor !== st.stop && (st.prep || (st.has && st.stop.handOn))) {
-    calledFor = st.stop;
-    const at = clock + (st.prep?.opening ? CALL.firstAt : st.prep ? CALL.laterAt : CALL.handAt);
-    for (const c of callsFor(st)) queue.push({ ...c, at });
-  }
-  // the last stretch to the customer belongs to the flying
+  // waiting on the pad, the call comes at once
+  if (next && st.prep?.call) next.at = Math.min(next.at, clock + CALL.padAt);
+  // the last stretch to the customer belongs to the flying; a call waiting on its answer is never cut
   const o = st.order;
-  if (st.has && Math.abs(o.t.x - st.d.x) < Math.min(CALL.approach, CALL.approachShare * Math.abs(o.t.x - o.fromX))) {
-    queue = [];
-    if (live && live.phase !== 'out') endCall(false, true);
+  if (st.has && !st.ticket && Math.abs(o.t.x - st.d.x) < Math.min(CALL.approach, CALL.approachShare * Math.abs(o.t.x - o.fromX))) {
+    if (live && live.phase === 'talk') endCall(false, true);
+    if (next?.rush) next = null;
   }
-  if (!live && queue[0] && clock >= queue[0].at && clock >= lastEnd + CALL.between) ring((live = queue.shift()));
+  if (!live && next && clock >= next.at && clock >= lastEnd + CALL.between) {
+    live = next;
+    next = null;
+    ring();
+  }
+  // reaching for the controls before answering shakes the card too
+  const n = ((st.prep?.call ? st.prep : st.ticket)?.nudge ?? 0) > 0;
+  if (n !== nudged) {
+    nudged = n;
+    $('call').classList.toggle('nudge', n);
+  }
   if (!live) return;
   if (live.phase === 'ring') {
-    if (clock >= live.nextRing && live.nextRing + CALL.ringTail < live.answerAt) {
-      sfx(live.kind === 'rush' ? 'phoneQuick' : 'phone');
-      live.nextRing += CALL.ringEvery;
+    // its order gone (the mission moved on), it stops; Rush takes lifting off with the order as the answer
+    if ((live.ticket && st.ticket !== live.ticket) || (live.rush && st.stop !== live.gate)) endCall(false, true);
+    else if (live.rush && st.has && !st.docked) answer();
+    else if (clock >= live.nextRing && live.rings < (live.rush ? CALL.rushRings : Infinity)) {
+      live.rings++;
+      sfx(live.rush ? 'phoneQuick' : live.rings <= CALL.loud ? 'phone' : 'phoneSoft');
+      live.nextRing += live.rings < CALL.loud ? CALL.ringEvery : CALL.quietEvery;
     }
-    if (clock >= live.answerAt) answer();
   } else if (live.phase === 'talk') {
-    const words = live.plan.words, spoken = clock - live.answeredAt;
-    while (live.said < live.spans.length && (words[live.said]?.at ?? 0) <= spoken) live.spans[live.said++].classList.remove('unsaid');
-    if (clock >= live.talkEnd) endCall(false);
+    if (live.pend != null) startSeg(live.pend);
+    if (live.pend == null) {
+      const at = live.at, spoken = clock - live.segAt;
+      while (live.said < live.spans.length && at[live.said] <= spoken) live.spans[live.said++].classList.remove('unsaid');
+      if (clock >= live.segEnd + CALL.speech.join) {
+        if (live.seg + 1 < live.segs.length) startSeg(live.seg + 1);
+        else if (clock >= live.segEnd + CALL.linger) endCall(false);
+      }
+    }
   } else {
     // a fading card stays where it is and fades all the way
     if (clock >= live.outEnd) {
@@ -219,7 +264,7 @@ export function stepCall(st, dt, paused, spot) {
     }
     return;
   }
-  if (live.phase !== 'out') place(st, spot);
+  if (live && live.phase !== 'out') place(st, spot);
 }
 
 // Whether a card at r would cover the pointer or the flying aircraft (parked on its pad it is under the shop's note,
@@ -231,9 +276,9 @@ function blocks(r, st, spot) {
 }
 const onNote = r => !!covers.note && meets(r, covers.note);
 
-// The card steps under a toast or the hangar's tip. Over the pointer, the aircraft or the shop's note it moves across to
-// the right once, where the screen is wide enough for that to clear them, and fades only while it still covers the
-// pointer or the aircraft; a note it still covers gives way under it.
+// The card steps under a toast or the hangar's tip. Over the pointer or the aircraft it moves across to the right, where
+// the screen is wide enough for that to clear them, and fades only while it still covers them; the shop's note moves
+// aside from it by itself (drawPrepNote). A ringing card never fades: it is waiting on a tap.
 function place(st, spot) {
   const el = $('call'), d = Math.max(0, bandBottom() + CALL.gap - (view.top + CALL.below));
   if (d !== drop) {
@@ -254,24 +299,40 @@ function place(st, spot) {
   plane[2] = x + g.x;
   plane[3] = y + g.down;
   let over = blocks(rect, st, spot);
-  if (!east && (over || onNote(rect))) {
+  if (!east && over) {
     const right = (el.offsetParent?.clientWidth ?? view.W) - CALL.east;
     other[0] = right - (rect[2] - rect[0]);
     other[1] = rect[1];
     other[2] = right;
     other[3] = rect[3];
-    if (other[0] > rect[0] + 1 && !blocks(other, st, spot) && (over || !onNote(other))) {
+    if (other[0] > rect[0] + 1 && !blocks(other, st, spot)) {
+      west[0] = rect[0];
+      west[2] = rect[2];
       east = true;
       el.classList.add('east');
       rect = other.slice();
       measuredAt = clock;
       over = false;
     }
+  } else if (east && over && !back && live.phase === 'talk') {
+    // covering something over there while it talks, it goes back once to its own side if that is clear by now, so the
+    // words are read at full strength
+    west[1] = rect[1];
+    west[3] = rect[3];
+    if (!blocks(west, st, spot) && !onNote(west)) {
+      back = true;
+      east = false;
+      el.classList.remove('east');
+      rect = west.slice();
+      measuredAt = clock;
+      over = false;
+    }
   }
   covers.card = rect;
-  if (over !== faint) {
-    faint = over;
-    el.classList.toggle('faint', over);
+  const dim = over && live.phase !== 'ring';
+  if (dim !== faint) {
+    faint = dim;
+    el.classList.toggle('faint', dim);
   }
 }
 

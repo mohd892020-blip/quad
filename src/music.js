@@ -1,5 +1,5 @@
 import { MUSIC } from './config.js';
-import { audioGraph } from './audio.js';
+import { audioGraph, packedBytes } from './audio.js';
 import { settings } from './storage.js';
 
 // The music is a recorded loop for each scene, packed with the game, and calm music made on the fly where a device
@@ -113,26 +113,13 @@ const loops = { ready: new Map(), loading: new Set(), broken: false, now: null, 
 // What plays on each screen: the maps, a challenge, the open country or the city.
 const sceneOf = s => (!s.mission ? 'menu' : s.challenge ? 'challenge' : s.place === 'city' ? 'city' : 'country');
 
-// A loop's bytes: packed into the page by the one-file builds, otherwise the file beside the page.
-async function bytesOf(file) {
-  const packed = document.querySelector(`script[data-track="${file}"]`);
-  if (!packed) {
-    const r = await fetch(new URL(`music/${file}`, document.baseURI));
-    if (!r.ok) throw new Error(`${file}: ${r.status}`);
-    return r.arrayBuffer();
-  }
-  const text = atob(packed.textContent.trim()), bytes = new Uint8Array(text.length);
-  for (let i = 0; i < text.length; i++) bytes[i] = text.charCodeAt(i);
-  return bytes.buffer;
-}
-
 // Decodes a loop, blends its last moments into its first and finds the gain that brings it to the shared loudness.
 // The loop restarts just past the blended part, so the turn runs on without a click.
 function load(ac, file) {
   if (loops.ready.has(file) || loops.loading.has(file)) return;
   const c = MUSIC.tracks;
   loops.loading.add(file);
-  bytesOf(file).then(b => ac.decodeAudioData(b)).then(buf => {
+  packedBytes('track', 'music', file).then(b => ac.decodeAudioData(b)).then(buf => {
     const n = Math.min(Math.floor(c.seam * buf.sampleRate), buf.length >> 2);
     let sum = 0, count = 0;
     for (let ch = 0; ch < buf.numberOfChannels; ch++) {
