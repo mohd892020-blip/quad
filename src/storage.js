@@ -4,6 +4,7 @@ const PROGRESS_KEY = 'pizzaCityV1';
 const SETTINGS_KEY = 'pizzaSettingsV1';
 const GARAGE_KEY = 'pizzaGarageV1';
 const SKIPS_KEY = 'pizzaSkipsV1';
+const BOOSTS_KEY = 'pizzaBoostsV1';
 
 const STICK = { size: 'medium', feel: 'normal', fade: 'solid', origin: 'fixed', hand: 'right' };
 export const settings = { controls: 'joystick', plane: 'courier', dev: false, muted: false, music: true, vibration: true, comboSeen: false, camera: 'chase', tier: null, lite: false, sideways: false, shopSeen: [], picture: 'sharp', trained: false, stick: STICK, giftSeen: -1, chapterSeen: 1 };
@@ -29,6 +30,66 @@ try {
 
 export function saveSkips() {
   try { localStorage.setItem(SKIPS_KEY, JSON.stringify(skips)); } catch (_) {}
+}
+
+// Boosts and their teasers. land: the date Auto Land was unlocked. drop: whether an Auto Drop waits, and the latest date
+// one was got or used. The rest is the teasers' memory, counted in missions played, never by the clock.
+const FEATURES = ['land', 'drop', 'shop'];
+const freshBoosts = () => ({ land: -1, drop: { have: false, day: -1 }, plays: 0, hint: false, seen: { land: false, drop: false, shop: false }, ignored: { land: 0, drop: 0, shop: 0 }, rest: { land: 0, drop: 0, shop: 0 }, last: { land: -99, drop: -99, shop: -99 }, lastAd: -99, adFor: 0, named: [] });
+export const boosts = freshBoosts();
+// each field stands alone (whole is defined further down, so the tests are written out here)
+const atLeast = (v, low, keep) => (Number.isInteger(v) && v >= low ? v : keep);
+try {
+  const s = JSON.parse(localStorage.getItem(BOOSTS_KEY)), b = boosts;
+  if (s && typeof s === 'object') {
+    b.land = atLeast(s.land, -1, -1);
+    b.drop = { have: s.drop?.have === true, day: atLeast(s.drop?.day, -1, -1) };
+    b.plays = atLeast(s.plays, 0, 0);
+    b.hint = s.hint === true;
+    for (const f of FEATURES) {
+      b.seen[f] = s.seen?.[f] === true;
+      b.ignored[f] = atLeast(s.ignored?.[f], 0, 0);
+      if (Number.isInteger(s.rest?.[f])) b.rest[f] = s.rest[f];
+      if (Number.isInteger(s.last?.[f])) b.last[f] = s.last[f];
+    }
+    if (Number.isInteger(s.lastAd)) b.lastAd = s.lastAd;
+    b.adFor = atLeast(s.adFor, 0, 0);
+    if (Array.isArray(s.named)) b.named = s.named.filter(k => typeof k === 'string');
+  }
+} catch (_) {}
+
+// With storage blocked, the record lasts as long as the page, as the garage does.
+export function saveBoosts() {
+  try { localStorage.setItem(BOOSTS_KEY, JSON.stringify(boosts)); } catch (_) {}
+}
+
+// Auto Land is on only on the exact date it was unlocked: moving the clock either way turns it off. An Auto Drop is got
+// as today's mission pays: at most one is ever held, the next waits for a date after the one it was got and used on, and
+// a clock set back finds nothing until the real date passes the saved one.
+export const landReady = (day = dayNumber()) => boosts.land === day;
+export const canGetDrop = (day = dayNumber()) => !boosts.drop.have && day > boosts.drop.day;
+export function grantLand() {
+  boosts.land = dayNumber();
+  saveBoosts();
+}
+export function grantDrop() {
+  if (!canGetDrop()) return false;
+  boosts.drop = { have: true, day: dayNumber() };
+  saveBoosts();
+  return true;
+}
+export function spendDrop() {
+  boosts.drop = { have: false, day: Math.max(boosts.drop.day, dayNumber()) };
+  saveBoosts();
+}
+export function notePlay() {
+  boosts.plays++;
+  saveBoosts();
+}
+// developer only
+export function resetBoosts() {
+  Object.assign(boosts, freshBoosts());
+  saveBoosts();
 }
 
 // A pass clears the run of fails and counts toward the next skip; a real fail adds to the run.

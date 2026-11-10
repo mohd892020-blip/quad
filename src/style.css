@@ -298,9 +298,18 @@ body.desk #call.ring #callLine::after{content:" · Enter"}
   #map{order:3}
 }
 #boost{position:relative;overflow:hidden;border:0;background:rgba(26,20,48,.6)}
-#land{display:inline-flex;align-items:center;gap:6px;border:0;background:var(--gold);color:#3a2200;box-shadow:inset 0 1px 0 rgba(255,255,255,.75),0 10px 20px -8px rgba(255,170,40,.7)}
-#land.on{background:rgba(79,194,124,.85);color:#fff;box-shadow:none}
-#land .ico{width:18px;height:18px;stroke-width:2.6}
+#land,#autoDrop{display:inline-flex;align-items:center;gap:6px;border:0;background:var(--gold);color:#3a2200;box-shadow:inset 0 1px 0 rgba(255,255,255,.75),0 10px 20px -8px rgba(255,170,40,.7)}
+#land.on,#autoDrop.on{background:rgba(79,194,124,.85);color:#fff;box-shadow:none}
+#land .ico,#autoDrop .ico{width:18px;height:18px;stroke-width:2.6}
+/* AUTO DROP takes no place among the others, so none of them moves under a finger as it comes and goes: it sits over
+   where the column of three (Rope ▲, Rope ▼, HOLD) ends, or over the row's end on a turned phone, clear of the
+   developer's buttons on the left; both mirror for the left hand */
+#autoDrop{position:absolute;right:0;bottom:calc(3 * (44px + 8px))}
+.lefty #autoDrop{right:auto;left:0}
+@media (max-height:480px){
+  #autoDrop{right:0;bottom:calc(38px + 8px)}
+  .lefty #autoDrop{right:auto;left:0}
+}
 /* the ring around the button is the boost that is left */
 #boostFill{position:absolute;top:0;right:0;bottom:0;left:0;border-radius:50%;background:conic-gradient(#7ad0ff calc(var(--fuel,100)*1%),rgba(255,255,255,.16) 0);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 5px),#000 calc(100% - 4.5px));mask:radial-gradient(farthest-side,transparent calc(100% - 5px),#000 calc(100% - 4.5px));pointer-events:none}
 #boost .ico{position:relative;width:78%;height:60%}
@@ -448,7 +457,7 @@ button:focus:not(:focus-visible),[tabindex]:focus:not(:focus-visible){outline:no
 #wxChip .ico{width:16px;height:16px;color:#9fd8ff}
 #shopNudge{position:fixed;z-index:4;max-width:min(300px,calc(100vw - 24px));padding:9px 13px;border-radius:12px;border:1px solid rgba(255,194,61,.55);background:rgba(26,20,48,.94);color:var(--ink);font-family:var(--body);font-size:13px;font-weight:700;line-height:1.35;text-align:left;cursor:pointer;animation:nudgeIn .5s ease both;box-shadow:0 6px 18px rgba(0,0,0,.3)}
 #shopNudge::before{content:"";position:absolute;top:-7px;left:calc(var(--tip,50%) - 7px);border:7px solid transparent;border-top:0;border-bottom-color:rgba(255,194,61,.55)}
-.barBtn.nudge{animation:nudgeGlow 2.4s ease-in-out infinite}
+.barBtn.nudge{animation:teaseGlow var(--glow,1.2s) ease-out var(--glowDelay,.3s) 1 both}
 @keyframes nudgeIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
 @keyframes nudgeGlow{0%,100%{box-shadow:0 0 0 0 rgba(255,194,61,0)}50%{box-shadow:0 0 0 5px rgba(255,194,61,.22)}}
 .sideBtn{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:10px;width:100%}
@@ -647,10 +656,11 @@ button:focus:not(:focus-visible),[tabindex]:focus:not(:focus-visible){outline:no
 #start .ico{width:22px;height:22px}
 #start small{font:800 13px var(--body);opacity:.75}
 #start small:empty{display:none}
-.menuBtn{position:relative;display:flex;align-items:center;justify-content:center;gap:8px;min-height:56px;padding:0 12px;border:0;border-radius:28px;background:rgba(26,20,48,.97);color:#fff;font:800 17px var(--body);cursor:pointer;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.3),inset 0 1px 0 rgba(255,255,255,.4),0 12px 24px -14px rgba(4,3,24,.9)}
+.menuBtn{position:relative;display:flex;align-items:center;justify-content:center;gap:8px;min-height:56px;padding:0 12px;border:0;border-radius:28px;background:rgba(26,20,48,.97);color:#fff;font:800 17px var(--body);cursor:pointer;--base:inset 0 0 0 1.5px rgba(255,255,255,.3),inset 0 1px 0 rgba(255,255,255,.4),0 12px 24px -14px rgba(4,3,24,.9);box-shadow:var(--base)}
 .menuBtn .ico{color:var(--cheese)}
 .menuBtn.quiet{grid-column:1/-1;min-height:44px;font-size:15px;background:rgba(26,20,48,.92)}
-.menuBtn.nudge{animation:nudgeGlow 2.4s ease-in-out infinite}
+.menuBtn.nudge{animation:teaseGlow var(--glow,1.2s) ease-out var(--glowDelay,.3s) 1 both}
+#menuShop .dotNew{animation:none}
 .menuBtn:focus-visible{outline:3px solid var(--cheese);outline-offset:3px}
 .menuBtn:active,#start:active{transform:scale(.97)}
 @media (orientation:landscape){#menu{max-width:1100px;grid-template-columns:minmax(0,1fr) minmax(260px,340px);grid-template-rows:auto auto minmax(0,1fr);grid-template-areas:"money money" "title nav" "stage nav";column-gap:clamp(16px,5vw,64px)}#menuTitle{margin:0;font-size:clamp(44px,calc(8vh + 3vw),96px)}#menuTitle span,#menuTitle em{display:inline}#menuNav{align-self:center}}
@@ -691,7 +701,60 @@ button:focus:not(:focus-visible),[tabindex]:focus:not(:focus-visible){outline:no
   #levelKicker{grid-row:2}
   #levelTitle{grid-row:3}
   #levelBest{grid-row:4}
-  #levelPlay{grid-row:5;margin-top:6px}
+  .cardGo{grid-row:5;margin-top:6px}
   #levelSideways{grid-row:6;margin-top:0}
   #levelCard #levelRows{grid-column:2;grid-row:1/-1;align-self:center;margin:0;gap:3px 10px;padding:10px 14px;font-size:13px;line-height:1.25}
 }
+/* The golden teaser: one shared gold look for the result pill and the card chip, with one soft glow as it shows and never
+   a blink. A boost already held is a quiet green chip. */
+/* the glow is a soft gold halo laid over each element's own shadow (--base), which it keeps when it ends */
+.tease{--base:inset 0 1px 0 rgba(255,255,255,.75),0 10px 20px -8px rgba(255,170,40,.7);background:linear-gradient(#ffd66b,#ffb02e);color:#3a2200;border:0;box-shadow:var(--base);animation:teaseGlow var(--glow,1.2s) ease-out var(--glowDelay,.3s) 1 both}
+.barBtn{--base:0 0 0 0 transparent}
+@keyframes teaseGlow{0%,100%{box-shadow:var(--base),0 0 0 0 rgba(255,214,107,0)}40%{box-shadow:var(--base),0 0 16px 4px rgba(255,214,107,.6)}}
+/* the result card's pill takes the Skip button's place and its entrance */
+#resultBoost{display:grid;grid-template-columns:auto auto;justify-content:center;align-items:center;gap:0 8px;margin-top:8px;min-height:50px;padding:6px 16px;border-radius:22px;font:800 15px var(--body);cursor:pointer;text-align:start;animation:rowIn .34s ease-out 1.25s backwards,teaseGlow var(--glow,1.2s) ease-out calc(1.6s + var(--glowDelay,.3s)) 1 both}
+#resultBoost .ico{grid-row:1/4;width:22px;height:22px}
+#resultBoost>:not(.ico){grid-column:2}
+#resultBoost small{font-size:12px;font-weight:700;opacity:.8}
+#resultBoost.ready{--base:0 0 0 0 transparent;background:rgba(79,194,124,.85);color:#fff;box-shadow:none;cursor:default}
+.boostChip{display:inline-flex;align-items:center;gap:6px;min-height:40px;box-sizing:border-box;padding:0 14px;border-radius:20px;font:800 13px var(--body);white-space:nowrap}
+.boostChip .ico{width:18px;height:18px}
+button.boostChip{cursor:pointer}
+.boostChip em{font-style:normal;opacity:.75}
+.boostChip.ready{background:rgba(79,194,124,.85);color:#fff;animation:none}
+.newTag{padding:2px 6px 1px;border-radius:8px;background:#fff3c4;color:var(--night);font:800 10px/1.2 var(--body);letter-spacing:.06em}
+.teaseNote{display:block;flex:1 0 100%;font:700 12px/1.3 var(--body);opacity:.85;margin-top:4px}
+.teaseNote.fine{opacity:.7;margin-top:0}
+#levelBoosts{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin:10px 0 8px}
+/* a turned phone keeps the strip over Start in the card's left column: a held boost is its green tick alone (the word
+   stays for screen readers), and of the lines only an introduction's and the Auto Drop's price */
+@media (max-height:480px){
+  #levelBoosts{margin:0 0 6px;gap:6px}
+  .boostChip{min-height:36px;padding:0 12px}
+  .boostChip.ready{padding:0 9px}
+  .chipWord{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+  .teaseNote{display:none;font-size:11px;margin-top:2px}
+  .teaseNote.intro,.teaseNote.fine{display:block}
+}
+/* the map's Boosts button: a still green dot while a boost is ready, and no glow */
+#boostBtn{color:var(--cheese);display:grid;place-items:center;background:transparent;border:2px solid var(--cheese);border-radius:10px}
+#boostBtn:focus-visible{outline:3px solid var(--cheese);outline-offset:3px}
+.dotReady{position:absolute;top:-4px;right:-4px;width:12px;height:12px;box-sizing:border-box;border-radius:50%;background:var(--basil,#4fc27c);border:2px solid var(--night);pointer-events:none;animation:none}
+#boostCard .card{--tint:#3d3580}
+#boostCard h2{padding:0 48px}
+#boostRows{display:grid;gap:10px;margin-top:4px}
+.boostRow{display:grid;grid-template-columns:22px minmax(0,1fr) auto;align-items:center;gap:8px 10px;padding:12px 14px;border-radius:20px;background:var(--well);text-align:start}
+.boostRow>.ico{align-self:start;color:var(--cheese);margin-top:1px}
+.boostRow>p{margin:0;display:grid;gap:2px}
+.boostRow b{font-size:16px}
+.boostRow small{font-size:13px;font-weight:700;line-height:1.3;color:var(--soft)}
+.boostRow small.fine{font-size:12px;opacity:.85}
+.boostRow .go{display:inline-flex;align-items:center;gap:6px;font:800 14px var(--body);padding:9px 14px;white-space:nowrap}
+.boostRow .go .ico{width:18px;height:18px}
+.boostTag{font:800 13px/1.2 var(--body);font-style:normal;padding:8px 12px;border-radius:16px;background:rgba(255,255,255,.12);color:var(--soft);text-align:center}
+.boostTag.ready{background:rgba(79,194,124,.85);color:#fff}
+#boostRows>.ghost{justify-self:center;margin-top:2px}
+@media (max-width:420px){.boostRow>:last-child{grid-column:2/-1;justify-self:start}}
+/* a turned phone sets the two boosts side by side, so the card fits the short screen */
+@media (max-height:480px){#boostCard .card{max-width:760px}#boostRows{grid-template-columns:1fr 1fr}#boostRows>.ghost{grid-column:1/-1}.boostRow{grid-template-columns:22px minmax(0,1fr);align-content:start}.boostRow>:last-child{grid-column:2;justify-self:start}}
+@media (prefers-reduced-motion:reduce){.tease,.barBtn.nudge,.menuBtn.nudge{animation:none}#resultBoost{animation:none!important}}

@@ -30,6 +30,7 @@
     <symbol id="i-shot-cinema" viewBox="0 0 24 24"><path d="M3.5 10h17v9.5h-17z"/><path d="M3.5 10l1.6-5h15.4l-1.6 5M9.6 5L8 10M15 5l-1.6 5"/></symbol>
     <symbol id="i-shot-auto" viewBox="0 0 24 24"><rect x="3" y="6.5" width="18" height="12.5" rx="2.5"/><path d="M8.6 16.2l3.4-7 3.4 7M9.9 13.6h4.2"/></symbol>
     <symbol id="i-land" viewBox="0 0 24 24"><path d="M12 3v12M7 10.5l5 5 5-5M5 20.5h14"/></symbol>
+    <symbol id="i-drop" viewBox="0 0 24 24"><path d="M12 3v7M9 7.5l3 3 3-3"/><rect x="8" y="12" width="8" height="6" rx="1.5"/><path d="M4 21h16"/></symbol>
     <symbol id="i-grid" viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="2"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="2"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="2"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="2"/></symbol>
     <symbol id="i-retry" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 3v5h-5"/></symbol>
     <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/></symbol>
@@ -114,6 +115,7 @@
     <button class="act" id="ropeDown" hidden>Rope ▼</button>
     <button class="act" id="hold" hidden>HOLD</button>
     <button class="act devMark" id="land" hidden><svg class="ico" aria-hidden="true"><use href="#i-land"/></svg><span>LAND</span></button>
+    <button class="act" id="autoDrop" hidden><svg class="ico" aria-hidden="true"><use href="#i-drop"/></svg><span>AUTO DROP</span></button>
   </div>
   <div id="dev" hidden>
     <button class="act devMark" id="devAuto">Auto deliver</button>
@@ -125,7 +127,8 @@
     <span><kbd>↓</kbd>Descend</span>
     <span><kbd>H</kbd>Hold</span>
     <span><kbd>C</kbd>Camera</span>
-    <span class="devOnly devMark"><kbd>L</kbd>Land</span>
+    <span id="keyLand" class="devOnly devMark"><kbd>L</kbd>Land</span>
+    <span id="keyDrop" hidden><kbd>G</kbd>Auto Drop</span>
   </div>
   <div id="shiftHint" hidden><kbd>Shift</kbd></div>
   <div id="overlay">
@@ -149,6 +152,7 @@
       <button id="rushCard" hidden><span class="rushBadge"><svg aria-hidden="true"><use href="#s-rush"/></svg></span><span class="rushText"><small>Rush Hour</small><b id="rushBest"></b></span><small id="rushNote" class="rushNote"></small><i class="dotNew" hidden></i></button>
       <button class="barBtn" id="openShop">Shop</button>
       <button class="barBtn" id="openLeague" aria-label="High Score"><svg class="ico" aria-hidden="true"><use href="#i-trophy"/></svg><span>High Score</span></button>
+      <button class="icon" id="boostBtn" aria-label="Boosts" hidden><svg class="ico" aria-hidden="true"><use href="#i-drop"/></svg><i class="dotReady" hidden></i></button>
       <button class="icon" id="giftBtn" aria-label="Daily gifts" hidden><svg class="ico" aria-hidden="true"><use href="#i-gift"/></svg><i class="dotNew" hidden></i></button>
     </div>
     <div id="levelsScroll"><div id="levelsPath"></div></div>
@@ -161,7 +165,7 @@
       <h2 id="levelTitle">Mission 1</h2>
       <p id="levelBest">☆☆☆</p>
       <dl id="levelRows"></dl>
-      <button class="go wide" id="levelPlay">Start</button>
+      <div class="cardGo"><div id="levelBoosts" hidden></div><button class="go wide" id="levelPlay">Start</button></div>
       <button class="ghost wide sideBtn" id="levelSideways" hidden><svg class="ico" aria-hidden="true"><use href="#i-rotate"/></svg><span>Play sideways</span></button>
     </div>
   </div>
@@ -188,9 +192,11 @@
           <button class="ghost round" id="resultRetry" aria-label="Retry"><svg class="ico"><use href="#i-retry"/></svg><span>Retry</span></button>
         </div>
         <button class="ghost wide devMark" id="resultSkip" hidden><svg class="ico" aria-hidden="true"><use href="#i-ad"/></svg><span>Skip Mission</span><small id="resultSkipNote"></small></button>
+        <button class="tease wide" id="resultBoost" hidden><svg class="ico" aria-hidden="true"><use href="#i-ad"/></svg><span></span><small></small><small class="fine"></small></button>
       </div>
     </div>
   </div>
+  <div id="boostCard" class="modal" hidden><div class="card"><button class="back corner" id="boostClose" aria-label="Back"><svg class="ico" aria-hidden="true"><use href="#i-back"/></svg></button><h2>Boosts</h2><div id="boostRows"></div></div></div>
   <div id="adCard" class="modal" hidden>
     <div class="card">
       <small class="devChip">TEST AD</small>
@@ -214,7 +220,7 @@
         <button class="ghost tool" id="mute"><svg class="ico"><use href="#i-sound"/></svg>Sound</button>
         <button class="ghost tool" id="pauseSideways" hidden><svg class="ico"><use href="#i-rotate"/></svg><span>Play sideways</span></button>
       </div>
-      <p id="pauseKeys">← → tilt · ↑ or Space lift · ↓ descend · Shift boost · Over a customer ↓ lowers the rope, Q raises it · H hold<span class="devOnly"> · L land <b class="devChip">DEV</b></span> · M mute</p>
+      <p id="pauseKeys">← → tilt · ↑ or Space lift · ↓ descend · Shift boost · Over a customer ↓ lowers the rope, Q raises it · H hold<span id="pauseLand" class="devOnly"> · L land <b class="devChip">DEV</b></span><span id="pauseDrop" hidden> · G auto drop</span> · M mute</p>
     </div>
   </div>
   <section id="shop" class="page" hidden aria-labelledby="shopTitle">

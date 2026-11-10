@@ -4,13 +4,13 @@ import { standout } from './contrast.js';
 import { planClouds } from './weather.js';
 import { musicCue } from './music.js';
 import {
-  AIRCRAFT, BATTERY, BOX, BULLSEYE, CAMERA, CARGO, COMBO, CONTRAST, DELIVERY, DEV, DOUBLE, DRONE, FIXED_DT, FX, HANGAR, HEALTH, HOMES, LAND, LEVELS, MISSION, ORDER_TIME, ORDERS, PERFECT, POINTER, PREP, RESCUE, RESTAURANT, RIVAL, ROPE, RUSH, SKIP, ROPE_CTL, SURPRISE, WIND,
+  AIRCRAFT, BATTERY, BOOSTS, BOX, BULLSEYE, CAMERA, CARGO, COMBO, CONTRAST, DELIVERY, DEV, DOUBLE, DRONE, FIXED_DT, FX, HANGAR, HEALTH, HOMES, LAND, LEVELS, MISSION, ORDER_TIME, ORDERS, PERFECT, POINTER, PREP, RESCUE, RESTAURANT, RIVAL, ROPE, RUSH, SKIP, ROPE_CTL, SURPRISE, WIND,
 } from './config.js';
-import { currentModel } from './drone.js';
+import { currentModel, ropeSlack } from './drone.js';
 import { homeName, homeOf } from './homes.js';
 import { touchUI } from './input.js';
 import { endRun, rushDelivered, rushLoaded } from './rush.js';
-import { loadProgress, noteResult, owns, payDaily, saveProgress, settings } from './storage.js';
+import { boosts, landReady, loadProgress, noteResult, owns, payDaily, saveProgress, settings, spendDrop } from './storage.js';
 import { addMark, blast, clockText, confetti, covers, ctx, glow, hud, placeName, pop, puff, showToast, view, X, Y } from './ui.js';
 import { mixHex, nearby, nearestShop, shopPad, world } from './world.js';
 
@@ -32,7 +32,7 @@ export function breakStreak(st, quiet = false) {
 export function newGame(level) {
   const shop = level.shop, p = shopPad(shop), saved = loadProgress();
   const st = {
-    t: 0, money: saved.money, del: saved.del, level, tier: level.tier, stop: level.stops[0], stopAt: 0, earned: { stars: 3, tip: 0, beat: 0, bonus: 0, perfect: 0, integ: 100, secs: 0 }, outcome: null, done: false, cam: { x: p.x - view.viewW * CAMERA.leadX, y: 0 },
+    t: 0, money: saved.money, del: saved.del, level, tier: level.tier, stop: level.stops[0], stopAt: 0, earned: { stars: 3, tip: 0, beat: 0, bonus: 0, perfect: 0, integ: 100, secs: 0, auto: false }, outcome: null, done: false, cam: { x: p.x - view.viewW * CAMERA.leadX, y: 0 },
     d: { x: p.x, y: p.y - DRONE.radius, vx: 0, vy: 0, a: 0, bat: level.startBat ?? 100 },
     box: { x: p.x, y: p.y, px: p.x, py: p.y },
     has: false, heat: 100, integ: 100, order: null, item: null, hold: 0, readyAt: 0,
@@ -41,6 +41,8 @@ export function newGame(level) {
     boost: 100, boosting: false, boostDir: 1, boostWait: 0, hawks: [], eagles: [], falling: false, rival: null, prep: null, ticket: null,
     hp: 100, wreck: 0, lastHit: null, smokeDue: 0, marks: [], smoke: [], blasts: [], batWarn: 0, charging: false, ready: 0,
     leg: { t: 0, x: p.x }, charge: 0, standout: standout(),
+    // the boosts are read once, so a flight started before midnight keeps Auto Land and no date is built per step
+    autoLand: landReady() && landAllowed(level), drop: null, dropOk: dropAllowed(level),
     combo: level.rush ? { n: 0 } : streak, hitAt: -Infinity, close: { n: 0, at: -Infinity, wall: null, cable: null }, ring: null, gust: null, slow: 0, plan: [], note: null, notice: null, waves: [],
   };
   planTraffic(st);
@@ -124,7 +126,7 @@ export function answerOrder(st) {
 export function restrain(st, keys) {
   const w = st.prep ?? st.ticket;
   if (w && (keys.l || keys.r || keys.u || keys.dn || keys.rd || keys.boost || keys.axis)) w.nudge = PREP.nudge;
-  keys.holdTap = keys.landTap = 0;
+  keys.holdTap = keys.landTap = keys.dropTap = 0;
 }
 
 function endMission(st) {
@@ -133,6 +135,7 @@ function endMission(st) {
   st.item = null;
   st.hold = 0;
   st.anchor = null;
+  st.drop = null;
   st.ticket = null;
   st.readyAt = st.t + MISSION.cooldown;
   clearAction(st);
@@ -161,11 +164,13 @@ export function failMission(st, why, charged = false) {
   const training = st.level.training, cost = charged && st.item && !training && !st.level.daily && !st.rush ? Math.min(st.money, st.item.price) : 0, reason = why.toUpperCase();
   // a mission already decided stands: a car or a blast in a passed mission's last moments takes nothing from the run
   if (!st.outcome && !st.done) breakStreak(st);
+  // where it ended, for the result card's boost: over the customer with the order, or by a shop pad
+  const over = !!st.order && zones(st).hold, pad = !!padNear(st);
   st.money -= cost;
   endMission(st);
   if (cost) saveProgress(st.del, st.money);
   if (training) showToast('Try again', reason, false);
-  else finish(st, { passed: false, why: reason, cost, reached: st.stopAt });
+  else finish(st, { passed: false, why: reason, cost, reached: st.stopAt, over, pad });
   hud(st);
 }
 
@@ -179,6 +184,7 @@ function dropLower(st) {
   o.drop = 2;
   o.surprises = [];
   o.hand = null;
+  o.auto = false;
   // the jump leaves the order right over the roof at speed, which is no close call
   st.close.wall = st.close.cable = 'spent';
   st.hold = 0;
@@ -234,16 +240,23 @@ function passMission(st) {
     hud(st);
     return;
   }
+  // only a real handover spends an Auto Drop, also one it began and was let go of at the last moment; it is never
+  // perfect, leaves the run as it was and pays a share of the tip
+  const auto = !!st.drop || !!st.order.auto;
+  if (auto) {
+    st.drop = null;
+    spendDrop();
+  }
   // a moved customer's extra way counts neither against the clock nor against the warmth of a hot order
   const c = DELIVERY, o = st.order, item = st.item, secs = st.t - o.start - o.held, fair = secs - o.grace, heat = Math.min(100, st.heat + o.grace * c.heatLoss * item.heat);
   const base = c.tipBase + heat * c.tipHeat + st.integ * c.tipBox + (fair < c.tipFastSecs ? c.tipFastBonus : fair < c.tipOkSecs ? c.tipOkBonus : 0);
-  const beat = st.rival ? RIVAL.bonus : 0, care = Math.round(item.urgent ? base * c.urgentTip : base);
+  const beat = st.rival ? RIVAL.bonus : 0, care = Math.round((item.urgent ? base * c.urgentTip : base) * (auto ? BOOSTS.drop.tip : 1));
   // a clean delivery adds to the run, and the run raises the tip; the bonuses banked on the way are paid with it
   const P = PERFECT, h = o.hand, clean = st.integ >= COMBO.minInteg && st.hitAt < o.start;
-  const perfect = clean && st.integ >= P.minInteg && Math.abs(st.box.x - o.t.x) <= P.centre && !!h && h.swing <= P.swing && h.fall <= P.fall && h.drone <= P.drone;
+  const perfect = !auto && clean && st.integ >= P.minInteg && Math.abs(st.box.x - o.t.x) <= P.centre && !!h && h.swing <= P.swing && h.fall <= P.fall && h.drone <= P.drone;
   // an order that arrives in poor shape ends the run on the same falling note as a hit
   if (!clean) breakStreak(st);
-  st.combo.n = clean ? st.combo.n + 1 : 0;
+  st.combo.n = clean ? st.combo.n + (auto ? 0 : 1) : 0;
   // a Rush drop scores points instead of tips, and the next order comes at once
   if (st.rush) {
     rushDelivered(st, o, item, clean, perfect);
@@ -253,11 +266,11 @@ function passMission(st) {
     hud(st);
     return;
   }
-  const mult = COMBO.mult[Math.min(st.combo.n, COMBO.mult.length - 1)], extra = Math.round(care * mult) - care + o.bonus;
+  const mult = auto ? 1 : COMBO.mult[Math.min(st.combo.n, COMBO.mult.length - 1)], extra = Math.round(care * mult) - care + o.bonus;
   const tip = care + extra + beat;
   o.bonus = 0;
   const fresh = item.heat && !item.spoils ? heat > c.starHeat : fair / (o.limit - o.added) < c.starTimeShare;
-  const stars = 1 + (st.integ > c.starBox ? 1 : 0) + (fresh ? 1 : 0);
+  const stars = Math.min(auto ? BOOSTS.drop.stars : 3, 1 + (st.integ > c.starBox ? 1 : 0) + (fresh ? 1 : 0));
   const made = st.earned, next = st.level.stops[st.stopAt + 1];
   made.stars = Math.min(made.stars, stars);
   made.tip += tip;
@@ -266,10 +279,11 @@ function passMission(st) {
   made.perfect += perfect ? 1 : 0;
   made.integ = Math.min(made.integ, st.integ);
   made.secs += secs;
+  made.auto ||= auto;
   st.money += tip;
   st.del++;
-  pop(st, o.t.x, o.t.y - c.popLift, mult > 1 ? `+$${tip} COMBO ×${mult}` : `+$${tip}`, '#ffc23d');
-  chime(st, o.t, perfect, !!(o.next || next));
+  pop(st, o.t.x, o.t.y - c.popLift, (mult > 1 ? `+$${tip} COMBO ×${mult}` : `+$${tip}`) + (auto ? ` · ${BOOSTS.text.pop}` : ''), '#ffc23d');
+  chime(st, o.t, perfect, !!(o.next || next), auto);
   if (o.next) {
     dropLower(st);
     saveProgress(st.del, st.money);
@@ -302,10 +316,11 @@ function passMission(st) {
   hud(st);
 }
 
-// A delivery's sounds: its two notes, the combo chime climbing with the run, a perfect drop, and the music's answer.
-function chime(st, at, perfect, paper) {
+// A delivery's sounds: its two notes, the combo chime climbing with the run (not for an Auto Drop, which adds nothing to
+// it), a perfect drop, and the music's answer.
+function chime(st, at, perfect, paper, auto = false) {
   sfx('deliver');
-  if (st.combo.n >= COMBO.showFrom) sfx('combo', 2 ** (COMBO.notes[Math.min(st.combo.n - COMBO.showFrom, COMBO.notes.length - 1)] / 12));
+  if (!auto && st.combo.n >= COMBO.showFrom) sfx('combo', 2 ** (COMBO.notes[Math.min(st.combo.n - COMBO.showFrom, COMBO.notes.length - 1)] / 12));
   if (perfect) perfectDrop(st, at, paper);
   musicCue('deliver');
 }
@@ -433,25 +448,50 @@ export function hangarHint(st) {
   return next.key === settings.plane || !owns(next.key) || slower(next.key) ? null : `Try the ${next.name}`;
 }
 
-const NO_ZONE = { rope: false, hold: false, land: null };
+const NO_ZONE = { rope: false, hold: false, land: null, drop: false };
 
-// The pad Land can take the drone to, from close by and at a sensible speed. For now only a developer has it.
-function padBelow(st) {
-  const d = st.d;
-  if (!settings.dev || st.onGround || st.wreck || st.outcome || st.done || d.bat <= 0 || (!st.landing && Math.hypot(d.vx, d.vy) > LAND.maxSpeed)) return null;
-  const p = shopPad(nearestShop(d.x)), drop = p.y - d.y;
+// Where each boost works: Auto Land everywhere but where its flags say, Auto Drop only in the numbered missions it may
+// hand over in.
+export const landAllowed = l => (!l.rush || BOOSTS.land.rush) && (!l.training || BOOSTS.land.training);
+export const dropAllowed = l => !l.rush && !l.daily && !l.training && l.n >= BOOSTS.from && !SKIP.never.includes(l.n);
+
+// The shop pad below and close by, whoever asks.
+function padNear(st) {
+  const d = st.d, p = shopPad(nearestShop(d.x)), drop = p.y - d.y;
   return Math.abs(d.x - p.x) < LAND.zoneX && drop > 0 && drop < LAND.zoneY ? p : null;
 }
 
-// Where rope and hold controls apply: rope right above the customer, hold over a wider area.
+// The pad Land can take the drone to, from close by and at a sensible speed. For a developer, and for the day after an
+// Auto Land ad.
+function padBelow(st) {
+  const d = st.d;
+  if (!(settings.dev || st.autoLand) || st.onGround || st.wreck || st.outcome || st.done || d.bat <= 0 || (!st.landing && Math.hypot(d.vx, d.vy) > LAND.maxSpeed)) return null;
+  return padNear(st);
+}
+
+// Slow, with the order hanging free and the aircraft high enough over the customer that the order hangs clear of
+// anything it stands on (beside a ferry's deck engaging would ruin orders); the time it last was is kept for the linger.
+function dropClear(st, dy) {
+  const d = st.d, c = BOOSTS.drop;
+  const clear = Math.hypot(d.vx, d.vy) < c.maxSpeed && dy >= (st.level.rope ?? ROPE) + BOX.anchorY + c.above && ropeSlack(st) <= c.restSlack;
+  if (clear) st.order.offered = st.t;
+  return clear;
+}
+
+// Where rope and hold controls apply: rope right above the customer, hold over a wider area. Auto Drop is offered in
+// Hold's zone with every ring flown while dropClear holds, and a moment past a dip under it, so the button never slips
+// from under a finger.
 export function zones(st) {
   const land = padBelow(st);
   if (!st.has || !st.order) return land ? { ...NO_ZONE, land } : NO_ZONE;
-  const c = ROPE_CTL, T = st.order.t, dx = Math.abs(T.x - st.d.x), dy = T.y - st.d.y;
+  const c = ROPE_CTL, T = st.order.t, dx = Math.abs(T.x - st.d.x), dy = T.y - st.d.y, d = st.d;
+  const hold = dx < c.holdX && dy > -c.holdAbove && dy < c.holdY;
   return {
     rope: dx < c.zoneX && dy > 0 && dy < c.zoneY,
-    hold: dx < c.holdX && dy > -c.holdAbove && dy < c.holdY,
+    hold,
     land,
+    drop: hold && !st.drop && st.dropOk && boosts.drop.have && !st.landing && !st.falling && !st.prep && !st.outcome && !st.done && d.bat > 0
+      && (st.order.gate ?? 0) >= (st.stop.gates?.length ?? 0) && (dropClear(st, dy) || st.t - st.order.offered <= BOOSTS.drop.linger),
   };
 }
 
@@ -468,7 +508,11 @@ export function goal(st) {
 }
 
 export function autoDeliver(st) {
-  if (st && st.has && st.order) passMission(st);
+  if (!st || !st.has || !st.order) return;
+  // the developer's handover, not Auto Drop's: the drop is kept
+  st.drop = null;
+  st.order.auto = false;
+  passMission(st);
 }
 
 export function chargeDrone(st) {
