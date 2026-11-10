@@ -6,6 +6,7 @@ import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFile
 import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+// The tools folder and the signing key keep the game's first name, flying-pizza: renaming them would orphan the key.
 const HOME = process.env.FLYING_PIZZA_HOME || join(homedir(), '.flying-pizza');
 const MIN_SDK = '24', TARGET_SDK = '34', KEY_ALIAS = 'flying-pizza', KEY_PASS = 'android';
 const FONTS = [['Lalezar', 400], ['Tajawal', 400], ['Tajawal', 700], ['Tajawal', 800]];
@@ -22,7 +23,7 @@ const run = (tool, args, cwd = '.') => execFileSync(tool, args, { cwd, stdio: ['
 
 const version = JSON.parse(readFileSync('package.json', 'utf8')).version;
 const code = execFileSync('git', ['rev-list', '--count', 'HEAD'], { encoding: 'utf8' }).trim();
-const out = 'flying-pizza.apk';
+const out = 'flying-parcel.apk';
 
 // The app carries everything it uses and has no internet permission: the page's links to the web fonts
 // come out, the fonts themselves go in, and the build stops if the page still reaches outside.
@@ -37,7 +38,7 @@ function selfContained(page) {
   return inside;
 }
 
-const tmp = mkdtempSync(join(tmpdir(), 'flying-pizza-apk-'));
+const tmp = mkdtempSync(join(tmpdir(), 'flying-parcel-apk-'));
 const assets = join(tmp, 'assets'), classes = join(tmp, 'classes'), resources = join(tmp, 'res.zip'), base = join(tmp, 'base.apk'), aligned = join(tmp, 'aligned.apk');
 mkdirSync(assets);
 mkdirSync(classes);
@@ -51,9 +52,9 @@ run(join(build, 'aapt2.exe'), [
   '--min-sdk-version', MIN_SDK, '--target-sdk-version', TARGET_SDK, '--version-code', code, '--version-name', `${version}.${code}`, resources,
 ]);
 
-const source = join('android', 'java', 'com', 'flyingpizza', 'game', 'MainActivity.java');
+const source = join('android', 'java', 'com', 'flyingparcel', 'game', 'MainActivity.java');
 run(join(jdk, 'bin', 'javac.exe'), ['-nowarn', '-Xlint:-options', '-source', '8', '-target', '8', '-bootclasspath', androidJar, '-d', classes, source]);
-const compiled = readdirSync(join(classes, 'com', 'flyingpizza', 'game')).map(f => join(classes, 'com', 'flyingpizza', 'game', f));
+const compiled = readdirSync(join(classes, 'com', 'flyingparcel', 'game')).map(f => join(classes, 'com', 'flyingparcel', 'game', f));
 run(java, ['-cp', join(build, 'lib', 'd8.jar'), 'com.android.tools.r8.D8', '--lib', androidJar, '--min-api', MIN_SDK, '--output', tmp, ...compiled]);
 run(join(build, 'aapt.exe'), ['add', base, 'classes.dex'], tmp);
 
@@ -61,7 +62,7 @@ run(join(build, 'zipalign.exe'), ['-p', '-f', '4', base, aligned]);
 if (!existsSync(keystore)) {
   run(join(jdk, 'bin', 'keytool.exe'), [
     '-genkeypair', '-keystore', keystore, '-alias', KEY_ALIAS, '-keyalg', 'RSA', '-keysize', '2048', '-validity', '10000',
-    '-dname', 'CN=Flying Pizza', '-storepass', KEY_PASS, '-keypass', KEY_PASS,
+    '-dname', 'CN=Flying Parcel', '-storepass', KEY_PASS, '-keypass', KEY_PASS,
   ]);
 }
 const signer = join(build, 'lib', 'apksigner.jar');

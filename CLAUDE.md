@@ -1,9 +1,11 @@
-# Flying Pizza
+# Flying Parcel
+
+- اسم اللعبة Flying Parcel (كان Flying Pizza لحد 2026-11-10). معرّف تطبيق الأندرويد com.flyingparcel.game. مفاتيح الحفظ والأسماء الداخلية بالكود (pizzaSettingsV1 وpizzaBack وغيرها) ضلت متل ما هي كرمال ما تنمسح التقدّمات.
 
 - اللعبة: ويب 2.5D، كواد كابتر يوصّل طلبات معلّقة بحبل في مدينة مفتوحة، للموبايل والكمبيوتر. النسخة النهائية لاحقًا بـ C# Unity.
 - التقنية: JavaScript (ES modules) مع Canvas 2D وVite. ممنوع محركات ألعاب أو React أو مكتبات فيزياء.
-- النشر: `npm run build` يطلّع `dist/flying-pizza.html` للـArtifact بنفس المسار عشان يضل الرابط نفسه، والموقع العام github.io بيعرض فرع master مباشرة، فأي رفع على master بيحدّثه.
-- الـAPK: `npm run apk` بيطلّع flying-pizza.apk في جذر المشروع، ورفعه على master بيحدّث رابط التحميل github.io/quad/flying-pizza.apk. التطبيق بدون إذن إنترنت، فكل شي بيستعمله لازم يكون داخله: البناء بيدمج الخطوط من android/fonts وبيوقف إذا ضل شي بيحمّل من برّا. الأدوات ومفتاح التوقيع في ~/.flying-pizza.
+- النشر: `npm run build` يطلّع `dist/flying-pizza.html` للـArtifact بنفس المسار عشان يضل الرابط نفسه (المسار ضل بالاسم القديم عن قصد)، والموقع العام github.io بيعرض فرع master مباشرة، فأي رفع على master بيحدّثه.
+- الـAPK: `npm run apk` بيطلّع flying-parcel.apk في جذر المشروع، ورفعه على master بيحدّث رابط التحميل github.io/quad/flying-parcel.apk. التطبيق بدون إذن إنترنت، فكل شي بيستعمله لازم يكون داخله: البناء بيدمج الخطوط من android/fonts وبيوقف إذا ضل شي بيحمّل من برّا. الأدوات ومفتاح التوقيع في ~/.flying-pizza (ضل بالاسم القديم عشان المفتاح نفسه).
 - prototype.html مرجع فيزياء الدرون والحبل: البيتزا تضل بقيم النموذج بالضبط، وباقي الطلبات مضاعفات فوقها.
 - الملفات في src/: main، config، drone، rope، world، skyline، camera، delivery، action، levels، challenge، daily، rush، menu، homes، call، voice، training، seaside، desert، forest، alpine، contrast، weather، shop، boosts، league، ui، input، audio، music، storage. ملف لكل مسؤولية.
 - كل الأرقام القابلة للضبط في src/config.js فقط.

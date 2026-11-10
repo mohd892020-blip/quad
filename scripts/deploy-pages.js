@@ -10,12 +10,12 @@ const remote = git('.', 'remote', 'get-url', 'origin');
 const name = git('.', 'config', 'user.name'), email = git('.', 'config', 'user.email');
 const source = git('.', 'rev-parse', '--short', 'HEAD');
 
-const dir = mkdtempSync(join(tmpdir(), 'flying-pizza-pages-'));
+const dir = mkdtempSync(join(tmpdir(), 'flying-parcel-pages-'));
 copyFileSync('dist/pages/index.html', join(dir, 'index.html'));
 writeFileSync(join(dir, '.nojekyll'), '');
 git(dir, 'init', '-q', '-b', 'gh-pages');
 git(dir, 'add', '.');
-git(dir, '-c', `user.name=${name}`, '-c', `user.email=${email}`, 'commit', '-q', '-m', `Deploy Flying Pizza from ${source}\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`);
+git(dir, '-c', `user.name=${name}`, '-c', `user.email=${email}`, 'commit', '-q', '-m', `Deploy Flying Parcel from ${source}\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`);
 git(dir, 'push', '--force', '--quiet', remote, 'gh-pages');
 try { rmSync(dir, { recursive: true, force: true }); } catch (_) {}
 console.log(`gh-pages updated from ${source}`);

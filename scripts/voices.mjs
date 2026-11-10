@@ -25,7 +25,7 @@ const missing = clips.filter(c => all || !existsSync(join(dir, c.file)));
 if (missing.length) {
   const { PIPER_PY: py, PIPER_MODELS: models } = process.env;
   if (!py || !models) fail('set PIPER_PY and PIPER_MODELS to record');
-  const list = join(tmpdir(), `flying-pizza-voices-${process.pid}.json`);
+  const list = join(tmpdir(), `flying-parcel-voices-${process.pid}.json`);
   writeFileSync(list, JSON.stringify({ make: CALL.speech.make, clips: missing }));
   const run = spawnSync(py, ['-I', join('scripts', 'voices.py'), list, models, dir], { stdio: 'inherit' });
   rmSync(list, { force: true });

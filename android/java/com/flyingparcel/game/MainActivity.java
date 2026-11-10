@@ -1,4 +1,4 @@
-package com.flyingpizza.game;
+package com.flyingparcel.game;
 
 import android.app.Activity;
 import android.content.Context;
