@@ -2,8 +2,8 @@ import { buzz, sfx } from './audio.js';
 import { BOOSTS, CHAPTERS, SHOP, SKIP, TEASE } from './config.js';
 import { dropAllowed, landAllowed } from './delivery.js';
 import { touchUI } from './input.js';
-import { freshNow, openFromNudge } from './shop.js';
-import { boosts, canGetDrop, grantDrop, grantLand, landReady, resetBoosts, saveBoosts, settings } from './storage.js';
+import { freshNow, nudgeShop, openFromNudge } from './shop.js';
+import { boosts, canGetDrop, dayNumber, grantDrop, grantLand, landReady, resetBoosts, saveBoosts, settings } from './storage.js';
 import { playAd, showToast } from './ui.js';
 
 // The boosts a rewarded ad buys (Auto Land for the day, one Auto Drop) and the golden teasers for everything a player can
@@ -23,11 +23,11 @@ const canGet = f => (f === 'land' ? !landReady() : canGetDrop());
 const allowed = (f, l) => (f === 'land' ? landAllowed(l) : dropAllowed(l));
 
 // An ad teaser for mission l now: spaced from the last ad teaser and from its own, resting after being ignored, and never
-// twice for one flight.
+// twice for one mission (its retries included) until another mission has had one.
 function adOk(f, l) {
   const p = boosts.plays;
   return adsOn() && !quiet(l) && l.n >= TEASE.from && allowed(f, l) && !owned(f) && canGet(f) && boosts.rest[f] <= p
-    && p - boosts.lastAd >= TEASE.adGap && p - boosts.last[f] >= TEASE.gap && boosts.adFor !== `${l.n}:${p}`;
+    && p - boosts.lastAd >= TEASE.adGap && p - boosts.last[f] >= TEASE.gap && boosts.adFor !== l.n;
 }
 
 // The teaser for a screen, or null. screen is 'card' (l, the card's mission), 'pass' (ctx.own passed, l the next mission
@@ -65,7 +65,7 @@ export function showTease(t) {
   if (t.f === 'shop') boosts.named = [...new Set([...boosts.named, ...t.items.map(i => i.key)])];
   else {
     boosts.lastAd = p;
-    boosts.adFor = `${t.l.n}:${p}`;
+    boosts.adFor = t.l.n;
   }
   saveBoosts();
 }
@@ -105,7 +105,8 @@ export function getBoost(f, then) {
 }
 
 // The strip over a mission card's Start: a green chip for each boost held that works there, and at most one gold teaser
-// with its line. on is true only for the map's own missions, opened unlocked.
+// with its line. on is true only for the map's own missions, opened unlocked. A turned phone shows a green chip's tick
+// alone (its word stays for screen readers) and keeps only an introduction's line and the Auto Drop's price.
 export function boostStrip(l, on) {
   const el = $('levelBoosts');
   if (!on || !l || l.daily || l.rush || l.training) {
@@ -115,7 +116,7 @@ export function boostStrip(l, on) {
   }
   const t = teaseFor('card', l);
   if (t) showTease(t);
-  const ready = word => `<span class="boostChip ready">${icon('i-check')}${word}</span>`;
+  const ready = word => `<span class="boostChip ready" title="${word}">${icon('i-check')}<span class="chipWord">${word}</span></span>`;
   const chips = [
     ...(landReady() && landAllowed(l) ? [ready(text.landReady)] : []),
     ...(boosts.drop.have && dropAllowed(l) ? [ready(text.dropReady)] : []),
@@ -124,7 +125,7 @@ export function boostStrip(l, on) {
   if (t) {
     const line = lineFor(t), drop = t.f === 'drop';
     chips.unshift(`<button class="boostChip tease" id="levelTease" aria-label="${nameOf(t.f)}, free with an ad. ${line}${drop ? `. ${text.fine}` : ''}">${t.intro ? `<b class="newTag">${text.newTag}</b>` : ''}${icon('i-ad')}${nameOf(t.f)}<em>${text.free}</em></button>`);
-    notes = `<small class="teaseNote">${line}</small>${drop ? `<small class="teaseNote fine">${text.fine}</small>` : ''}`;
+    notes = `<small class="teaseNote${t.intro ? ' intro' : ''}">${line}</small>${drop ? `<small class="teaseNote fine">${text.fine}</small>` : ''}`;
   }
   el.innerHTML = chips.join('') + notes;
   el.hidden = !chips.length;
@@ -192,13 +193,14 @@ export function openBoosts() {
     rows.push(`<div class="boostRow">${icon('i-land')}<p><b>${text.land}</b><small>${text.landLine}</small><small class="fine">${text.landWhere}</small></p>${act}</div>`);
   }
   if (settings.dev || boosts.seen.drop || boosts.drop.have) {
-    const act = boosts.drop.have ? `<em class="boostTag ready">${text.dropReady}</em>` : canGetDrop() ? `<button class="go" data-get="drop">${icon('i-ad')}${text.watch}</button>` : `<em class="boostTag">${text.dropNext}</em>`;
+    const act = boosts.drop.have ? `<em class="boostTag ready">${text.dropReady}</em>` : canGetDrop() ? `<button class="go" data-get="drop">${icon('i-ad')}${text.watch}</button>` : `<em class="boostTag">${boosts.drop.day === dayNumber() ? text.dropNext : text.dropSoon}</em>`;
     rows.push(`<div class="boostRow">${icon('i-drop')}<p><b>${text.drop}</b><small>${text.dropLine}</small><small class="fine">${text.fine}</small><small class="fine">${text.dropWhere}</small></p>${act}</div>`);
   }
   if (settings.dev) rows.push(`<button class="ghost devMark" data-reset="1">${text.reset}</button>`);
   $('boostRows').innerHTML = rows.join('');
   $('boostCard').querySelector('.card').classList.toggle('devMark', devMark());
   $('boostCard').hidden = false;
+  nudgeShop();
 }
 
 export function initBoosts() {
@@ -206,6 +208,7 @@ export function initBoosts() {
   $('boostClose').addEventListener('click', () => {
     $('boostCard').hidden = true;
     showBoostBtn();
+    nudgeShop();
   });
   // a tap on the dim goes back as the arrow does
   $('boostCard').addEventListener('click', e => { if (e.target === e.currentTarget) $('boostClose').click(); });

@@ -877,8 +877,8 @@ export function showLevels() {
   showRushCard();
   showBoostBtn();
   fitBar();
-  nudgeShop();
   chapterIntro();
+  nudgeShop(true);
   const scroll = $('levelsScroll');
   scroll.scrollTop = rowY(open) - (scroll.clientHeight || 0) / 2;
 }
@@ -922,6 +922,8 @@ export function openMissionCard(l, { kicker = '', title, best = 0, head = [], ta
   $('levelPlay').textContent = locked ? `Finish mission ${lock} first` : go;
   boostStrip(l, boosts && !locked);
   $('levelCard').hidden = false;
+  // the map's Shop note waits under the card: one teaser a screen
+  $('shopNudge').hidden = true;
 }
 function openLevelCard(n) {
   const l = levelList[n - 1], { stars } = loadProgress(), open = reachedLevel(stars), ch = CHAPTERS.filter(c => n >= c.from).pop();
@@ -947,8 +949,10 @@ function openChapter(c, go = null) {
   btn.onclick = () => {
     $('chapterCard').hidden = true;
     go?.();
+    nudgeShop();
   };
   $('chapterCard').hidden = false;
+  nudgeShop();
 }
 
 // A chapter newly open on the map shows its card once, unless another card is up; the gift calendar's close asks again.
@@ -1134,9 +1138,13 @@ export function initLevels(levels, handlers) {
   $('levelClose').addEventListener('click', () => {
     leaveTease();
     $('levelCard').hidden = true;
+    nudgeShop();
   });
   // the chapter card only closes: it already counts as seen, and a card from Next leaves the result card under it
-  $('chapterClose').addEventListener('click', () => { $('chapterCard').hidden = true; });
+  $('chapterClose').addEventListener('click', () => {
+    $('chapterCard').hidden = true;
+    nudgeShop();
+  });
   // a tap on the dim around a card goes back as its arrow does
   for (const [card, back] of [['levelCard', 'levelClose'], ['gifts', 'giftsClose'], ['chapterCard', 'chapterClose']]) {
     $(card).addEventListener('click', e => { if (e.target === e.currentTarget) $(back).click(); });

@@ -1,7 +1,7 @@
 import { sfx } from './audio.js';
 import { AIRCRAFT, HANGAR, SHOP, TEASE } from './config.js';
 import { drawAirframe } from './drone.js';
-import { bought, garage, loadProgress, owns, saveGarage, saveProgress, saveSettings, settings } from './storage.js';
+import { boosts, bought, garage, loadProgress, owns, saveBoosts, saveGarage, saveProgress, saveSettings, settings } from './storage.js';
 import { badgeFor, fitBar, refreshPause } from './ui.js';
 
 const $ = id => document.getElementById(id);
@@ -168,17 +168,33 @@ function affordable(money) {
 }
 export const freshNow = () => affordable(loadProgress().money).filter(i => !settings.shopSeen.includes(i.key));
 
-// When the money first covers something new, the Shop buttons glow once, and on the map a soft note under the Shop button
-// says what; opening the Shop settles it. All of it waits until the Shop's introduction mission is passed.
-export function nudgeShop() {
+// When the money first covers something new, the menu's Shop button glows once and keeps a dot until the Shop is
+// opened. On the map a soft note under the Shop button says what, as one of the teasers: only for what no teaser has
+// named yet, at most once every shop.every missions played (shared with the result card's Shop pill), and kept for that
+// visit to the map (visit is true as the map opens), hidden while a card covers it; its button glows once with it.
+// Opening the Shop settles it. All of it waits until the Shop's introduction mission is passed.
+let noted = null;
+const COVERS = ['levelCard', 'boostCard', 'gifts', 'chapterCard', 'adCard'];
+export function nudgeShop(visit = false) {
   const { money, stars } = loadProgress(), fresh = settings.dev || stars[TEASE.shop.intro] ? freshNow() : [], note = $('shopNudge'), btn = $('openShop');
-  for (const id of ['openShop', 'menuShop']) $(id).classList.toggle('nudge', fresh.length > 0);
+  const news = fresh.filter(i => !boosts.named.includes(i.key)), p = boosts.plays;
+  if (visit) noted = null;
+  if (!$('levels').hidden && !noted && news.length && p - boosts.last.shop >= TEASE.shop.every && boosts.rest.shop <= p) {
+    noted = news.map(i => i.key);
+    boosts.named = [...new Set([...boosts.named, ...noted])];
+    boosts.last.shop = p;
+    saveBoosts();
+  }
+  // still in reach and not yet seen in the Shop
+  const shown = noted ? fresh.filter(i => noted.includes(i.key)) : [];
+  $('menuShop').classList.toggle('nudge', news.length > 0);
+  $('openShop').classList.toggle('nudge', shown.length > 0);
   $('menuShop').querySelector('.dotNew').hidden = !fresh.length;
-  // the bubble belongs to the map
-  if ($('levels').hidden || !fresh.length) { note.hidden = true; return; }
+  // the bubble belongs to the map, under no card
+  if ($('levels').hidden || !shown.length || COVERS.some(id => !$(id).hidden)) { note.hidden = true; return; }
   // one part and one aircraft when both are in reach, so the note shows the range on offer
-  const part = fresh.find(i => i.key.startsWith('part')), plane = fresh.find(i => i.key.startsWith('plane')), pick = part && plane ? [part, plane] : fresh.slice(0, SHOP.nudgeNames);
-  const names = pick.map(i => i.name).join(' or ') + (fresh.length > pick.length ? ' and more' : '');
+  const part = shown.find(i => i.key.startsWith('part')), plane = shown.find(i => i.key.startsWith('plane')), pick = part && plane ? [part, plane] : shown.slice(0, SHOP.nudgeNames);
+  const names = pick.map(i => i.name).join(' or ') + (shown.length > pick.length ? ' and more' : '');
   note.textContent = `You have $${money}. Enough for ${names} in the Shop`;
   note.hidden = false;
   // the bubble hangs under the Shop button, kept on screen; it is measured from the left edge, since a fixed bubble left

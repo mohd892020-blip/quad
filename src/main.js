@@ -68,7 +68,7 @@ export function step(dt) {
   keys.sink = keys.dn || (keys.rd && !zone.rope) ? 1 : 0;
   stepHold(st, pilot, zone.hold);
   stepLand(st, pilot, zone.land);
-  stepAutoDrop(st, pilot, zone.drop, dt);
+  stepAutoDrop(st, pilot, zone, dt);
   // Auto Drop works the rope itself
   if (!st.drop) stepRopeLength(st, pilot, zone, dt);
   stepBoost(st, pilot, dt);

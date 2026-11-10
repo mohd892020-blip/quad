@@ -76,7 +76,7 @@ export function stepLand(st, keys, pad) {
 function trafficTop(st, T) {
   const c = BOOSTS.drop, r = BOX.padX * st.item.size;
   let top = Infinity;
-  for (const car of st.cars ?? []) {
+  if (st.cars) for (const car of st.cars) {
     const s = CARS.shapes[car.kind], band = GROUND + (s.lane ?? CARS.lane) - s.height - r - c.carClear;
     const gap = Math.abs(car.x - T.x) - s.length / 2 - r - c.carGap, closing = (car.x < T.x) === (st.carDir > 0);
     if (gap < 0 || (closing && gap < car.v * c.carSecs)) top = Math.min(top, band);
@@ -85,34 +85,43 @@ function trafficTop(st, T) {
 }
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
+// How much the rope sags: past a little, the order rests on something instead of hanging from it.
+export const ropeSlack = st => st.ropeLen - Math.hypot(st.box.x - st.d.x, st.box.y - st.d.y - BOX.anchorY);
+
 // Auto Drop flies Hold's own anchor and the rope, so everything that waits for Hold (hops, surprises, close calls,
 // Boost, a ferry carrying the anchor) waits for it too. Its button, H, LAND or any new flight input hands control back;
-// the drop is spent only by a handover.
-export function stepAutoDrop(st, keys, canDrop, dt) {
-  const tap = keys.dropTap, dr = st.drop, c = BOOSTS.drop;
+// the drop is spent only by a handover. Once it pays the rope out or the hold's count climbs, the order is marked as
+// its handover, so letting go at the last moment still counts as an Auto Drop; leaving Hold's zone clears the mark.
+export function stepAutoDrop(st, keys, zone, dt) {
+  const tap = keys.dropTap, dr = st.drop, c = BOOSTS.drop, o = st.order;
   keys.dropTap = 0;
   if (!dr) {
-    if (tap && canDrop) {
+    if (o?.auto && !zone.hold) o.auto = false;
+    if (tap && zone.drop) {
       st.anchor = { x: st.d.x, y: st.d.y, armed: false };
-      st.drop = { t: st.order.t, at: st.t, y: st.d.y, bias: 0, aim: st.d.x };
+      st.drop = { t: o.t, at: st.t, y: st.d.y, bias: 0, aim: st.d.x, rest: 0, h: st.hold };
       sfx('gate');
       buzz(c.buzz);
     }
     return;
   }
+  // the hold's count climbed on the last step: this handover is Auto Drop's, even if let go now
+  if (o && st.hold > dr.h) o.auto = true;
+  dr.h = st.hold;
   // CANCEL lets go as RELEASE does; LAND takes over from it
   if (tap || st.landing) st.anchor = null;
-  if (tap || st.landing || !st.anchor || !st.has || st.order?.t !== dr.t || st.d.bat <= 0 || st.falling || st.outcome || st.done) {
+  if (tap || st.landing || !st.anchor || !st.has || o?.t !== dr.t || st.d.bat <= 0 || st.falling || st.outcome || st.done) {
     st.drop = null;
     return;
   }
-  // a drop that will not settle hands back on plain Hold, and is kept for another try
+  // a drop that will not settle hands back on plain Hold, and is kept for another try: what follows is the player's
   if (st.t - dr.at > c.secs) {
     st.drop = null;
+    o.auto = false;
     showToast(BOOSTS.text.paused[0], BOOSTS.text.paused[1], true);
     return;
   }
-  const o = st.order, a = st.anchor, T = o.t, d = st.d, bx = st.box, item = st.item, vT = T.vx ?? 0, low = st.level.rope ?? ROPE;
+  const a = st.anchor, T = o.t, d = st.d, bx = st.box, item = st.item, vT = T.vx ?? 0, low = st.level.rope ?? ROPE;
   // the aircraft stays between the shortest rope over the customer and `rope` above it, and clear of thin ice's wash
   const iceTop = iceAt(T.x) ? GROUND - THIN_ICE.wash - c.ice : Infinity;
   const floorY = Math.min(T.y - BOX.anchorY - low, iceTop), ceilY = Math.min(floorY, T.y - BOX.anchorY - Math.max(c.rope, low));
@@ -120,21 +129,28 @@ export function stepAutoDrop(st, keys, canDrop, dt) {
   // where the wind leans the order, and how far Hold's spring trails the anchor in wind and on a ferry
   const lean = st.ropeLen * st.wind * BOX.windForce * item.wind / G;
   const lag = (HOLD.damp * vT - st.wind * DRONE.windForce) / HOLD.spring;
-  const swing = bx.x - d.x - lean, calm = Math.abs(swing) < c.calm;
+  // an order lying on a roof or a ledge, or held aside against a wall, does not swing: following it would only drag the
+  // aircraft over to it, so the aircraft winds in and climbs until it hangs free
+  const off = bx.x - d.x - lean, still = Math.hypot((bx.x - bx.px) / dt - vT, (bx.y - bx.py) / dt) < c.restSpeed;
+  dr.rest = (ropeSlack(st) > c.restSlack || (still && Math.abs(off) > c.calm)) && Math.abs(T.y - bx.y) > c.near ? dr.rest + dt : 0;
+  const rests = dr.rest > c.restSecs;
+  const swing = rests ? 0 : off, calm = Math.abs(swing) < c.calm;
   if (calm && Math.abs(T.y - bx.y) < c.near) dr.bias = clamp(dr.bias + (T.x - bx.x) * c.ki * dt, -c.biasMax, c.biasMax);
   const wantX = T.x - lean + dr.bias, tooLow = d.y > floorY + c.slack;
   // the aim walks to the spot at a steady pace and rides a ferry; the anchor follows the order's swing to calm it
   if (!tooLow) dr.aim += vT * dt + clamp(wantX - dr.aim, -c.slew * dt, c.slew * dt);
   else dr.aim += vT * dt;
   a.x = dr.aim + lag + c.sway * swing;
-  const lined = Math.abs(bx.x - T.x) < c.lineUp && calm;
-  if (tooLow || a.y > wantY) a.y = Math.max(wantY, a.y - c.rise * dt);
+  const lined = !rests && Math.abs(bx.x - T.x) < c.lineUp && calm;
+  if (rests) a.y = Math.max(T.y - ROPE_CTL.holdY + c.room, a.y - c.rise * dt);
+  else if (tooLow || a.y > wantY) a.y = Math.max(wantY, a.y - c.rise * dt);
   else if (lined) a.y = Math.min(wantY, a.y + c.sink * dt);
   // lined up at its height the rope pays out, easing into the touch; above traffic it waits for a gap
   const lowering = lined && Math.abs(d.y - wantY) < c.settle, boxTo = Math.min(T.y, trafficTop(st, T));
-  const need = clamp(boxTo - (d.y + BOX.anchorY), low, ROPE_CTL.max);
+  const need = rests ? low : clamp(boxTo - (d.y + BOX.anchorY), low, ROPE_CTL.max);
   const rate = lowering ? Math.min(ROPE_CTL.speed, c.touch + c.ease * Math.abs(boxTo - bx.y)) : ROPE_CTL.speed;
   if (lowering || st.ropeLen > need) st.ropeLen = clamp(st.ropeLen + clamp(need - st.ropeLen, -rate * dt, rate * dt), low, ROPE_CTL.max);
+  if (lowering) o.auto = true;
 }
 
 function flyLanding(st, dt, over) {

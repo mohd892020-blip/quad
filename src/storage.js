@@ -35,7 +35,7 @@ export function saveSkips() {
 // Boosts and their teasers. land: the date Auto Land was unlocked. drop: whether an Auto Drop waits, and the latest date
 // one was got or used. The rest is the teasers' memory, counted in missions played, never by the clock.
 const FEATURES = ['land', 'drop', 'shop'];
-const freshBoosts = () => ({ land: -1, drop: { have: false, day: -1 }, plays: 0, hint: false, seen: { land: false, drop: false, shop: false }, ignored: { land: 0, drop: 0, shop: 0 }, rest: { land: 0, drop: 0, shop: 0 }, last: { land: -99, drop: -99, shop: -99 }, lastAd: -99, adFor: '', named: [] });
+const freshBoosts = () => ({ land: -1, drop: { have: false, day: -1 }, plays: 0, hint: false, seen: { land: false, drop: false, shop: false }, ignored: { land: 0, drop: 0, shop: 0 }, rest: { land: 0, drop: 0, shop: 0 }, last: { land: -99, drop: -99, shop: -99 }, lastAd: -99, adFor: 0, named: [] });
 export const boosts = freshBoosts();
 // each field stands alone (whole is defined further down, so the tests are written out here)
 const atLeast = (v, low, keep) => (Number.isInteger(v) && v >= low ? v : keep);
@@ -53,7 +53,7 @@ try {
       if (Number.isInteger(s.last?.[f])) b.last[f] = s.last[f];
     }
     if (Number.isInteger(s.lastAd)) b.lastAd = s.lastAd;
-    if (typeof s.adFor === 'string') b.adFor = s.adFor;
+    b.adFor = atLeast(s.adFor, 0, 0);
     if (Array.isArray(s.named)) b.named = s.named.filter(k => typeof k === 'string');
   }
 } catch (_) {}

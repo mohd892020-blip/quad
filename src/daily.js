@@ -146,6 +146,8 @@ function renderGifts(got = -1) {
 export function openGifts() {
   renderGifts();
   $('gifts').hidden = false;
+  // the map's Shop note waits under the card
+  nudgeShop();
 }
 
 // Paper bursts from the claimed tile along a golden-angle spiral; each piece goes when it lands, and with the last one the

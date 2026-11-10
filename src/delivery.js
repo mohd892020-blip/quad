@@ -6,7 +6,7 @@ import { musicCue } from './music.js';
 import {
   AIRCRAFT, BATTERY, BOOSTS, BOX, BULLSEYE, CAMERA, CARGO, COMBO, CONTRAST, DELIVERY, DEV, DOUBLE, DRONE, FIXED_DT, FX, HANGAR, HEALTH, HOMES, LAND, LEVELS, MISSION, ORDER_TIME, ORDERS, PERFECT, POINTER, PREP, RESCUE, RESTAURANT, RIVAL, ROPE, RUSH, SKIP, ROPE_CTL, SURPRISE, WIND,
 } from './config.js';
-import { currentModel } from './drone.js';
+import { currentModel, ropeSlack } from './drone.js';
 import { homeName, homeOf } from './homes.js';
 import { touchUI } from './input.js';
 import { endRun, rushDelivered, rushLoaded } from './rush.js';
@@ -184,6 +184,7 @@ function dropLower(st) {
   o.drop = 2;
   o.surprises = [];
   o.hand = null;
+  o.auto = false;
   // the jump leaves the order right over the roof at speed, which is no close call
   st.close.wall = st.close.cable = 'spent';
   st.hold = 0;
@@ -239,8 +240,9 @@ function passMission(st) {
     hud(st);
     return;
   }
-  // only a real handover spends an Auto Drop; it is never perfect, leaves the run as it was and pays a share of the tip
-  const auto = !!st.drop;
+  // only a real handover spends an Auto Drop, also one it began and was let go of at the last moment; it is never
+  // perfect, leaves the run as it was and pays a share of the tip
+  const auto = !!st.drop || !!st.order.auto;
   if (auto) {
     st.drop = null;
     spendDrop();
@@ -467,9 +469,18 @@ function padBelow(st) {
   return padNear(st);
 }
 
+// Slow, with the order hanging free and the aircraft high enough over the customer that the order hangs clear of
+// anything it stands on (beside a ferry's deck engaging would ruin orders); the time it last was is kept for the linger.
+function dropClear(st, dy) {
+  const d = st.d, c = BOOSTS.drop;
+  const clear = Math.hypot(d.vx, d.vy) < c.maxSpeed && dy >= (st.level.rope ?? ROPE) + BOX.anchorY + c.above && ropeSlack(st) <= c.restSlack;
+  if (clear) st.order.offered = st.t;
+  return clear;
+}
+
 // Where rope and hold controls apply: rope right above the customer, hold over a wider area. Auto Drop is offered in
-// Hold's zone, slow, with every ring flown and the aircraft high enough over the customer that the order hangs clear of
-// anything it stands on (beside a ferry's deck engaging would ruin orders).
+// Hold's zone with every ring flown while dropClear holds, and a moment past a dip under it, so the button never slips
+// from under a finger.
 export function zones(st) {
   const land = padBelow(st);
   if (!st.has || !st.order) return land ? { ...NO_ZONE, land } : NO_ZONE;
@@ -480,8 +491,7 @@ export function zones(st) {
     hold,
     land,
     drop: hold && !st.drop && st.dropOk && boosts.drop.have && !st.landing && !st.falling && !st.prep && !st.outcome && !st.done && d.bat > 0
-      && Math.hypot(d.vx, d.vy) < BOOSTS.drop.maxSpeed && dy >= (st.level.rope ?? ROPE) + BOX.anchorY + BOOSTS.drop.above
-      && (st.order.gate ?? 0) >= (st.stop.gates?.length ?? 0),
+      && (st.order.gate ?? 0) >= (st.stop.gates?.length ?? 0) && (dropClear(st, dy) || st.t - st.order.offered <= BOOSTS.drop.linger),
   };
 }
 
@@ -498,7 +508,11 @@ export function goal(st) {
 }
 
 export function autoDeliver(st) {
-  if (st && st.has && st.order) passMission(st);
+  if (!st || !st.has || !st.order) return;
+  // the developer's handover, not Auto Drop's: the drop is kept
+  st.drop = null;
+  st.order.auto = false;
+  passMission(st);
 }
 
 export function chargeDrone(st) {
