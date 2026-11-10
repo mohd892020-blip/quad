@@ -1,7 +1,7 @@
 import { AIRCRAFT, BEACH, CONTRAST, DESERT, DRONE, FOREST, GROUND, MOUNTAIN, SNOW } from './config.js';
+import { flyingPlane } from './drone.js';
 import { seaAt } from './seaside.js';
-import { settings } from './storage.js';
-import { ctx, view, X, Y } from './ui.js';
+import { ctx, glow, view, X, Y } from './ui.js';
 import { world } from './world.js';
 
 // A few times a second this reads what stands behind the aircraft from the scene itself and picks the ink of its
@@ -30,12 +30,14 @@ export function behind(x, y) {
   const c = CONTRAST, time = world.pal, wall = world.B.find(b => x >= b.x && x <= b.x + b.w && y >= b.top);
   if (wall) return rgb(wall.col).map(v => v * time.light);
   if (y >= GROUND - c.groundGap) return rgb(x >= SNOW.from ? time.snowGround : x >= MOUNTAIN.from ? time.scree : x >= FOREST.from ? time.moss : x >= DESERT.from ? time.dune : x < BEACH.from ? time.ground : seaAt(x) ? time.sea : time.sand);
+  // ridges rise to their height plus swell (and teeth); the snowfield's near range is painted snowFar and its far one
+  // peakFar (alpine.js drawHighBehind)
   if (x >= SNOW.from) {
-    if (y >= GROUND - SNOW.nearH) return rgb(time.snowNear);
-    if (y >= GROUND - SNOW.farH) return rgb(time.snowFar);
+    if (y >= GROUND - (SNOW.nearH + SNOW.nearSwell)) return rgb(time.snowFar);
+    if (y >= GROUND - (SNOW.farH + SNOW.farSwell)) return rgb(time.peakFar);
   } else if (x >= MOUNTAIN.from) {
-    if (y >= GROUND - MOUNTAIN.nearH) return rgb(time.peakNear);
-    if (y >= GROUND - MOUNTAIN.farH) return rgb(time.peakFar);
+    if (y >= GROUND - (MOUNTAIN.nearH + MOUNTAIN.nearSwell)) return rgb(time.peakNear);
+    if (y >= GROUND - (MOUNTAIN.farH + MOUNTAIN.farSwell)) return rgb(time.peakFar);
   } else if (x >= FOREST.from) {
     if (y >= GROUND - FOREST.nearH) return rgb(time.pineNear);
     if (y >= GROUND - FOREST.farH) return rgb(time.pineFar);
@@ -59,7 +61,7 @@ export function shiftFor(paint, back) {
 export const standout = () => ({ k: 0, aim: 0, ink: CONTRAST.dark, want: CONTRAST.dark, wait: 0, edge: 0 });
 
 export function stepContrast(st, dt) {
-  const c = CONTRAST, p = st.standout, m = AIRCRAFT.find(a => a.key === settings.plane) || AIRCRAFT[0];
+  const c = CONTRAST, p = st.standout, m = AIRCRAFT.find(a => a.key === flyingPlane()) || AIRCRAFT[0];
   p.wait -= dt;
   if (p.wait <= 0) {
     const s = shiftFor(m.paint, behind(st.d.x, st.d.y));
@@ -79,7 +81,11 @@ const RIMS_KEPT = 48;
 const rims = new Map();
 
 function fit(c, side) {
-  if (c.width !== side) c.width = c.height = side;
+  // both sides are checked: a new canvas is 300 by 150, so a side of exactly 300 would otherwise keep half its height
+  if (c.width !== side || c.height !== side) {
+    c.width = side;
+    c.height = side;
+  }
   const g = c.getContext('2d');
   g.setTransform(1, 0, 0, 1, 0, 0);
   g.globalCompositeOperation = 'source-over';
@@ -107,8 +113,9 @@ function rimOf(look, ink, side, lay) {
   return s;
 }
 
-// flat(g) draws the aircraft's outline around (0,0) in world units, the same every time for one look; live(g) draws it now.
-export function drawStandout(st, a, look, flat, live) {
+// flat(g) draws the aircraft's outline around (0,0) in world units, the same every time for one look; live(g) draws it now;
+// span is its half width in body units.
+export function drawStandout(st, a, look, flat, live, span) {
   const c = CONTRAST, p = st.standout, sx = X(st.d.x), sy = Y(st.d.y), S = view.S * c.scale, D = view.DPR;
   // the feet stay where the body touches down, however large the aircraft is drawn
   // the outline is cut once for the closest shot and only scaled as the camera zooms, so a glide never recuts it
@@ -123,6 +130,15 @@ export function drawStandout(st, a, look, flat, live) {
   ctx.save();
   ctx.translate(sx, sy);
   ctx.rotate(a);
+  // dark paint melts into a dark scene, where a dark rim cannot help: a soft warm light comes up behind it (a light
+  // backdrop has the dark rim); one cached sprite, drawn only while the light rim is up
+  if (p.edge > c.rest && p.k > c.rest) {
+    ctx.save();
+    ctx.scale(1, c.glow.flat);
+    ctx.globalAlpha = p.edge * p.k * c.glow.alpha;
+    glow(ctx, c.glow.ink, 0, 0, span * c.glow.width * S);
+    ctx.restore();
+  }
   const strength = c.rimIdle + (c.rimNear - c.rimIdle) * p.k;
   for (const [ink, share] of [[c.dark, 1 - p.edge], [c.light, p.edge]]) {
     if (share < c.rest) continue;

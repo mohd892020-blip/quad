@@ -1,6 +1,7 @@
 import { sfx } from './audio.js';
-import { AIRCRAFT, HANGAR, SHOP, TEASE } from './config.js';
+import { AIRCRAFT, HANGAR, ITEMS, SHOP, TEASE } from './config.js';
 import { drawAirframe } from './drone.js';
+import { canCarry } from './rope.js';
 import { boosts, bought, garage, loadProgress, owns, saveBoosts, saveGarage, saveProgress, saveSettings, settings } from './storage.js';
 import { badgeFor, fitBar, refreshPause } from './ui.js';
 
@@ -63,7 +64,8 @@ function stats(m) {
   return rows.map(([label, stat]) => {
     const top = Math.max(...AIRCRAFT.map(a => a[stat]));
     return `<span>${label}</span><i><b style="width:${m[stat] / top * 100}%"></b>${flying && flying !== m ? `<u style="left:${flying[stat] / top * 100}%"></u>` : ''}</i>`;
-  }).join('') + `<span>Sound</span><em>${HANGAR.pitch.find(([hz]) => m.hz[0] < hz)[1]}</em>`;
+  }).join('') + `<span>Sound</span><em>${HANGAR.pitch.find(([hz]) => m.hz[0] < hz)[1]}</em>`
+    + `<span>Big loads</span><em>${Object.values(ITEMS).every(i => canCarry(m.key, i)) ? 'Yes' : 'No'}</em>`;
 }
 
 function detail(money) {

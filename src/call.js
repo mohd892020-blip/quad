@@ -135,7 +135,7 @@ function startSeg(i) {
       from = k + w.length;
       return secs * k / s.text.length;
     });
-    sayClip(buf, c.rate);
+    sayClip(buf, c.rate, c.voice);
   } else {
     const plan = babblePlan(s.text, live.h, live.vo, Infinity);
     secs = plan.secs;

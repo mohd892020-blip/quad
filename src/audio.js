@@ -2,7 +2,9 @@ import { AUDIO, CALL } from './config.js';
 import { saveSettings, settings } from './storage.js';
 
 let ac = null, output, master, bus, filter, air, oscs, noiseBuf, voices = 0, nextUpdate = 0, speaking = null;
-const lastPlayed = {}, aimed = new Map();
+const lastPlayed = {}, aimed = new Map(), levels = new WeakMap();
+// when the caller's line ends: the rotor steps back until then
+let talkUntil = 0;
 
 function makeNoise() {
   noiseBuf = ac.createBuffer(1, ac.sampleRate * 2, ac.sampleRate);
@@ -119,7 +121,21 @@ export function loadClip(name) {
   clips.set(name, 'loading');
   packedBytes('voice', 'voices', name).then(b => ac.decodeAudioData(b)).then(buf => keepClip(name, buf), () => keepClip(name, null));
 }
+// A line's speech level: the RMS of its short windows near its loudest, so pauses do not count. Lines differ by several
+// dB once through the phone band, so each is measured once as it decodes, never per play.
+function speechLevel(buf) {
+  const [secs, range] = CALL.speech.gate, d = buf.getChannelData(0), w = Math.round(buf.sampleRate * secs), pow = [];
+  for (let i = 0; i + w <= d.length; i += w) {
+    let s = 0;
+    for (let j = i; j < i + w; j += 2) s += d[j] * d[j];
+    pow.push(s / Math.ceil(w / 2));
+  }
+  const floor = Math.max(0, ...pow) * 10 ** (-range / 10), kept = pow.filter(p => p >= floor && p > 0);
+  return kept.length ? Math.sqrt(kept.reduce((a, p) => a + p, 0) / kept.length) : 0;
+}
+
 function keepClip(name, buf) {
+  if (buf) levels.set(buf, speechLevel(buf));
   clips.delete(name);
   for (const [key, c] of clips) if (clips.size >= CALL.speech.kept && c !== 'loading') clips.delete(key);
   clips.set(name, buf);
@@ -163,7 +179,9 @@ export function updateRotor(active, throttle, model) {
   const tone = Math.sqrt(model.hz[0] / c.idleHz);
   // high pitches sit where the ear and a phone speaker are keenest, so they play quieter
   const trim = Math.min(1, (c.idleHz / model.hz[0]) ** c.pitchTrim);
-  aim(master.gain, active ? mix(c.idleGain, c.liftGain) * trim : 0);
+  // a caller's line is heard over the motors
+  const talk = ac.currentTime < talkUntil ? CALL.speech.rotorShare : 1;
+  aim(master.gain, active ? mix(c.idleGain, c.liftGain) * trim * talk : 0);
   aim(filter.frequency, Math.min(c.maxCut, mix(c.idleCut, c.liftCut) * tone));
   aim(air.frequency, Math.min(c.maxNoiseHz, mix(c.noiseHz, c.noiseLiftHz) * tone));
   for (const o of oscs) aim(o.frequency, Math.min(c.maxHz, mix(model.hz[0], model.hz[1])));
@@ -310,11 +328,12 @@ export function speak(plan, v) {
   o.start(t0);
   o.stop(t0 + plan.secs + .05);
   speaking = { o, env };
+  talkUntil = t0 + plan.secs;
 }
 
-// A recorded line down the phone: its caller's rate, the line's band, one voice through the limiter, so the mute silences
-// it; muted, nothing is built at all.
-export function sayClip(buf, rate) {
+// A recorded line down the phone: its caller's rate, the line's band, levelled per line to the same loudness (times its
+// voice's trim), one voice through the limiter, so the mute silences it; muted, nothing is built at all.
+export function sayClip(buf, rate, voice) {
   hushVoice();
   // one caller speaks at a time (hushVoice), so the line has a place of its own outside the short sounds' count:
   // a ring still sounding never silences it, and it never takes the place of the pickup that follows
@@ -326,16 +345,18 @@ export function sayClip(buf, rate) {
   hp.frequency.value = c.band[0];
   lp.type = 'lowpass';
   lp.frequency.value = c.band[1];
-  g.gain.value = c.level * AUDIO.sfxGain;
+  g.gain.value = c.loudness / Math.max(c.quiet, levels.get(buf) ?? c.loudness) * (c.trim[voice] ?? 1);
   src.connect(hp).connect(lp).connect(g).connect(bus);
   src.onended = () => [src, hp, lp, g].forEach(n => n.disconnect());
   src.start(ac.currentTime + .02);
+  talkUntil = ac.currentTime + .02 + buf.duration / rate;
   speaking = { o: src, env: g };
 }
 
 // A call cut short: the voice fades in a moment from wherever its envelope stands, instead of clicking off. A plain
 // cancel mid-ramp would snap back to the last set value first, so the value is held (by hand where the browser can't).
 export function hushVoice() {
+  talkUntil = 0;
   if (!speaking) return;
   const { o, env } = speaking;
   speaking = null;

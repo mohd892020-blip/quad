@@ -456,8 +456,11 @@ export const BOX = {
   swingFree: .5,
 };
 
-// How much larger an order is drawn than the box it flies as, so its shape reads on a phone.
-export const CARGO = { drawScale: 1.3 };
+// How much larger an order is drawn than the box it flies as, so its shape reads on a phone. ratio: the aircraft's drawn
+// silhouette is at least this many times the order's, the order drawn smaller (never narrower than its box, kept on its
+// bottom) where it would be more. bigRatio: an order still bigger than that at its box is too big for the aircraft, which
+// never carries it; lend is the aircraft that flies such a mission instead. The box an order flies as never changes.
+export const CARGO = { drawScale: 1.3, ratio: 2, bigRatio: 1.4, lend: 'courier' };
 
 // Rope play over a customer. Zones are measured from the drone to the target.
 export const ROPE_CTL = {
@@ -500,29 +503,34 @@ export const DEV = { password: '930933', chargeTo: 100 };
 // Courier is the prototype's flight, every factor 1. thrust is climb and load strength,
 // speed scales horizontal thrust, battery is capacity, tough divides crash damage.
 // hz is the motor pitch at idle and full throttle. Real classes set the direction, game balance the size.
-// span is half the drawn width, rotors included, in body units.
-// The aircraft is drawn scale times its body and belongs to the scene: its rim is a faint edge of light at rimIdle,
-// in ink, the light or dark colour that stands out from what is behind it. Only when its paint comes close to that
+// span is half the drawn width, rotors included, in body units. grow draws a small airframe that many times larger about
+// its feet (sole, the lowest drawn point, when it is not DRONE.radius), so it reads on a phone; how it flies and collides
+// never changes. area is its drawn silhouette at scale 1 before grow (re-measure with look/d1/art.mjs when a drawing
+// changes), so an order can be drawn in proportion to it.
+// The aircraft is drawn scale times its body and belongs to the scene, but always reads: its rim is an edge of ink at
+// rimIdle, the light or dark colour that stands out from what is behind it. Only when its paint comes close to that
 // backdrop does the rim rise toward rimNear and the paint shift toward ink. near is the colour distance where that
-// starts and far where it is full; every is how often the scene is read, in seconds.
+// starts and far where it is full; every is how often the scene is read, in seconds. glow: a soft warm light behind an
+// aircraft whose paint melts into a dark scene, width times its span across and flat of that down, at alpha times how far
+// the rim has come up.
 export const CONTRAST = {
-  scale: 1.1, every: .2, near: .24, far: .08, rate: 2.5, rest: .02, tintLight: .2, tintDark: .12, rimPx: 1, rimIdle: .22, rimNear: .7, box: 170, midLight: .62,
-  dark: '#141030', light: '#ffffff', groundGap: 18, skyline: 240,
+  scale: 1.1, every: .2, near: .28, far: .08, rate: 2.5, rest: .02, tintLight: .3, tintDark: .16, rimPx: 1.5, rimIdle: .45, rimNear: .9, box: 170, midLight: .62,
+  dark: '#141030', light: '#ffffff', groundGap: 18, skyline: 240, glow: { alpha: .32, width: 1.25, flat: .62, ink: '#ffeed2' },
 };
 
 export const AIRCRAFT = [
-  { key: 'courier', span: 46, paint: '#e8492c', name: 'Courier', gear: 'arched', thrust: 1, speed: 1, battery: 1, tough: 1, hz: [92, 148], note: 'The all-rounder' },
-  { key: 'miniFold', span: 37, paint: '#8c97a6', name: 'Mini Fold', gear: 'stubs', thrust: 1.2, speed: .8, battery: 1.15, tough: .6, hz: [200, 310], note: 'Light and long-lived, but fragile' },
-  { key: 'hexa', span: 48, paint: '#2f8f8a', name: 'Hexa H6', gear: 'tlegs', thrust: 1, speed: .9, battery: 1.25, tough: 1.3, hz: [105, 150], note: 'Steady, with six motors to spare' },
-  { key: 'x8', span: 48, paint: '#4f5d75', name: 'X8 Cargo', gear: 'skids', thrust: .85, speed: 1, battery: 1, tough: 1.6, hz: [64, 90], note: 'Takes a beating, climbs slowly' },
-  { key: 'fpv', span: 37, paint: '#17171d', name: 'FPV Racer', gear: 'belly', thrust: 1.6, speed: 1.5, battery: .45, tough: .8, hz: [240, 640], note: 'Wild speed, tiny battery' },
-  { key: 'heavy', span: 59, paint: '#d9a321', name: 'Heavy Lifter', gear: 'tall', thrust: 1.1, speed: .6, battery: .6, tough: 1.9, hz: [50, 70], note: 'Slow and short-ranged, nearly unbreakable' },
-  { key: 'vtol', span: 40, paint: '#eef1f6', name: 'VTOL Wing', gear: 'retract', thrust: .8, speed: 1.7, battery: 1.4, tough: .7, hz: [130, 200], note: 'Fastest cruiser, weak climber' },
-  { key: 'whoop', span: 40, paint: '#2f3540', name: 'Cinewhoop', gear: 'belly', thrust: 1.3, speed: 1.1, battery: .7, tough: 1.3, hz: [300, 600], note: 'Ducted props shrug off bumps' },
-  { key: 'cage', span: 18, paint: '#8b95a3', name: 'Cage Scout', gear: 'none', thrust: .95, speed: .7, battery: .8, tough: 1.5, hz: [180, 280], note: 'A roll cage for tight streets' },
-  { key: 'agri', span: 45, paint: '#e9eef2', name: 'Agri Tanker', gear: 'tall', thrust: 1, speed: .7, battery: .75, tough: 1.7, hz: [58, 80], note: 'Farm-built, deep rumble' },
-  { key: 'tandem', span: 43, paint: '#5a7fa6', name: 'Twin Tandem', gear: 'skids', thrust: 1.15, speed: .85, battery: .9, tough: 1.2, hz: [70, 105], note: 'Two big rotors, strong lifter' },
-  { key: 'tilt', span: 36, paint: '#d8dde6', name: 'Tiltrotor', gear: 'retract', thrust: .9, speed: 1.45, battery: 1.2, tough: .8, hz: [150, 240], note: 'Rotors swing forward at speed' },
+  { key: 'courier', span: 46, area: 1227, paint: '#e8492c', name: 'Courier', gear: 'arched', thrust: 1, speed: 1, battery: 1, tough: 1, hz: [92, 148], note: 'The all-rounder' },
+  { key: 'miniFold', span: 43, grow: 1.15, area: 713, paint: '#8c97a6', name: 'Mini Fold', gear: 'stubs', thrust: 1.2, speed: .8, battery: 1.15, tough: .6, hz: [200, 310], note: 'Light and long-lived, but fragile' },
+  { key: 'hexa', span: 48, area: 1417, paint: '#2f8f8a', name: 'Hexa H6', gear: 'tlegs', thrust: 1, speed: .9, battery: 1.25, tough: 1.3, hz: [105, 150], note: 'Steady, with six motors to spare' },
+  { key: 'x8', span: 48, area: 1610, paint: '#4f5d75', name: 'X8 Cargo', gear: 'skids', thrust: .85, speed: 1, battery: 1, tough: 1.6, hz: [64, 90], note: 'Takes a beating, climbs slowly' },
+  { key: 'fpv', span: 41, grow: 1.1, area: 854, paint: '#17171d', name: 'FPV Racer', gear: 'belly', thrust: 1.6, speed: 1.5, battery: .45, tough: .8, hz: [240, 640], note: 'Wild speed, tiny battery' },
+  { key: 'heavy', span: 59, area: 1728, paint: '#d9a321', name: 'Heavy Lifter', gear: 'tall', thrust: 1.1, speed: .6, battery: .6, tough: 1.9, hz: [50, 70], note: 'Slow and short-ranged, nearly unbreakable' },
+  { key: 'vtol', span: 40, area: 1020, paint: '#eef1f6', name: 'VTOL Wing', gear: 'retract', thrust: .8, speed: 1.7, battery: 1.4, tough: .7, hz: [130, 200], note: 'Fastest cruiser, weak climber' },
+  { key: 'whoop', span: 40, area: 1143, paint: '#2f3540', name: 'Cinewhoop', gear: 'belly', thrust: 1.3, speed: 1.1, battery: .7, tough: 1.3, hz: [300, 600], note: 'Ducted props shrug off bumps' },
+  { key: 'cage', span: 23, grow: 1.3, sole: 17, area: 623, paint: '#8b95a3', name: 'Cage Scout', gear: 'none', thrust: .95, speed: .7, battery: .8, tough: 1.5, hz: [180, 280], note: 'A roll cage for tight streets' },
+  { key: 'agri', span: 45, area: 1274, paint: '#e9eef2', name: 'Agri Tanker', gear: 'tall', thrust: 1, speed: .7, battery: .75, tough: 1.7, hz: [58, 80], note: 'Farm-built, deep rumble' },
+  { key: 'tandem', span: 43, area: 1348, paint: '#5a7fa6', name: 'Twin Tandem', gear: 'skids', thrust: 1.15, speed: .85, battery: .9, tough: 1.2, hz: [70, 105], note: 'Two big rotors, strong lifter' },
+  { key: 'tilt', span: 36, area: 953, paint: '#d8dde6', name: 'Tiltrotor', gear: 'retract', thrust: .9, speed: 1.45, battery: 1.2, tough: .8, hz: [150, 240], note: 'Rotors swing forward at speed' },
 ];
 
 // Picker badge: of the stats a model ranks in the top topRank for, the one furthest above
@@ -880,22 +888,24 @@ export const WIND = {
 };
 
 // Pizza is the prototype's baseline: every factor is 1, so its flight matches prototype.html.
-// prep is how many seconds the shop needs to make the order; price is what ruining it costs.
+// prep is how many seconds the shop needs to make the order; price is what ruining it costs. art is the drawing at scale 1:
+// its width, silhouette area and lowest point (re-measure with look/d1/art.mjs when a drawing changes); size and weight
+// still set how it flies.
 export const ITEMS = {
-  pizza: { key: 'pizza', price: 10, prep: 7, label: 'Pizza', weight: 1, size: 1, fragile: 1, heat: 1, wind: 1 },
-  falafel: { key: 'falafel', price: 6, prep: 3.5, label: 'Falafel', weight: .8, size: .8, fragile: .6, heat: .9, wind: .9 },
-  kunafa: { key: 'kunafa', price: 12, prep: 5.5, label: 'Kunafa', weight: 1.1, size: 1.1, fragile: 1.2, heat: 1.1, wind: 1 },
-  coffee: { key: 'coffee', price: 4, prep: 2.5, label: 'Coffee', weight: .6, size: .6, fragile: 1.6, heat: 1.4, wind: .8 },
-  cake: { key: 'cake', price: 14, prep: 4.5, label: 'Cake', weight: 1, size: 1, fragile: 2, heat: 0, wind: 1.1 },
-  medicine: { key: 'medicine', price: 8, prep: 1.5, label: 'Medicine', weight: .3, size: .5, fragile: .5, heat: 0, wind: .7, urgent: true },
-  flowers: { key: 'flowers', price: 9, prep: 3, label: 'Flowers', weight: .4, size: .9, fragile: 1.3, heat: 0, wind: 1.8 },
-  watermelon: { key: 'watermelon', price: 5, prep: 2, label: 'Watermelon', weight: 1.8, size: 1, fragile: .7, heat: 0, wind: .5 },
-  tv: { key: 'tv', price: 30, prep: 4, label: 'TV', weight: 2, size: 1.6, fragile: 1.8, heat: 0, wind: 1.6 },
-  vase: { key: 'vase', price: 35, prep: 3, label: 'Glass Vase', weight: .6, size: .9, fragile: 6, heat: 0, wind: 1.2 },
+  pizza: { key: 'pizza', price: 10, prep: 7, label: 'Pizza', weight: 1, size: 1, fragile: 1, heat: 1, wind: 1, art: [28, 412, 7] },
+  falafel: { key: 'falafel', price: 6, prep: 3.5, label: 'Falafel', weight: .8, size: .8, fragile: .6, heat: .9, wind: .9, art: [22, 379, 11.4] },
+  kunafa: { key: 'kunafa', price: 12, prep: 5.5, label: 'Kunafa', weight: 1.1, size: 1.1, fragile: 1.2, heat: 1.1, wind: 1, art: [31, 448, 11] },
+  coffee: { key: 'coffee', price: 4, prep: 2.5, label: 'Coffee', weight: .6, size: .6, fragile: 1.6, heat: 1.4, wind: .8, art: [27, 447, 9.5] },
+  cake: { key: 'cake', price: 14, prep: 4.5, label: 'Cake', weight: 1, size: 1, fragile: 2, heat: 0, wind: 1.1, art: [30, 450, 11.9] },
+  medicine: { key: 'medicine', price: 8, prep: 1.5, label: 'Medicine', weight: .3, size: .5, fragile: .5, heat: 0, wind: .7, urgent: true, art: [26, 478, 9.5] },
+  flowers: { key: 'flowers', price: 9, prep: 3, label: 'Flowers', weight: .4, size: .9, fragile: 1.3, heat: 0, wind: 1.8, art: [27.8, 486, 12] },
+  watermelon: { key: 'watermelon', price: 5, prep: 2, label: 'Watermelon', weight: 1.8, size: 1, fragile: .7, heat: 0, wind: .5, art: [29, 489, 10.5] },
+  tv: { key: 'tv', price: 30, prep: 4, label: 'TV', weight: 2, size: 1.6, fragile: 1.8, heat: 0, wind: 1.6, art: [27, 513, 9.5] },
+  vase: { key: 'vase', price: 35, prep: 3, label: 'Glass Vase', weight: .6, size: .9, fragile: 6, heat: 0, wind: 1.2, art: [19.4, 347, 11.5] },
   // spoils: losing all its heat ruins this one, and the word says how
-  icecream: { key: 'icecream', price: 7, prep: 2, label: 'Ice Cream', weight: .5, size: .8, fragile: .8, heat: 3, wind: .9, spoils: 'Melted' },
+  icecream: { key: 'icecream', price: 7, prep: 2, label: 'Ice Cream', weight: .5, size: .8, fragile: .8, heat: 3, wind: .9, spoils: 'Melted', art: [17.9, 312, 15] },
   // supplies for someone stranded: a roped crate that flies like a pizza, with nothing to keep warm
-  supplies: { key: 'supplies', price: 12, prep: 2, label: 'Supplies', weight: 1, size: 1, fragile: .6, heat: 0, wind: .8 },
+  supplies: { key: 'supplies', price: 12, prep: 2, label: 'Supplies', weight: 1, size: 1, fragile: .6, heat: 0, wind: .8, art: [26, 465, 9] },
 };
 
 // How much a load above or below pizza weight changes lift and battery use.
@@ -1025,7 +1035,10 @@ export const HOMES = {
 // title. speech: the recorded voices (scripts/voices.mjs makes them ahead of time with Piper; make is only read there),
 // each caller's voice and rate picked by household, join the gap between greeting and request, wait how long an answer
 // waits on a line still decoding, band the phone line's filter, kept how many decoded lines stay in memory, say how a
-// title is spoken, budget the most bytes all lines may take.
+// title is spoken, budget the most bytes all lines may take. Every line is brought to loudness: the RMS of its gate[0]-second
+// windows within gate[1] dB of its loudest one, measured once when it decodes, times its voice's trim so the four voices
+// match (re-measure the trims if the voices are recorded again); quiet floors that level, so a near-silent clip is never
+// blown up. While a caller talks the rotor steps back to rotorShare.
 export const CALL = {
   firstAt: .5, nextAt: 1.4, airAt: .35, rushAt: .1, padAt: .2, resumeAt: .3, between: .25, fade: .25,
   ringEvery: 1.5, loud: 4, quietEvery: 3, rushRings: 1,
@@ -1034,11 +1047,12 @@ export const CALL = {
   states: { ring: 'Incoming call · {home}', hand: 'Handed on · {home}', drop: 'Next drop · {home}', rush: 'Rush order · {home}' },
   faces: ['#e8492c', '#f09a1a', '#2fa866', '#2f9fc2', '#7d6cf0', '#d0609a', '#b4824e', '#2f8f9d'],
   voice: { pitch: { m: [100, 160], f: [180, 300] }, steps: 8, offset: 3, speed: [.85, 1.2], shift: .06, syll: .12, gap: .05, pause: .14, wobble: 3, rise: 4, lift: 2, fall: 2, maxSpeedUp: 1.6,
-    q: [6, 9], body: 1200, bodyMix: .3, level: .5, attack: .015, release: .3, edge: .04, vowels: [[800, 1200], [500, 1800], [320, 2300], [500, 900], [350, 800]] },
+    q: [6, 9], body: 1200, bodyMix: .3, level: .49, attack: .015, release: .3, edge: .04, vowels: [[800, 1200], [500, 1800], [320, 2300], [500, 900], [350, 800]] },
   speech: {
     voices: { f: ['ljspeech', 'kristin'], m: ['norman', 'john'] },
     models: { ljspeech: 'en_US-ljspeech-high', kristin: 'en_US-kristin-medium', norman: 'en_US-norman-medium', john: 'en_US-john-medium' },
-    rates: [.95, 1, 1.05], join: .15, wait: .6, level: .9, band: [250, 4000], kept: 12,
+    rates: [.95, 1, 1.05], join: .15, wait: .6, band: [250, 4000], kept: 12,
+    loudness: .036, trim: { ljspeech: 1, kristin: 1.19, norman: 1.03, john: 1 }, gate: [.05, 25], quiet: .02, rotorShare: .7,
     say: { 'Mr.': 'Mister', 'Ms.': 'Miz' },
     make: { pace: 1, rate: 24000, squeeze: .97, trim: -40, pad: .04, rms: -18, peak: -1.5, fade: .015 },
     budget: 2400000,
@@ -1155,7 +1169,7 @@ export const MUSIC = {
   tempo: 84, steps: 8, ahead: .3, fade: .8, altSpan: 900, fastSpeed: 400, lateSecs: 10, level: .16, menuLevel: .1, pausedShare: .45, bass: .32, pulse: .4, cueLevel: .3,
   // the music steps back to callShare while a call rings or talks, easing there over callFade seconds, and back the same
   // way for callTail seconds after the call
-  callShare: .5, callFade: .15, callTail: .6,
+  callShare: .35, callFade: .15, callTail: .6,
   times: ['mixolydian', 'dorian', 'ionian'],
   progressions: { bright: [0, 5, 3, 4], dark: [0, 5, 3, 6] },
   places: {
@@ -1185,7 +1199,7 @@ export const MUSIC = {
     files: { menu: 'abstraction-july-6th.ogg', city: 'abstraction-2024-12-21.ogg', country: 'abstraction-ludum-dare-30-04.ogg', challenge: 'abstraction-2024-02-07.ogg' },
     loudness: .045, stride: 16, seam: .02, menuShare: .85, pausedShare: .45, pauseCut: 700, openCut: 18000, swap: 1.5, kept: 2,
     // a recorded loop steps back the same way while a call rings or talks
-    callShare: .5, callFade: .15,
+    callShare: .35, callFade: .15,
   },
 };
 

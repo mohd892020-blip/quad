@@ -6,9 +6,10 @@ import { musicCue } from './music.js';
 import {
   AIRCRAFT, BATTERY, BOOSTS, BOX, BULLSEYE, CAMERA, CARGO, COMBO, CONTRAST, DELIVERY, DEV, DOUBLE, DRONE, FIXED_DT, FX, HANGAR, HEALTH, HOMES, LAND, LEVELS, MISSION, ORDER_TIME, ORDERS, PERFECT, POINTER, PREP, RESCUE, RESTAURANT, RIVAL, ROPE, RUSH, SKIP, ROPE_CTL, SURPRISE, WIND,
 } from './config.js';
-import { currentModel, ropeSlack } from './drone.js';
+import { currentModel, flyingPlane, lend, ropeSlack } from './drone.js';
 import { homeName, homeOf } from './homes.js';
 import { touchUI } from './input.js';
+import { canCarry } from './rope.js';
 import { endRun, rushDelivered, rushLoaded } from './rush.js';
 import { boosts, landReady, loadProgress, noteResult, owns, payDaily, saveProgress, settings, spendDrop } from './storage.js';
 import { addMark, blast, clockText, confetti, covers, ctx, glow, hud, placeName, pop, puff, showToast, view, X, Y } from './ui.js';
@@ -30,6 +31,9 @@ export function breakStreak(st, quiet = false) {
 
 // A level starts on its shop's pad.
 export function newGame(level) {
+  // an order too big for the chosen aircraft is flown by the one lent for it; Rush and training only offer what it carries
+  const items = level.stops.flatMap(s => [s.item, ...(s.parcels ?? []).map(p => p.item)]).filter(Boolean);
+  lend(!level.rush && !level.training && items.some(i => !canCarry(settings.plane, i)) ? CARGO.lend : null);
   const shop = level.shop, p = shopPad(shop), saved = loadProgress();
   const st = {
     t: 0, money: saved.money, del: saved.del, level, tier: level.tier, stop: level.stops[0], stopAt: 0, earned: { stars: 3, tip: 0, beat: 0, bonus: 0, perfect: 0, integ: 100, secs: 0, auto: false }, outcome: null, done: false, cam: { x: p.x - view.viewW * CAMERA.leadX, y: 0 },
@@ -428,7 +432,9 @@ export function hangarHint(st) {
   // the first order's suggestion stands until the aircraft leaves the pad
   const item = st.prep?.item ?? (st.has && st.onGround && !st.stopAt ? st.item : null);
   if (!item || st.level.training || st.rush?.del) return null;
-  const c = HANGAR, named = key => AIRCRAFT.find(a => a.key === key), pace = (named(settings.plane) ?? AIRCRAFT[0]).speed;
+  const c = HANGAR, named = key => AIRCRAFT.find(a => a.key === key) ?? AIRCRAFT[0], flying = flyingPlane(), pace = named(flying).speed;
+  // a lent aircraft is said first, from the first order on, since the mission's big order may come later in the route
+  if (flying !== settings.plane) return `Too big for the ${named(settings.plane).name}: the ${named(flying).name} takes it`;
   // an avalanche catches a slow aircraft: Boost helps, and so does the fastest aircraft the player owns; the slowest
   // are caught even with Boost, so they hear only to switch (the Courier is always owned, so there is one to name)
   if (st.stop.twist === 'avalanche' && pace < c.chaseSpeed) {
@@ -442,10 +448,10 @@ export function hangarHint(st) {
     : item.urgent ? ['fpv', `Urgent: try ${named('fpv').name}`]
     : item.wind >= c.windyFrom ? ['hexa', `Catches the wind: try ${named('hexa').name}`]
     : null;
-  if (pick) return pick[0] === settings.plane || slower(pick[0]) ? null : owns(pick[0]) ? pick[1] : `${pick[1]} from the Shop`;
+  if (pick) return pick[0] === flying || slower(pick[0]) ? null : owns(pick[0]) ? pick[1] : `${pick[1]} from the Shop`;
   if (st.del % c.rotate !== 0) return null;
   const next = AIRCRAFT[(st.del / c.rotate + 1) % AIRCRAFT.length];
-  return next.key === settings.plane || !owns(next.key) || slower(next.key) ? null : `Try the ${next.name}`;
+  return next.key === flying || !owns(next.key) || slower(next.key) ? null : `Try the ${next.name}`;
 }
 
 const NO_ZONE = { rope: false, hold: false, land: null, drop: false };

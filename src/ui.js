@@ -4,9 +4,10 @@ import { musicCue } from './music.js';
 import { nudgeShop } from './shop.js';
 import { paper, showToday } from './daily.js';
 import { showRushCard } from './rush.js';
-import { AIRCRAFT, ALTIMETER, BADGE, BOOST, BOOSTS, CALL, CHAPTERS, COMBO, DAILY, DEV, DUST, FROST, FX, G, GATES, GIFTS, GROUND as G_LINE, HANGAR, HEALTH, JOY, KEY_HINT, LEVELS, LOCKS, MISSION, PERFECT, PICTURE, POINTER, QUALITY, RESCUE, RESULT, RUSH, SHAKE, SHOTS, SKIP, VIEW, WEATHER, WEATHER_HINT, WIND } from './config.js';
+import { AIRCRAFT, ALTIMETER, BADGE, BOOST, BOOSTS, CALL, CARGO, CHAPTERS, COMBO, DAILY, DEV, DUST, FROST, FX, G, GATES, GIFTS, GROUND as G_LINE, HANGAR, HEALTH, JOY, KEY_HINT, LEVELS, LOCKS, MISSION, PERFECT, PICTURE, POINTER, QUALITY, RESCUE, RESULT, RUSH, SHAKE, SHOTS, SKIP, VIEW, WEATHER, WEATHER_HINT, WIND } from './config.js';
 import { applyControls, touchUI } from './input.js';
 import { ringingFor } from './call.js';
+import { canCarry } from './rope.js';
 import { callerAt, homeName } from './homes.js';
 import { loadProgress, saveSettings, saveSkips, settings, skips } from './storage.js';
 
@@ -893,10 +894,15 @@ function missionRows(l) {
     : route
     ? legs.map((s, k) => [`Stop ${k + 1}`, `${order(s.item)} to ${to(s)}${s.handOn ? ', handed on' : ''}, ${clockText(s.limit)}`])
     : [['Order', order(item)], ['Shop', `${shop.shop.name}, ${shop.zone.name}`], ['Customer', to(legs[0])], ['Time', clockText(limit)]];
-  // a slow aircraft is told before an avalanche, while there is still time to pick another
-  const plane = AIRCRAFT.find(a => a.key === settings.plane) ?? AIRCRAFT[0], chased = legs.some(s => s.twist === 'avalanche') && plane.speed < HANGAR.chaseSpeed;
+  // an order too big for the chosen aircraft is flown by the one lent for it, and the card says so first; otherwise a slow
+  // aircraft is told before an avalanche, while there is still time to pick another
+  const chosen = AIRCRAFT.find(a => a.key === settings.plane) ?? AIRCRAFT[0];
+  const big = l.rush || l.training ? null : legs.flatMap(s => [s.item, ...(s.parcels ?? []).map(p => p.item)]).filter(Boolean).flatMap(i => i.parts ?? [i]).find(i => !canCarry(chosen.key, i));
+  const plane = big ? AIRCRAFT.find(a => a.key === CARGO.lend) : chosen, chased = legs.some(s => s.twist === 'avalanche') && plane.speed < HANGAR.chaseSpeed;
+  const flier = big ? [['Aircraft', `${big.label} too big for the ${chosen.name}. The ${plane.name} flies it`]]
+    : chased ? [['Aircraft', plane.speed < HANGAR.boostFloor ? `${plane.name} is too slow for an avalanche, even with Boost. Pick a faster one` : `${plane.name} is slow for an avalanche. Boost, or pick a faster one`]] : [];
   return [
-    ...(chased ? [['Aircraft', plane.speed < HANGAR.boostFloor ? `${plane.name} is too slow for an avalanche, even with Boost. Pick a faster one` : `${plane.name} is slow for an avalanche. Boost, or pick a faster one`]] : []),
+    ...flier,
     ...jobs, ...(legs.some(s => s.rescue) ? [['Rescue', `Hold steady ${RESCUE.hold} s over them`]] : []), ...(acts.streak() >= COMBO.showFrom ? [['Combo', `${acts.streak()} in a row, next clean tip ×${COMBO.mult[Math.min(acts.streak() + 1, COMBO.mult.length - 1)]}`]] : []),
     ['If ruined', l.daily ? 'Nothing. Retries are free' : route ? `up to -$${Math.max(...legs.map(s => s.item.price))}` : `-$${item.price}`],
     ...(l.weather ? [['Weather', WEATHER[l.weather].name]] : []), ['Wind', `up to ${l.wind}`], ['Hawks', l.hawks ? `${l.hawks}${route ? ' per stop' : ''}` : 'None'], ...(l.eagles ? [['Eagles', `${l.eagles}${route ? ', last stop' : ''}, one hit downs you`]] : []),

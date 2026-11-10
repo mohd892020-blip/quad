@@ -3,6 +3,7 @@ import { carSpeed } from './action.js';
 import { DELIVERY, GROUND, HANGAR, ITEMS, LEVELS, RUSH, SURPRISE } from './config.js';
 import { failMission } from './delivery.js';
 import { openSky, wayDown } from './levels.js';
+import { canCarry } from './rope.js';
 import { loadProgress, saveRush, settings } from './storage.js';
 import { clockText, openMissionCard, pop, scoreText, showToast } from './ui.js';
 import { rng, shopPad, world } from './world.js';
@@ -21,9 +22,10 @@ function levelOf(lv) {
 }
 
 // The next order: the closest shop with something on the level's menu, and a customer of the level, never the one just
-// served nor on the shop itself, with a clear way down and open sky. A level that finds nobody looks wider.
+// served nor on the shop itself, with a clear way down and open sky, and never an order too big for the aircraft (Rush
+// lends none). A level that finds nobody looks wider.
 function pickOrder(pick, x, lv, last, start = null) {
-  const c = RUSH, row = levelOf(lv), menu = row.menu ? c.menus[row.menu] : null, ok = k => !menu || menu.includes(k);
+  const c = RUSH, row = levelOf(lv), menu = row.menu ? c.menus[row.menu] : null, ok = k => (!menu || menu.includes(k)) && canCarry(settings.plane, ITEMS[k]);
   const shop = start ?? [...world.shops].sort((a, b) => Math.abs(centre(a) - x) - Math.abs(centre(b) - x)).find(s => s.shop.items.some(ok));
   const items = shop.shop.items.filter(ok), item = ITEMS[start ? shop.shop.items[0] : items[(pick() * items.length) | 0]];
   const kinds = pick() < row.street ? ['street'] : row.kinds, heavy = item.weight >= HANGAR.heavyFrom, mid = centre(shop);

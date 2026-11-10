@@ -1,5 +1,6 @@
 import { sfx } from './audio.js';
-import { BOX, CARGO, CITY, DOUBLE, G, ROPE, ROPE_CTL } from './config.js';
+import { AIRCRAFT, BOX, CARGO, CITY, CONTRAST, DOUBLE, G, ITEMS, ROPE, ROPE_CTL } from './config.js';
+import { currentModel } from './drone.js';
 import { ctx, kickDust, shade, view, X, Y } from './ui.js';
 import { nearby, world } from './world.js';
 
@@ -300,11 +301,36 @@ const DRAW = {
   },
 };
 
-// A hanging order is drawn CARGO.drawScale times its box, so it reads on a phone. Its share of the box's size still sets how it flies.
-function paintOrder(key, size, dmg) {
+// Every aircraft against every order, worked out once: fit is how much smaller than CARGO.drawScale the order is drawn so
+// the aircraft's silhouette stays CARGO.ratio times the order's (never narrower than its box), and carry whether, drawn
+// so, the aircraft is still CARGO.bigRatio times it.
+let cargoTable = null;
+function cargoRow(planeKey, item) {
+  if (!cargoTable) {
+    cargoTable = new Map();
+    for (const m of AIRCRAFT) {
+      const A = m.area * (CONTRAST.scale * (m.grow ?? 1)) ** 2, row = new Map();
+      for (const i of Object.values(ITEMS)) {
+        const s = i.size * CARGO.drawScale, floor = Math.min(1, 2 * BOX.padX / (i.art[0] * CARGO.drawScale));
+        const fit = Math.min(1, Math.max(floor, Math.sqrt(A / (CARGO.ratio * i.art[1] * s * s))));
+        row.set(i.key, { fit, carry: A / (i.art[1] * (s * fit) ** 2) >= CARGO.bigRatio });
+      }
+      cargoTable.set(m.key, row);
+    }
+  }
+  return (cargoTable.get(planeKey) ?? cargoTable.get(AIRCRAFT[0].key)).get(item.key);
+}
+// an order the table does not know is drawn and carried as before
+export const cargoFit = (planeKey, item) => cargoRow(planeKey, item)?.fit ?? 1;
+export const canCarry = (planeKey, item) => (item.parts ? item.parts.every(p => canCarry(planeKey, p)) : cargoRow(planeKey, item)?.carry ?? true);
+
+// A hanging order is drawn CARGO.drawScale times its box, so it reads on a phone, and f of that next to a small aircraft,
+// shrunk about its own bottom so a set-down order still sits on the roof. Its share of the box's size still sets how it flies.
+function paintOrder(key, size, dmg, f = 1) {
   const k = view.S * size * CARGO.drawScale;
   ctx.save();
-  ctx.scale(k, k);
+  ctx.translate(0, ITEMS[key].art[2] * k * (1 - f));
+  ctx.scale(k * f, k * f);
   DRAW[key](hex => shade(hex, 1 - dmg * .35));
   ctx.restore();
 }
@@ -331,17 +357,17 @@ export function drawRope(st) {
   ctx.save();
   ctx.translate(X(bx.x), Y(bx.y));
   ctx.rotate(-ang * .6);
-  const dmg = 1 - st.integ / 100, s = S * item.size;
+  const dmg = 1 - st.integ / 100, s = S * item.size, plane = currentModel().key;
   // two tied orders hang one over the other, the next to come off at the bottom
   if (item.parts) {
     const gap = BOX_DRAW_GAP * S * CARGO.drawScale;
     for (const [part, y] of [[item.parts[1], -gap], [item.parts[0], gap]]) {
       ctx.save();
       ctx.translate(0, y);
-      paintOrder(part.key, part.size, dmg);
+      paintOrder(part.key, part.size, dmg, cargoFit(plane, ITEMS[part.key]));
       ctx.restore();
     }
-  } else paintOrder(item.key, item.size, dmg);
+  } else paintOrder(item.key, item.size, dmg, cargoFit(plane, ITEMS[item.key]));
   if (dmg > .4) {
     ctx.strokeStyle = '#5a3a24';
     ctx.lineWidth = 1 * s;

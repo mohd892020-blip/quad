@@ -18,13 +18,19 @@ function circleRect(o, r, R) {
   return { nx: dx / d, ny: dy / d, p: r - d };
 }
 
-// The chosen aircraft with the bought parts fitted. Flight asks every step, so it is kept until either changes.
+// A mission whose order is too big for the chosen aircraft is flown by CARGO.lend; the choice itself is never changed or saved.
+let lent = null;
+export const flyingPlane = () => lent ?? settings.plane;
+export function lend(key) { lent = key; }
+
+// The flying aircraft with the bought parts fitted. Flight asks every step, so it is kept until either changes.
 const fit = { plane: null, version: -1, model: null };
 export function currentModel() {
-  if (fit.plane !== settings.plane || fit.version !== garage.version) {
-    const model = { ...(AIRCRAFT.find(a => a.key === settings.plane) || AIRCRAFT[0]) };
+  const plane = flyingPlane();
+  if (fit.plane !== plane || fit.version !== garage.version) {
+    const model = { ...(AIRCRAFT.find(a => a.key === plane) || AIRCRAFT[0]) };
     for (const p of SHOP.parts) model[p.stat] *= 1 + p.gain * Math.min(garage.parts[p.key] || 0, SHOP.partPrices.length);
-    Object.assign(fit, { plane: settings.plane, version: garage.version, model });
+    Object.assign(fit, { plane, version: garage.version, model });
   }
   return fit.model;
 }
@@ -977,15 +983,24 @@ const GEAR = {
 
 const FLAT = { fold: 0, lean: 0 };
 
-export function drawAirframe(g, key, t, pose = FLAT) {
-  const m = AIRCRAFT.find(a => a.key === key) || AIRCRAFT[0];
+// extra(g) draws on top in the airframe's own units (the strobes), so it grows with it.
+export function drawAirframe(g, key, t, pose = FLAT, extra = null) {
+  const m = AIRCRAFT.find(a => a.key === key) || AIRCRAFT[0], k = m.grow ?? 1;
+  // a small airframe is drawn larger about its lowest point, so the feet stay on the ground
+  if (k !== 1) {
+    g.save();
+    g.translate(0, (m.sole ?? DRONE.radius) * (1 - k));
+    g.scale(k, k);
+  }
   GEAR[m.gear](g, pose.fold);
   AIRFRAMES[m.key](g, t * 55, pose);
+  extra?.(g);
+  if (k !== 1) g.restore();
 }
 
 export function drawDrone(st) {
   if (st.wreck) return;
-  const d = st.d, blink = (st.t * 2 % 1) < .15, key = settings.plane, moving = currentModel().gear === 'retract';
+  const d = st.d, blink = (st.t * 2 % 1) < .15, key = flyingPlane(), model = currentModel(), moving = model.gear === 'retract';
   const [rx, ry, gx, gy] = STROBES[key] ?? STROBES.courier;
   // retracting legs tuck up away from the ground; tilting rotors lean into the speed
   const fold = Math.max(0, Math.min(1, (roofAt(d.x, 20) - d.y - 40) / 60)), pose = { fold, lean: Math.max(-1, Math.min(1, d.vx / 300)) };
@@ -995,11 +1010,10 @@ export function drawDrone(st) {
     plain = true;
     drawAirframe(g, key, 0, held);
     plain = false;
-  }, g => {
-    drawAirframe(g, key, st.t, pose);
+  }, g => drawAirframe(g, key, st.t, pose, g => {
     g.fillStyle = blink ? '#ff3b3b' : '#6b1d1d';
     g.fillRect(rx - 1.5, ry - 1.5, 3, 3);
     g.fillStyle = blink ? '#4dff8a' : '#1d5b33';
     g.fillRect(gx - 1.5, gy - 1.5, 3, 3);
-  });
+  }), model.span);
 }

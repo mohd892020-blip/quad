@@ -1,6 +1,6 @@
-import { AIRCRAFT, BOX, MENU } from './config.js';
+import { AIRCRAFT, BOX, ITEMS, MENU } from './config.js';
 import { drawAirframe } from './drone.js';
-import { drawCargoAt } from './rope.js';
+import { cargoFit, drawCargoAt } from './rope.js';
 import { nudgeShop } from './shop.js';
 import { loadProgress, settings } from './storage.js';
 import { ctx, glow, hideModals, openSheet, reachedLevel, view } from './ui.js';
@@ -54,7 +54,7 @@ export function drawHover(time) {
   ctx.lineTo(0, c.rope);
   ctx.stroke();
   ctx.translate(0, c.rope + c.hang);
-  drawCargoAt(c.order, c.cargo);
+  drawCargoAt(c.order, c.cargo * cargoFit(m.key, ITEMS[c.order]));
   ctx.restore();
   drawAirframe(ctx, m.key, time);
   ctx.setTransform(D, 0, 0, D, 0, 0);
