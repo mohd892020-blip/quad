@@ -33,9 +33,15 @@ HOUSEHOLDS.forEach((h, i) => {
 
 export const untitledCallers = () => untitled;
 export const callerOf = (h, turn) => h.callers[turn % h.callers.length];
-// whose turn it is: a mission's number and stop, or a Rush run's drops, so mission 3 hears Mr. Bill and mission 12's
-// second parcel Ms. Louise
-export const turnOf = st => (st.rush ? st.rush.del : (st.level.n | 0) + st.stopAt);
+// whose turn it is, so a couple's two are picked at random: a number drawn once for each stop of a flight (or each
+// drop of a Rush run) and kept, so the call, the HUD and the plate name the same one. 2520 shares out evenly over any
+// household of up to ten.
+const turns = new WeakMap();
+export const turnOf = st => {
+  let all = turns.get(st);
+  if (!all) turns.set(st, (all = []));
+  return (all[st.rush ? st.rush.del : st.stopAt] ??= Math.floor(Math.random() * 2520));
+};
 
 // What the caller asks for, in their words: one item, or a tied pair as two of one or one and another.
 const one = i => CALL.ask[i.key]?.[0] ?? `a ${i.label.toLowerCase()}`;

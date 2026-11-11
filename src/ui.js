@@ -477,7 +477,7 @@ export function popSpot(q) {
 /* ---------- HUD ---------- */
 const PLACES = { street: 'Street', roof: 'Rooftop', ferry: 'Ferry', boat: 'Boat', pier: 'Pier', tower: 'Lifeguard tower', sand: 'Beach', rock: 'Rock top', camp: 'Camp', oasis: 'Oasis', cabin: 'Cabin roof', treehouse: 'Treehouse', lookout: 'Lookout tower', clearing: 'Clearing', crag: 'Crag top', hut: 'Mountain hut', basecamp: 'Base camp', station: 'Lift station', chalet: 'Chalet roof', igloo: 'Igloo', ice: 'Frozen lake' };
 // A customer's spot by the household who lives there; PLACES names a spot no household was given.
-export const placeName = (t, stop = null) => homeName(t, stop?.place) ?? (t.kind === 'bal' ? `Balcony, floor ${t.fl}` : PLACES[t.kind]);
+export const placeName = (t, stop = null) => homeName(t, stop?.place, false, stop) ?? (t.kind === 'bal' ? `Balcony, floor ${t.fl}` : PLACES[t.kind]);
 // Where the order on board goes: the caller's home, or the caller at the spot they stepped over to ("Ms. Tara at Grace's").
 export function goingTo(st) {
   const s = st.stop, o = st.order, home = s.parcels ? s.parcels[o.drop >= 2 ? 1 : 0].t : s.t;
@@ -887,10 +887,10 @@ export function showLevels() {
 // What a mission asks and what can end it, for its card: the job, the run, the cost of a ruined order, the dangers.
 function missionRows(l) {
   const legs = l.stops, route = legs.length > 1;
-  const order = i => (i.urgent ? `${i.label} · urgent` : i.label), to = s => `${placeName(s.t, s)}${s.bull ? ', small mark' : ''}, ${Math.round(s.dist / 10)} m${s.hops?.length ? `, moves ${s.hops.length > 1 ? 'twice' : 'once'}` : ''}`;
+  const order = i => (i.urgent ? `${i.label} · urgent` : i.label), to = (s, stop = s) => `${placeName(s.t, stop)}${s.bull ? ', small mark' : ''}, ${Math.round(s.dist / 10)} m${s.hops?.length ? `, moves ${s.hops.length > 1 ? 'twice' : 'once'}` : ''}`;
   const { item, shop, limit, parcels } = legs[0];
   const jobs = parcels
-    ? [['Double Run', 'Two orders, one trip'], ['Shop', `${shop.shop.name}, ${shop.zone.name}`], ...parcels.map((p, k) => [`Drop ${k + 1}`, `${order(p.item)} to ${to(p)}`]), ['Time', clockText(limit)]]
+    ? [['Double Run', 'Two orders, one trip'], ['Shop', `${shop.shop.name}, ${shop.zone.name}`], ...parcels.map((p, k) => [`Drop ${k + 1}`, `${order(p.item)} to ${to(p, legs[0])}`]), ['Time', clockText(limit)]]
     : route
     ? legs.map((s, k) => [`Stop ${k + 1}`, `${order(s.item)} to ${to(s)}${s.handOn ? ', handed on' : ''}, ${clockText(s.limit)}`])
     : [['Order', order(item)], ['Shop', `${shop.shop.name}, ${shop.zone.name}`], ['Customer', to(legs[0])], ['Time', clockText(limit)]];

@@ -68,7 +68,7 @@ const gateOf = st => (st.ticket && !st.ticket.answered ? st.ticket : st.rush && 
 // the name while it rings. An order with nobody to call it never waits.
 function callFor(st, gate, at) {
   const ticket = gate === st.ticket ? gate : null, s = st.stop, t = ticket?.air ? st.order.t : s.parcels?.[0].t ?? s.t;
-  const item = ticket?.air ? st.item : s.parcels?.[0].item ?? s.item, h = homeOf(t);
+  const item = ticket?.air ? st.item : s.parcels?.[0].item ?? s.item, h = homeOf(t, s);
   if (!h) {
     if (ticket) {
       console.warn('call: no caller for this order');
@@ -80,7 +80,7 @@ function callFor(st, gate, at) {
   const set = rush ? 'rush' : s.rescue ? 'rescue' : item.urgent ? 'urgent' : 'plain';
   const segs = [rush ? null : greetLine(c), askLine(set, item, h.i + turn)].filter(Boolean).map(text => ({ text }));
   const kind = rush ? 'rush' : ticket?.air ? (st.order.drop === 2 ? 'drop' : 'hand') : 'ring';
-  const state = CALL.states[kind].replace('{home}', homeName(t, t === s.t ? s.place : null, true));
+  const state = CALL.states[kind].replace('{home}', homeName(t, t === s.t ? s.place : null, true, s));
   return { h, c, t, gate, ticket, rush, segs, state, vo: voiceOf(h, c), at };
 }
 

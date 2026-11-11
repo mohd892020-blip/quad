@@ -993,7 +993,8 @@ export const DELIVERY = {
 // A caller is Mr. or Ms. (titles, which also picks a man's or a woman's voice), a first name and maybe a family name; a
 // couple's two take turns from order to order. Seda (in The Haugens' old place) is mission 2's customer. pins:
 // [mission, stop, sign] put the owner's names on the first missions; the rest go out by x, so one spot keeps one name
-// everywhere. plate: the name under the customer while the order is on board,
+// everywhere. regulars: [sign, name] of the households that call the most, share of all missions with one of them as a
+// customer, at their own home or calling from another spot. plate: the name under the customer while the order is on board,
 // kept side pixels in from the left edge and clear of the altimeter's scale on the right.
 // No first or family name here is one of the High Score pilots in LEAGUE, or a short form of one.
 export const HOMES = {
@@ -1020,6 +1021,7 @@ export const HOMES = {
     ['The Holms', 'Mr. Karl Holm'], ['Iris', 'Ms. Iris'], ['Tomas', 'Mr. Tomas']],
   titles: { 'Mr.': 'm', 'Ms.': 'f' },
   pins: [[1, 0, "Tara's House"], [3, 0, 'Bill & Louise Home'], [6, 0, "Elisabeth's"], [6, 1, "Hannah's House"], [9, 0, "Fuaat's Place"]],
+  regulars: { list: [["Tara's House", 'Tara'], ['Bill & Louise Home', 'Bill & Louise']], share: .8 },
   words: { boat: 'Boat', pier: 'Pier', tower: 'Tower', sand: 'Towel', rock: 'Rock', camp: 'Tent', oasis: 'Oasis', cabin: 'Cabin', treehouse: 'Treehouse', lookout: 'Lookout', clearing: 'Picnic', crag: 'Crag', hut: 'Hut', basecamp: 'Camp', station: 'Lift Hut', chalet: 'Chalet', igloo: 'Igloo', ice: 'Ice Hole', ferry: 'Ferry' },
   plate: { text: 11, h: 18, padX: 7, radius: 6, drop: 7, surface: 11, rim: 1.2, fill: 'rgba(20,15,40,.82)', edge: '#ffc23d', ink: '#fff3df', wait: .6, side: 8, scale: 24 },
 };

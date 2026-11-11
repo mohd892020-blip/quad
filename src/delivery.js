@@ -216,7 +216,7 @@ function handOn(st, next) {
   st.hawks.push(...fleeing);
   sfx('pickup');
   musicCue('pickup');
-  notice(st, `Stop ${st.stopAt} done`, `Handed on: ${item.label} to ${placeName(t)}`);
+  notice(st, `Stop ${st.stopAt} done`, `Handed on: ${item.label} to ${placeName(t, next)}`);
   holdForCall(st);
 }
 
@@ -810,9 +810,10 @@ function drawPrepNote(st, x, bottom, fade) {
 // kept a spot (and its width a name), so a frame builds no string; near an edge it slides in to stay whole, clear of the
 // altimeter's scale, and with the customer off screen it draws nothing.
 const plateW = new Map(), plates = new WeakMap();
-function plateOf(t, place) {
+function plateOf(t, place, stop = null) {
   let p = plates.get(t);
-  if (!p || p.place !== place) plates.set(t, (p = { place, text: homeName(t, place, true) }));
+  const guest = stop?.guest?.t === t ? stop.guest : null;
+  if (!p || p.place !== place || p.guest !== guest) plates.set(t, (p = { place, guest, text: homeName(t, place, true, stop) }));
   return p.text;
 }
 function drawPlate(t, text, alpha) {
@@ -901,8 +902,8 @@ export function drawTarget(st) {
     ctx.stroke();
   }
   if (!st.level.training) {
-    drawPlate(t, plateOf(t, t === st.stop.t ? st.stop.place : null), 1);
-    if (wait) drawPlate(wait, plateOf(wait, null), HOMES.plate.wait);
+    drawPlate(t, plateOf(t, t === st.stop.t ? st.stop.place : null, st.stop), 1);
+    if (wait) drawPlate(wait, plateOf(wait, null, st.level.stops[st.stopAt + 1]), HOMES.plate.wait);
   }
   ctx.restore();
 }
