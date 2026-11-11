@@ -42,7 +42,7 @@ const STEPS = [
     done: (st, zone) => zone.rope,
   },
   {
-    title: 'Lower the rope', touch: 'Hold Rope ▼ to let the order down.', keys: 'Hold ↓ to let the order down.', teach: ['ropeDown'],
+    title: 'Lower the rope', touch: 'Hold the glowing rope button to let the order down.', keys: 'Hold ↓ to let the order down.', teach: ['ropeDown'],
     done: st => st.ropeLen > ROPE + c.rope,
   },
   {

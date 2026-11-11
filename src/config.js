@@ -552,6 +552,8 @@ export const BADGE = {
 export const SHOP = {
   aircraft: { miniFold: 150, hexa: 200, x8: 200, cage: 250, agri: 250, tandem: 300, whoop: 350, tilt: 450, heavy: 450, vtol: 550, fpv: 600 },
   partPrices: [100, 220, 400], nudgeNames: 2,
+  // the map's Shop note sits over the top of the map, so it goes after this many seconds, or at the first touch of the map
+  nudgeSecs: 6,
   parts: [
     { key: 'motors', stat: 'thrust', gain: .06, name: 'Stronger motors', note: '+6% lift each' },
     { key: 'shell', stat: 'speed', gain: .06, name: 'Sleek shell', note: '+6% speed each' },

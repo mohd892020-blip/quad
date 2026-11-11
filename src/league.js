@@ -1,6 +1,6 @@
 import { LEAGUE, ONLINE } from './config.js';
 import { loadProgress, online, saveOnline } from './storage.js';
-import { checkName, leaveBoard, nameChars, onlineReady, readBoard, sendScore } from './online.js';
+import { checkName, nameChars, onlineReady, readBoard, sendScore } from './online.js';
 import { scoreText } from './ui.js';
 
 const $ = id => document.getElementById(id);
@@ -45,7 +45,6 @@ function showName(editing = false) {
   $('nameShow').hidden = asking;
   $('nameNow').textContent = online.name;
   $('leagueNote').hidden = !asking;
-  $('leagueLeave').hidden = asking || !online.name;
   if (asking) $('nameInput').value = online.name;
   // a player already on the board saves a new nickname rather than joining
   $('nameJoin').textContent = online.name ? 'Save' : 'Join';
@@ -99,15 +98,12 @@ export function openLeague() {
   $('leagueRush').textContent = `Rush Hour best ${scoreText(rush.best)} · most drops ${rush.del}`;
   const world = onlineReady();
   $('leagueOnline').hidden = !world;
-  $('leagueLeave').hidden = true;
   $('leagueNote').hidden = true;
   $('league').hidden = false;
   $('league').querySelector('.pageBody').scrollTop = 0;
   revealMine();
   if (!world) return;
   showName();
-  leaving = false;
-  $('leagueLeave').textContent = 'Remove my score';
   if (online.name) showWorld();
   else status('Join the world board to race real pilots');
 }
@@ -134,27 +130,6 @@ async function join(e) {
   }
 }
 
-// Remove asks for a second tap, as there is no undo.
-let leaving = false;
-async function leave() {
-  if (!leaving) {
-    leaving = true;
-    $('leagueLeave').textContent = 'Tap again to remove';
-    return;
-  }
-  leaving = false;
-  $('leagueLeave').textContent = 'Remove my score';
-  try {
-    await leaveBoard();
-    look++;
-    showLadder();
-    showName();
-    status('Your score is off the world board');
-  } catch (_) {
-    status('Could not reach the board. Try again later', true);
-  }
-}
-
 export function initLeague() {
   for (const id of ['openLeague', 'menuScores']) $(id).addEventListener('click', openLeague);
   $('leagueClose').addEventListener('click', () => { $('league').hidden = true; });
@@ -166,5 +141,4 @@ export function initLeague() {
   });
   $('nameForm').addEventListener('submit', join);
   $('nameEdit').addEventListener('click', () => { showName(true); $('nameInput').focus(); });
-  $('leagueLeave').addEventListener('click', leave);
 }

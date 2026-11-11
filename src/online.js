@@ -102,14 +102,6 @@ export async function sendScore(name, score) {
   saveOnline();
 }
 
-// Takes this player off the board and forgets the nickname; the player id stays, ready to join again.
-export async function leaveBoard() {
-  const head = await auth();
-  await call(`${DOCS}/${ONLINE.collection}/${online.uid}`, { method: 'DELETE', headers: head });
-  Object.assign(online, { name: '', sent: -1 });
-  saveOnline();
-}
-
 const query = (extra = {}) => ({ from: [{ collectionId: ONLINE.collection }], ...extra });
 async function count(where) {
   const r = await call(`${DOCS}:runAggregationQuery`, {

@@ -175,12 +175,13 @@ export const freshNow = () => affordable(loadProgress().money).filter(i => !sett
 // named yet, at most once every shop.every missions played (shared with the result card's Shop pill), and kept for that
 // visit to the map (visit is true as the map opens), hidden while a card covers it; its button glows once with it.
 // Opening the Shop settles it. All of it waits until the Shop's introduction mission is passed.
-let noted = null;
+let noted = null, gone = false, goneTimer = 0;
+const dropNote = () => { gone = true; clearTimeout(goneTimer); $('shopNudge').hidden = true; };
 const COVERS = ['levelCard', 'boostCard', 'gifts', 'chapterCard', 'adCard'];
 export function nudgeShop(visit = false) {
   const { money, stars } = loadProgress(), fresh = settings.dev || stars[TEASE.shop.intro] ? freshNow() : [], note = $('shopNudge'), btn = $('openShop');
   const news = fresh.filter(i => !boosts.named.includes(i.key)), p = boosts.plays;
-  if (visit) noted = null;
+  if (visit) { noted = null; gone = false; }
   if (!$('levels').hidden && !noted && news.length && p - boosts.last.shop >= TEASE.shop.every && boosts.rest.shop <= p) {
     noted = news.map(i => i.key);
     boosts.named = [...new Set([...boosts.named, ...noted])];
@@ -193,11 +194,12 @@ export function nudgeShop(visit = false) {
   $('openShop').classList.toggle('nudge', shown.length > 0);
   $('menuShop').querySelector('.dotNew').hidden = !fresh.length;
   // the bubble belongs to the map, under no card
-  if ($('levels').hidden || !shown.length || COVERS.some(id => !$(id).hidden)) { note.hidden = true; return; }
+  if (gone || $('levels').hidden || !shown.length || COVERS.some(id => !$(id).hidden)) { note.hidden = true; return; }
   // one part and one aircraft when both are in reach, so the note shows the range on offer
   const part = shown.find(i => i.key.startsWith('part')), plane = shown.find(i => i.key.startsWith('plane')), pick = part && plane ? [part, plane] : shown.slice(0, SHOP.nudgeNames);
   const names = pick.map(i => i.name).join(' or ') + (shown.length > pick.length ? ' and more' : '');
   note.textContent = `You have $${money}. Enough for ${names} in the Shop`;
+  if (note.hidden) { clearTimeout(goneTimer); goneTimer = setTimeout(dropNote, SHOP.nudgeSecs * 1000); }
   note.hidden = false;
   // the bubble hangs under the Shop button, kept on screen; it is measured from the left edge, since a fixed bubble left
   // where a turned phone's screen now ends would be measured squeezed
@@ -258,6 +260,8 @@ export function initShop(onSpend, onReserve) {
   spend = onSpend || spend;
   reserve = onReserve || reserve;
   for (const id of ['openShop', 'shopNudge', 'menuShop']) $(id).addEventListener('click', openFromNudge);
+  // the note hangs over the map's top missions: it steps aside once the player reaches for the map
+  for (const ev of ['pointerdown', 'wheel']) $('levelsScroll').addEventListener(ev, dropNote, { passive: true });
   $('pauseHangar').addEventListener('click', () => openShop());
   // the in-flight hint names an aircraft ("try Heavy Lifter from the Shop"), so the hangar opens with it picked
   $('hangarTip').addEventListener('click', () => openShop({ pick: AIRCRAFT.find(a => $('hangarTip').textContent.includes(a.name))?.key }));

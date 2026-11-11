@@ -63,7 +63,7 @@ kbd{display:inline-grid;place-items:center;min-width:24px;height:24px;box-sizing
 #knob{position:absolute;left:50%;top:50%;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;background:rgba(255,194,61,.5);border:2px solid var(--cheese);box-sizing:border-box}
 #actions{position:absolute;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(124px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:8px;align-items:flex-end;pointer-events:none}
 #dev{position:absolute;left:max(16px,env(safe-area-inset-left,0px));bottom:calc(100px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:8px;align-items:flex-start;pointer-events:none}
-.act{font-family:var(--body);font-weight:800;font-size:15px;min-height:44px;padding:0 16px;border-radius:22px;border:2px solid rgba(255,243,223,.4);background:rgba(26,20,48,.72);color:var(--ink);pointer-events:auto;touch-action:none;cursor:pointer;white-space:nowrap}
+.act{display:inline-flex;align-items:center;justify-content:center;gap:6px;line-height:1;font-family:var(--body);font-weight:800;font-size:15px;min-height:44px;padding:0 16px;border-radius:22px;border:2px solid rgba(255,243,223,.4);background:rgba(26,20,48,.72);color:var(--ink);pointer-events:auto;touch-action:none;cursor:pointer;white-space:nowrap}
 .act.on{background:rgba(79,194,124,.4);border-color:var(--basil)}
 .seg{display:flex;flex-wrap:wrap;gap:6px}
 .seg button,#devForm button{font-family:var(--body);font-weight:700;font-size:14px;min-height:38px;padding:0 12px;border-radius:14px;border:1px solid transparent;background:rgba(255,255,255,.1);color:#fff;cursor:pointer}
@@ -174,7 +174,7 @@ body:not(.dev) .devOnly{display:none!important}
 #levelsMoney{font-family:var(--display);font-size:20px;color:var(--ink)}
 #openShop{margin-left:auto}
 #giftBtn{background:transparent;border:1px solid rgba(255,243,223,.3);border-radius:10px}
-#levelsScroll{flex:1;min-height:0;overflow-y:auto;touch-action:pan-y;overscroll-behavior:contain}
+#levelsScroll{flex:1;min-height:0;overflow-y:auto;-webkit-mask-image:linear-gradient(transparent,#000 28px);mask-image:linear-gradient(transparent,#000 28px);touch-action:pan-y;overscroll-behavior:contain}
 #levelsPath{position:relative;max-width:520px;margin-left:auto;margin-right:auto}
 #levelsPath>svg{position:absolute;top:0;right:0;bottom:0;left:0;width:100%;height:100%}
 #levelsPath polyline{fill:none;stroke:rgba(255,243,223,.32);stroke-width:7;stroke-dasharray:2 11;stroke-linecap:round;vector-effect:non-scaling-stroke}
@@ -435,6 +435,12 @@ button:focus:not(:focus-visible),[tabindex]:focus:not(:focus-visible){outline:no
 #joy{margin-bottom:calc(14px*var(--stick))}
 /* Hold and Release are one button: same size and shape, only the word and the tint change */
 #hold{min-width:128px;justify-content:center;letter-spacing:.04em;border-width:2px}
+#hold .ico{width:18px;height:18px;stroke:none}
+#hold .free,#hold.on .pin{display:none}
+#hold.on .free{display:block}
+/* the rope's two buttons carry its picture, not a word: the order on the rope and the way it goes */
+.ropeBtn{width:56px;padding:0}
+.ropeBtn .ico{width:30px;height:30px;stroke-width:2}
 @media (max-height:480px){#hold{min-width:112px}}
 /* skip for an ad: under the result buttons, with the reason when it has to wait */
 #resultSkip{display:grid;grid-template-columns:auto auto;justify-content:center;align-items:center;gap:0 8px;margin-top:8px;min-height:50px;padding:6px 16px}
@@ -635,7 +641,7 @@ button:focus:not(:focus-visible),[tabindex]:focus:not(:focus-visible){outline:no
 #leagueRows li:nth-child(3) b{background:linear-gradient(#f0b27a,#a8642c)}
 @media (max-height:480px){#leagueRank{font-size:40px}}
 #leagueOnline{display:grid;gap:6px;margin:8px 0 2px}
-#leagueOnline[hidden],#nameForm[hidden],#nameShow[hidden],#leagueLeave[hidden],#leagueNote[hidden]{display:none}
+#leagueOnline[hidden],#nameForm[hidden],#nameShow[hidden],#leagueNote[hidden]{display:none}
 #nameForm{display:flex;gap:6px}
 #nameInput{flex:1;min-width:0;font:inherit;font-size:16px;font-weight:700;padding:0 12px;min-height:42px;border-radius:16px;border:1px solid transparent;background:var(--well);color:#fff;-webkit-user-select:text;user-select:text}
 #nameForm button,#nameEdit{font-family:var(--body);font-weight:800;font-size:15px;min-height:42px;padding:0 16px;border-radius:16px;border:0;background:var(--cheese);color:#3a2200;cursor:pointer}
@@ -646,7 +652,6 @@ button:focus:not(:focus-visible),[tabindex]:focus:not(:focus-visible){outline:no
 #leagueStatus{margin:0;min-height:1em}
 #leagueStatus.bad{color:#ffb4a8}
 #leagueRows li.gap{min-height:14px;justify-content:center;color:var(--soft)}
-#leagueLeave{display:block;margin:10px auto 4px;min-height:36px;font-size:13px}
 /* The front screen: the title over the drifting city, the room where the aircraft hovers, and the choices under it; on a
    turned screen the choices stand in a column beside the title and the aircraft. */
 #overlay{position:absolute;top:0;right:0;bottom:0;left:0;z-index:4;padding:0;background:linear-gradient(rgba(14,10,40,.6),rgba(14,10,40,.05) 34%,rgba(14,10,40,0) 50%,rgba(8,6,28,.74))}
