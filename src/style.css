@@ -634,6 +634,19 @@ button:focus:not(:focus-visible),[tabindex]:focus:not(:focus-visible){outline:no
 #leagueRows li:nth-child(2) b{background:linear-gradient(#f2f4f8,#aeb6c2)}
 #leagueRows li:nth-child(3) b{background:linear-gradient(#f0b27a,#a8642c)}
 @media (max-height:480px){#leagueRank{font-size:40px}}
+#leagueOnline{display:grid;gap:6px;margin:8px 0 2px}
+#leagueOnline[hidden],#nameForm[hidden],#nameShow[hidden],#leagueLeave[hidden],#leagueNote[hidden]{display:none}
+#nameForm{display:flex;gap:6px}
+#nameInput{flex:1;min-width:0;font:inherit;font-size:16px;font-weight:700;padding:0 12px;min-height:42px;border-radius:16px;border:1px solid transparent;background:var(--well);color:#fff;-webkit-user-select:text;user-select:text}
+#nameForm button,#nameEdit{font-family:var(--body);font-weight:800;font-size:15px;min-height:42px;padding:0 16px;border-radius:16px;border:0;background:var(--cheese);color:#3a2200;cursor:pointer}
+#nameShow{margin:0;display:flex;justify-content:center;align-items:center;gap:8px;font-size:15px;font-weight:700;color:var(--soft)}
+#nameShow b{color:#fff}
+#nameEdit{min-height:32px;padding:0 12px;font-size:13px;border-radius:12px;background:rgba(255,255,255,.14);color:#fff}
+#nameInput:focus-visible,#nameForm button:focus-visible,#nameEdit:focus-visible{outline:3px solid var(--cheese);outline-offset:2px}
+#leagueStatus{margin:0;min-height:1em}
+#leagueStatus.bad{color:#ffb4a8}
+#leagueRows li.gap{min-height:14px;justify-content:center;color:var(--soft)}
+#leagueLeave{display:block;margin:10px auto 4px;min-height:36px;font-size:13px}
 /* The front screen: the title over the drifting city, the room where the aircraft hovers, and the choices under it; on a
    turned screen the choices stand in a column beside the title and the aircraft. */
 #overlay{position:absolute;top:0;right:0;bottom:0;left:0;z-index:4;padding:0;background:linear-gradient(rgba(14,10,40,.6),rgba(14,10,40,.05) 34%,rgba(14,10,40,0) 50%,rgba(8,6,28,.74))}

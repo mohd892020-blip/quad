@@ -7,13 +7,14 @@
 - النشر: `npm run build` يطلّع `dist/flying-pizza.html` للـArtifact بنفس المسار عشان يضل الرابط نفسه (المسار ضل بالاسم القديم عن قصد)، والموقع العام github.io بيعرض فرع master مباشرة، فأي رفع على master بيحدّثه.
 - الـAPK: `npm run apk` بيطلّع flying-parcel.apk في جذر المشروع، ورفعه على master بيحدّث رابط التحميل github.io/quad/flying-parcel.apk. التطبيق بدون إذن إنترنت، فكل شي بيستعمله لازم يكون داخله: البناء بيدمج الخطوط من android/fonts وبيوقف إذا ضل شي بيحمّل من برّا. الأدوات ومفتاح التوقيع في ~/.flying-pizza (ضل بالاسم القديم عشان المفتاح نفسه).
 - prototype.html مرجع فيزياء الدرون والحبل: البيتزا تضل بقيم النموذج بالضبط، وباقي الطلبات مضاعفات فوقها.
-- الملفات في src/: main، config، drone، rope، world، skyline، camera، delivery، action، levels، challenge، daily، rush، menu، homes، call، voice، training، seaside، desert، forest، alpine، contrast، weather، shop، boosts، league، ui، input، audio، music، storage. ملف لكل مسؤولية.
+- الملفات في src/: main، config، drone، rope، world، skyline، camera، delivery، action، levels، challenge، daily، rush، menu، homes، call، voice، training، seaside، desert، forest، alpine، contrast، weather، shop، boosts، league، online، ui، input، audio، music، storage. ملف لكل مسؤولية.
 - كل الأرقام القابلة للضبط في src/config.js فقط.
 - فيزياء بخطوة ثابتة 1/120 ثانية، والرسم يمزج بين آخر خطوتين.
 - كل النصوص إنجليزية فقط، ولا نص عربي بالواجهة. خطّا Lalezar وTajawal.
 - الزبائن إلهم أسماء: كل طلبية بتيجي بمكالمة من زبون، وبتروح لبيته المكتوب عليه اسمه (homes.js وcall.js). وبدون كلمات اصطدام (صوت وغبار فقط).
 - التحكم: لوحة مفاتيح على الكمبيوتر، ولمس على الموبايل (عمودي وأفقي)، والجويستيك أفقي فقط.
 - وضع المطور بكلمة السر 930933.
+- لوحة الهاي سكور العالمية (online.js) بفايربيس عبر REST بدون مكتبة، مشروع flying-parcel-scores، وبتشتغل جوّا تطبيق الأندرويد أو بوضع المطور بس. القواعد في firestore.rules وبتنحط يدويًا بلوحة فايربيس. اللعبة بتبعت الاسم المستعار والنتيجة بس، متل ما بتوعد صفحة الخصوصية zimigames.com/games/flying-parcel/privacy.
 - الحفظ في localStorage داخل try/catch.
 - قاعدة العمل: قسم واحد بس في كل مرة، بالترتيب. لما يخلص قسم افحصه بنفسك وانتقل للي بعده بدون سؤال.
 - اختبر كل قسم على الكمبيوتر وعلى الجوال عمودي وأفقي قبل التسليم.

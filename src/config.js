@@ -571,6 +571,22 @@ export const LEAGUE = {
   ],
 };
 
+// The world High Score board, in the Android app's Firebase project (Firestore, anonymous sign-in), reached over plain REST
+// so no SDK weighs on the page. It opens inside the app, or anywhere in developer mode for testing; elsewhere the ladder
+// above stays. A player sends a nickname and the ladder's score, nothing more: the privacy page promises exactly that.
+// top: rows read from the board. name: nickname length, letters, digits, spaces and . _ - only (firestore.rules checks
+// the same). maxScore: the highest score the rules accept. timeoutMs: how long one request may take before the page
+// falls back to this device's ladder.
+export const ONLINE = {
+  apiKey: 'AIzaSyAG2R8h52LhhYQhJCh6SfixGu5tuhtrjVs',
+  project: 'flying-parcel-scores',
+  collection: 'scores',
+  top: 50,
+  name: { min: 3, max: 16 },
+  maxScore: 1000000,
+  timeoutMs: 8000,
+};
+
 // When a shop suggests another aircraft while it makes the order. An aircraft slower than chaseSpeed hears, on an
 // avalanche stop and on the card of a mission with one, that Boost or a faster aircraft helps; one slower than boostFloor
 // is caught even with Boost (or flattens its battery boosting), so it hears only to take a faster aircraft.

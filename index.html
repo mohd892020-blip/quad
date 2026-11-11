@@ -248,9 +248,19 @@
     <header class="pageBar"><button class="back" id="leagueClose" aria-label="Back"><svg class="ico" aria-hidden="true"><use href="#i-back"/></svg></button><h2 id="leagueTitle">High Score</h2></header>
     <div class="pageBody"><div class="column">
       <div id="leagueHero"><b id="leagueRank"></b><span id="leagueOf"></span></div>
+      <div id="leagueOnline" hidden>
+        <form id="nameForm" hidden>
+          <input id="nameInput" type="text" maxlength="16" autocomplete="off" autocapitalize="words" spellcheck="false" enterkeyhint="done" placeholder="Pick a nickname" aria-label="Nickname">
+          <button type="submit" id="nameJoin">Join</button>
+        </form>
+        <p id="nameShow" hidden>Flying as <b id="nameNow"></b> <button type="button" id="nameEdit">Change</button></p>
+        <p class="fine" id="leagueStatus"></p>
+      </div>
       <p id="leagueRush" class="fine" hidden></p>
       <ol id="leagueRows"></ol>
       <p class="fine" id="leagueHow"></p>
+      <p class="fine" id="leagueNote" hidden>Your nickname and score are shown to other players. Don't use your real name.</p>
+      <button type="button" class="ghost" id="leagueLeave" hidden>Remove my score</button>
     </div></div>
   </section>
   <div id="gifts" class="modal" hidden><div class="card"><button class="back corner" id="giftsClose" aria-label="Back"><svg class="ico" aria-hidden="true"><use href="#i-back"/></svg></button><small id="giftsWeek" class="kicker"></small><h2>Daily Gifts</h2><p class="fine" id="giftsNote"></p><ol id="giftDays"></ol><button class="go wide" id="giftClaim">Claim</button><p id="giftWhen"></p></div></div>

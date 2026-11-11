@@ -5,6 +5,7 @@ const SETTINGS_KEY = 'pizzaSettingsV1';
 const GARAGE_KEY = 'pizzaGarageV1';
 const SKIPS_KEY = 'pizzaSkipsV1';
 const BOOSTS_KEY = 'pizzaBoostsV1';
+const ONLINE_KEY = 'pizzaOnlineV1';
 
 const STICK = { size: 'medium', feel: 'normal', fade: 'solid', origin: 'fixed', hand: 'right' };
 export const settings = { controls: 'joystick', plane: 'courier', dev: false, muted: false, music: true, vibration: true, comboSeen: false, camera: 'chase', tier: null, lite: false, sideways: false, shopSeen: [], picture: 'sharp', trained: false, stick: STICK, giftSeen: -1, chapterSeen: 1 };
@@ -205,4 +206,17 @@ export function saveRush(score, del, pay) {
   const saved = loadProgress(), r = saved.rush;
   writeProgress({ ...saved, money: saved.money + pay, rush: { best: Math.max(r.best, score), del: Math.max(r.del, del), runs: r.runs + 1 } });
   return r;
+}
+
+// The world board's identity on this device: the anonymous player id and its refresh token from Firebase, the nickname,
+// and the score last sent (-1 before the first).
+export const online = { uid: '', refresh: '', name: '', sent: -1 };
+try {
+  const saved = JSON.parse(localStorage.getItem(ONLINE_KEY));
+  for (const k of ['uid', 'refresh', 'name']) if (typeof saved?.[k] === 'string') online[k] = saved[k];
+  if (Number.isInteger(saved?.sent) && saved.sent >= -1) online.sent = saved.sent;
+} catch (_) {}
+
+export function saveOnline() {
+  try { localStorage.setItem(ONLINE_KEY, JSON.stringify(online)); } catch (_) {}
 }
