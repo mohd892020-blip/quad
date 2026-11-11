@@ -128,8 +128,9 @@ export function drawAltimeter(st, goal) {
   ctx.fillText(label, x - 15, y + 4);
 }
 
-// Phones play best on their side. A phone held upright is offered the turn: the app turns itself, a browser goes full
-// screen and locks sideways where it can, and otherwise a short note asks the player to turn the phone.
+// Phones play best on their side. A phone held upright is offered the turn, on the mission card, the pause card and as
+// an icon in the flight's own top bar: the app turns itself, a browser goes full screen and locks sideways where it can,
+// and otherwise a short note asks the player to turn the phone.
 const turner = () => window.PizzaScreen;
 async function playSideways(on) {
   settings.sideways = on;
@@ -150,15 +151,17 @@ async function playSideways(on) {
 
 export function markSideways() {
   const upright = innerHeight > innerWidth, locked = !!settings.sideways && !upright;
-  for (const id of ['levelSideways', 'pauseSideways']) {
-    const b = $(id);
+  for (const id of ['levelSideways', 'pauseSideways', 'hudSideways']) {
+    const b = $(id), say = locked ? 'Play upright' : 'Play sideways';
     b.hidden = !touchUI() || (!upright && !locked);
-    b.querySelector('span').textContent = locked ? 'Play upright' : 'Play sideways';
+    const words = b.querySelector('span');
+    if (words) words.textContent = say;
+    else b.setAttribute('aria-label', say);
   }
 }
 
 function buildSideways() {
-  for (const id of ['levelSideways', 'pauseSideways']) $(id).addEventListener('click', () => playSideways(!(settings.sideways && innerWidth > innerHeight)));
+  for (const id of ['levelSideways', 'pauseSideways', 'hudSideways']) $(id).addEventListener('click', () => playSideways(!(settings.sideways && innerWidth > innerHeight)));
   addEventListener('resize', markSideways);
   // the app remembers the turn between launches
   if (settings.sideways && turner()) turner().sideways(true);
