@@ -1,9 +1,9 @@
-import { buzz, clipLoading, clipOf, hushVoice, loadClip, sayClip, sfx, speak } from './audio.js';
+import { buzz, hushVoice, murmur, sfx } from './audio.js';
 import { CALL } from './config.js';
 import { answerOrder } from './delivery.js';
 import { homeName, homeOf } from './homes.js';
 import { bandBottom, covers, modalOpen, view, X, Y } from './ui.js';
-import { askLine, callerOf, clipName, greetLine, turnOf } from './voice.js';
+import { askLine, callerOf, greetLine, turnOf } from './voice.js';
 import { rng } from './world.js';
 
 // Every order comes in as a phone call. The card rings on the left under the HUD and answers itself a moment later (a tap
@@ -20,7 +20,7 @@ const $ = id => document.getElementById(id);
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const meets = (a, b) => a[0] < b[2] && a[2] > b[0] && a[1] < b[3] && a[3] > b[1];
 
-// A caller's babble voice: its pitch by title, the rest from the household's place in the list, so neighbours sound apart.
+// A caller's rhythm and pitch: its pitch by title, the rest from the household's place in the list, so neighbours sound apart.
 export function voiceOf(h, c) {
   const v = CALL.voice, k = (h.i * 5 + v.offset) % v.steps, pitch = v.pitch[c.male ? 'm' : 'f'];
   return {
@@ -64,8 +64,8 @@ export function babblePlan(text, h, v, room) {
 // What a call is for: an order waiting on its call, or a Rush order once its shop starts on it.
 const gateOf = st => (st.ticket && !st.ticket.answered ? st.ticket : st.rush && (st.prep || st.has) && !heard.has(st.stop) ? st.stop : null);
 
-// The call an order brings: its caller (a couple's two take turns), the greeting and the request in that caller's
-// recorded voice, and the line under the name while it rings. An order with nobody to call it never waits.
+// The call an order brings: its caller (a couple's two take turns), the greeting and the request, and the line under
+// the name while it rings. An order with nobody to call it never waits.
 function callFor(st, gate, at) {
   const ticket = gate === st.ticket ? gate : null, s = st.stop, t = ticket?.air ? st.order.t : s.parcels?.[0].t ?? s.t;
   const item = ticket?.air ? st.item : s.parcels?.[0].item ?? s.item, h = homeOf(t);
@@ -78,7 +78,7 @@ function callFor(st, gate, at) {
   }
   const turn = turnOf(st), c = callerOf(h, turn), rush = !!st.rush;
   const set = rush ? 'rush' : s.rescue ? 'rescue' : item.urgent ? 'urgent' : 'plain';
-  const segs = [rush ? null : greetLine(c), askLine(set, item, h.i + turn)].filter(Boolean).map(text => ({ text, name: clipName(c.voice, text) }));
+  const segs = [rush ? null : greetLine(c), askLine(set, item, h.i + turn)].filter(Boolean).map(text => ({ text }));
   const kind = rush ? 'rush' : ticket?.air ? (st.order.drop === 2 ? 'drop' : 'hand') : 'ring';
   const state = CALL.states[kind].replace('{home}', homeName(t, t === s.t ? s.place : null, true));
   return { h, c, t, gate, ticket, rush, segs, state, vo: voiceOf(h, c), at };
@@ -90,7 +90,7 @@ const show = phase => { $('call').className = phase + (east ? ' east' : '') + (n
 function ring() {
   const c = live.c, el = $('call');
   const [soon, late] = CALL.answerAfter;
-  Object.assign(live, { phase: 'ring', rings: 1, nextRing: clock + CALL.ringEvery, answerAt: clock + soon + Math.random() * (late - soon), seg: -1, pend: null, pendAt: null });
+  Object.assign(live, { phase: 'ring', rings: 1, nextRing: clock + CALL.ringEvery, answerAt: clock + soon + Math.random() * (late - soon), seg: -1 });
   $('callWho').textContent = c.who;
   $('callLine').textContent = live.state;
   $('callFace').textContent = c.initials;
@@ -100,8 +100,6 @@ function ring() {
   show('ring');
   el.hidden = false;
   rect = null;
-  // decoded while it rings, so the voice is ready the moment it is answered
-  for (const s of live.segs) loadClip(s.name);
   sfx(live.rush ? 'phoneQuick' : 'phone');
   if (!live.rush) buzz(CALL.buzz);
 }
@@ -116,33 +114,11 @@ function answer() {
   startSeg(0);
 }
 
-// One line of the call: its recorded voice at the caller's rate, each word showing as the voice reaches where it starts
-// in the line; with no recording, the babble's own timing. A line still decoding is waited for a moment. Muted, or with
-// no sound at all, the words keep the same time.
+// One line of the call: its words show one by one to the caller's rhythm, while the murmur keeps that rhythm with
+// none of the words in it. Muted, or with no sound at all, the words keep the same time.
 function startSeg(i) {
-  const s = live.segs[i], c = live.c, buf = clipOf(s.name);
-  if (!buf && clipLoading(s.name) && clock - (live.pendAt ??= clock) < CALL.speech.wait) {
-    live.pend = i;
-    return;
-  }
-  live.pend = live.pendAt = null;
-  const words = s.text.split(/\s+/).filter(Boolean);
-  let secs, at;
-  if (buf) {
-    secs = buf.duration / c.rate;
-    let from = 0;
-    at = words.map(w => {
-      const k = s.text.indexOf(w, from);
-      from = k + w.length;
-      return secs * k / s.text.length;
-    });
-    sayClip(buf, c.rate, c.voice);
-  } else {
-    const plan = babblePlan(s.text, live.h, live.vo, Infinity);
-    secs = plan.secs;
-    at = plan.words.map(w => w.at);
-    speak(plan, live.vo);
-  }
+  const s = live.segs[i], words = s.text.split(/\s+/).filter(Boolean), plan = babblePlan(s.text, live.h, live.vo, Infinity), secs = plan.secs, at = plan.words.map(w => w.at);
+  murmur(plan, live.vo);
   // one span a word, built as text, so a name can never become markup
   const line = $('callLine'), frag = document.createDocumentFragment();
   words.forEach((w, k) => {
@@ -245,14 +221,11 @@ export function stepCall(st, dt, paused, spot) {
       live.nextRing += live.rings < CALL.loud ? CALL.ringEvery : CALL.quietEvery;
     }
   } else if (live.phase === 'talk') {
-    if (live.pend != null) startSeg(live.pend);
-    if (live.pend == null) {
-      const at = live.at, spoken = clock - live.segAt;
-      while (live.said < live.spans.length && at[live.said] <= spoken) live.spans[live.said++].classList.remove('unsaid');
-      if (clock >= live.segEnd + CALL.speech.join) {
-        if (live.seg + 1 < live.segs.length) startSeg(live.seg + 1);
-        else if (clock >= live.segEnd + CALL.linger) endCall(false);
-      }
+    const at = live.at, spoken = clock - live.segAt;
+    while (live.said < live.spans.length && at[live.said] <= spoken) live.spans[live.said++].classList.remove('unsaid');
+    if (clock >= live.segEnd + CALL.speech.join) {
+      if (live.seg + 1 < live.segs.length) startSeg(live.seg + 1);
+      else if (clock >= live.segEnd + CALL.linger) endCall(false);
     }
   } else {
     // a fading card stays where it is and fades all the way

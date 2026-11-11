@@ -1024,22 +1024,21 @@ export const HOMES = {
   plate: { text: 11, h: 18, padX: 7, radius: 6, drop: 7, surface: 11, rim: 1.2, fill: 'rgba(20,15,40,.82)', edge: '#ffc23d', ink: '#fff3df', wait: .6, side: 8, scale: 24 },
 };
 
-// Every order comes in as a phone call that rings until it is answered. firstAt, nextAt, airAt, rushAt: seconds from an
+// Every order comes in as a phone call that rings until it answers itself. firstAt, nextAt, airAt, rushAt: seconds from an
 // order coming in to its first ring (the opening, a later stop's after the notice naming it, one handed on in the air,
 // Rush's); padAt brings a later stop's ring forward once the aircraft waits on its pad; resumeAt rings again after a
 // pause. A call rings loud times every ringEvery seconds, then softly every quietEvery; Rush rings rushRings times.
 // approach: the last stretch to the customer (never more than approachShare of the leg), where no talk goes on; below:
 // the card's top under the HUD, and it steps under a toast or the hangar tip by gap. While it would sit over the pointer,
 // the shop's order note or guard (a box in pixels around the flying aircraft and its time pill), it moves across to east
-// pixels in from the right edge. voice: the babble made on the device where a recorded line is missing, its pitch by
-// title. speech: the recorded voices (scripts/voices.mjs makes them ahead of time with Piper; make is only read there),
-// each caller's voice and rate picked by household, join the gap between greeting and request, wait how long an answer
-// waits on a line still decoding, band the phone line's filter, kept how many decoded lines stay in memory, say how a
-// title is spoken, budget the most bytes all lines may take. Every line is brought to loudness: the RMS of its gate[0]-second
-// windows within gate[1] dB of its loudest one, measured once when it decodes, times its voice's trim so the four voices
-// match (re-measure the trims if the voices are recorded again); quiet floors that level, so a near-silent clip is never
-// blown up. While a caller talks the rotor steps back to rotorShare. answerAfter: every call answers itself this many
-// seconds after it starts ringing, picked at random between the two.
+// pixels in from the right edge. voice: the rhythm and pitch of a caller's line (the words show to it), its pitch by
+// title. murmur: what a call sounds like, with no voice and no words: the line's hiss (noise through a band at line, Q
+// lineQ, at hiss, in over fade and out over tail) and under it the line's rhythm at the caller's pitch, through a lowpass
+// at cut so no vowel comes through, each syllable swelling to level over swell of it and gone by edge before its end.
+// speech: the recorded voices (scripts/voices.mjs makes them ahead of time with Piper; make is only read there; calls no
+// longer play them), each caller's voice and rate picked by household, join the gap between greeting and request, say
+// how a title is spoken, budget the most bytes all lines may take. While a call talks the rotor steps back to rotorShare.
+// answerAfter: every call answers itself this many seconds after it starts ringing, picked at random between the two.
 export const CALL = {
   answerAfter: [1.0343, 2.34324],
   firstAt: .5, nextAt: 1.4, airAt: .35, rushAt: .1, padAt: .2, resumeAt: .3, between: .25, fade: .25,
@@ -1049,12 +1048,12 @@ export const CALL = {
   states: { ring: 'Incoming call · {home}', hand: 'Handed on · {home}', drop: 'Next drop · {home}', rush: 'Rush order · {home}' },
   faces: ['#e8492c', '#f09a1a', '#2fa866', '#2f9fc2', '#7d6cf0', '#d0609a', '#b4824e', '#2f8f9d'],
   voice: { pitch: { m: [100, 160], f: [180, 300] }, steps: 8, offset: 3, speed: [.85, 1.2], shift: .06, syll: .12, gap: .05, pause: .14, wobble: 3, rise: 4, lift: 2, fall: 2, maxSpeedUp: 1.6,
-    q: [6, 9], body: 1200, bodyMix: .3, level: .49, attack: .015, release: .3, edge: .04, vowels: [[800, 1200], [500, 1800], [320, 2300], [500, 900], [350, 800]] },
+    vowels: [[800, 1200], [500, 1800], [320, 2300], [500, 900], [350, 800]] },
+  murmur: { cut: 520, q: .7, level: .3, swell: .45, edge: .1, line: 1400, lineQ: .6, hiss: .05, fade: .08, tail: .15 },
   speech: {
     voices: { f: ['ljspeech', 'kristin'], m: ['norman', 'john'] },
     models: { ljspeech: 'en_US-ljspeech-high', kristin: 'en_US-kristin-medium', norman: 'en_US-norman-medium', john: 'en_US-john-medium' },
-    rates: [.95, 1, 1.05], join: .15, wait: .6, band: [250, 4000], kept: 12,
-    loudness: .036, trim: { ljspeech: 1, kristin: 1.19, norman: 1.03, john: 1 }, gate: [.05, 25], quiet: .02, rotorShare: .7,
+    rates: [.95, 1, 1.05], join: .15, rotorShare: .7,
     say: { 'Mr.': 'Mister', 'Ms.': 'Miz' },
     make: { pace: 1, rate: 24000, squeeze: .97, trim: -40, pad: .04, rms: -18, peak: -1.5, fade: .015 },
     budget: 2400000,

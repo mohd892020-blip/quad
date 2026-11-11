@@ -2,8 +2,8 @@ import { AUDIO, CALL } from './config.js';
 import { saveSettings, settings } from './storage.js';
 
 let ac = null, output, master, bus, filter, air, oscs, noiseBuf, voices = 0, nextUpdate = 0, speaking = null;
-const lastPlayed = {}, aimed = new Map(), levels = new WeakMap();
-// when the caller's line ends: the rotor steps back until then
+const lastPlayed = {}, aimed = new Map();
+// when the caller's murmur ends: the rotor steps back until then
 let talkUntil = 0;
 
 function makeNoise() {
@@ -106,45 +106,6 @@ export async function packedBytes(kind, dir, file) {
   for (let i = 0; i < text.length; i++) bytes[i] = text.charCodeAt(i);
   return bytes.buffer;
 }
-
-// The callers' recorded lines, decoded when a call rings and kept a few at a time. A one-file build packs them all, so a
-// line it lacks is missing for good and is never fetched.
-const clips = new Map();
-let packedVoices = null;
-export function loadClip(name) {
-  if (!ac || clips.has(name)) return;
-  packedVoices ??= !!document.querySelector('script[data-voice]');
-  if (packedVoices && !document.querySelector(`script[data-voice="${name}"]`)) {
-    keepClip(name, null);
-    return;
-  }
-  clips.set(name, 'loading');
-  packedBytes('voice', 'voices', name).then(b => ac.decodeAudioData(b)).then(buf => keepClip(name, buf), () => keepClip(name, null));
-}
-// A line's speech level: the RMS of its short windows near its loudest, so pauses do not count. Lines differ by several
-// dB once through the phone band, so each is measured once as it decodes, never per play.
-function speechLevel(buf) {
-  const [secs, range] = CALL.speech.gate, d = buf.getChannelData(0), w = Math.round(buf.sampleRate * secs), pow = [];
-  for (let i = 0; i + w <= d.length; i += w) {
-    let s = 0;
-    for (let j = i; j < i + w; j += 2) s += d[j] * d[j];
-    pow.push(s / Math.ceil(w / 2));
-  }
-  const floor = Math.max(0, ...pow) * 10 ** (-range / 10), kept = pow.filter(p => p >= floor && p > 0);
-  return kept.length ? Math.sqrt(kept.reduce((a, p) => a + p, 0) / kept.length) : 0;
-}
-
-function keepClip(name, buf) {
-  if (buf) levels.set(buf, speechLevel(buf));
-  clips.delete(name);
-  for (const [key, c] of clips) if (clips.size >= CALL.speech.kept && c !== 'loading') clips.delete(key);
-  clips.set(name, buf);
-}
-export const clipOf = name => {
-  const c = clips.get(name);
-  return c && c !== 'loading' ? c : null;
-};
-export const clipLoading = name => clips.get(name) === 'loading';
 
 function wake() {
   return ac.resume()?.catch?.(() => {});
@@ -290,67 +251,51 @@ export function sfx(name, k = 1) {
   SOUNDS[name](t, k);
 }
 
-// A caller's voice: one saw through two vowel filters and a soft body, its pitch and vowels set syllable by syllable from
-// the plan, under one envelope. It is one voice through the limiter, so the mute silences it and nothing leaves the
-// device; muted, nothing is built at all.
-export function speak(plan, v) {
+// A call going on, with no voice and no words: the phone line's soft hiss, and under it a murmur that keeps the caller's
+// pitch and the rhythm of their line, so low and muffled that no vowel, let alone a word, comes through. It is one sound
+// through the limiter, so the mute silences it and nothing leaves the device; muted, nothing is built at all.
+export function murmur(plan, v) {
   hushVoice();
   if (!ac || ac.state !== 'running' || settings.muted || voices >= AUDIO.maxVoices || !plan.syl.length) return;
-  const c = CALL.voice, t0 = ac.currentTime + .03;
-  const o = ac.createOscillator(), f1 = ac.createBiquadFilter(), f2 = ac.createBiquadFilter(), lp = ac.createBiquadFilter(), mix = ac.createGain(), env = ac.createGain(), out = ac.createGain();
+  const c = CALL.murmur, t0 = ac.currentTime + .03, end = t0 + plan.secs;
+  const o = ac.createOscillator(), lp = ac.createBiquadFilter(), env = ac.createGain(), n = ac.createBufferSource(), line = ac.createBiquadFilter(), hiss = ac.createGain(), out = ac.createGain();
   o.type = 'sawtooth';
-  f1.type = f2.type = 'bandpass';
-  f1.Q.value = c.q[0];
-  f2.Q.value = c.q[1];
   lp.type = 'lowpass';
-  lp.frequency.value = c.body;
-  mix.gain.value = c.bodyMix;
+  lp.frequency.value = c.cut;
+  lp.Q.value = c.q;
   env.gain.value = 0;
-  out.gain.value = c.level * AUDIO.sfxGain;
-  o.connect(f1).connect(env);
-  o.connect(f2).connect(env);
-  o.connect(lp).connect(mix).connect(env);
-  env.connect(out).connect(bus);
-  // each release ends a little before the next syllable starts: back to back, float rounding can put that start a hair
-  // before the ramp's end, and the gain then holds at full and drops in one sample
+  n.buffer = noiseBuf;
+  n.loop = true;
+  line.type = 'bandpass';
+  line.frequency.value = c.line;
+  line.Q.value = c.lineQ;
+  hiss.gain.setValueAtTime(0, t0);
+  hiss.gain.linearRampToValueAtTime(c.hiss, t0 + c.fade);
+  hiss.gain.setValueAtTime(c.hiss, end);
+  hiss.gain.linearRampToValueAtTime(0, end + c.tail);
+  out.gain.value = AUDIO.sfxGain;
+  o.connect(lp).connect(env).connect(out);
+  n.connect(line).connect(hiss).connect(out);
+  out.connect(bus);
+  // each syllable swells and sinks slowly, so the murmur never clicks into anything like speech
   for (const s of plan.syl) {
     const a = t0 + s.at;
     o.frequency.setValueAtTime(s.hz, a);
-    f1.frequency.setValueAtTime(s.f1 * v.shift, a);
-    f2.frequency.setValueAtTime(s.f2 * v.shift, a);
     env.gain.setValueAtTime(0, a);
-    env.gain.linearRampToValueAtTime(1, a + c.attack);
-    env.gain.setValueAtTime(1, a + s.dur * (1 - c.release));
+    env.gain.linearRampToValueAtTime(c.level, a + s.dur * c.swell);
     env.gain.linearRampToValueAtTime(0, a + s.dur * (1 - c.edge));
   }
   voices++;
-  finish(o, [f1, f2, lp, mix, env, out]);
+  o.onended = () => {
+    voices--;
+    [o, lp, env, n, line, hiss, out].forEach(x => x.disconnect());
+  };
   o.start(t0);
-  o.stop(t0 + plan.secs + .05);
-  speaking = { o, env };
-  talkUntil = t0 + plan.secs;
-}
-
-// A recorded line down the phone: its caller's rate, the line's band, levelled per line to the same loudness (times its
-// voice's trim), one voice through the limiter, so the mute silences it; muted, nothing is built at all.
-export function sayClip(buf, rate, voice) {
-  hushVoice();
-  // one caller speaks at a time (hushVoice), so the line has a place of its own outside the short sounds' count:
-  // a ring still sounding never silences it, and it never takes the place of the pickup that follows
-  if (!ac || ac.state !== 'running' || settings.muted) return;
-  const c = CALL.speech, src = ac.createBufferSource(), hp = ac.createBiquadFilter(), lp = ac.createBiquadFilter(), g = ac.createGain();
-  src.buffer = buf;
-  src.playbackRate.value = rate;
-  hp.type = 'highpass';
-  hp.frequency.value = c.band[0];
-  lp.type = 'lowpass';
-  lp.frequency.value = c.band[1];
-  g.gain.value = c.loudness / Math.max(c.quiet, levels.get(buf) ?? c.loudness) * (c.trim[voice] ?? 1);
-  src.connect(hp).connect(lp).connect(g).connect(bus);
-  src.onended = () => [src, hp, lp, g].forEach(n => n.disconnect());
-  src.start(ac.currentTime + .02);
-  talkUntil = ac.currentTime + .02 + buf.duration / rate;
-  speaking = { o: src, env: g };
+  n.start(t0);
+  const stop = at => { o.stop(at); n.stop(at); };
+  stop(end + c.tail + .05);
+  speaking = { o: { stop }, env: out };
+  talkUntil = end;
 }
 
 // A call cut short: the voice fades in a moment from wherever its envelope stands, instead of clicking off. A plain
