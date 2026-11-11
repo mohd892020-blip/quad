@@ -6,11 +6,11 @@ import { loadProgress, settings } from './storage.js';
 import { ctx, glow, hideModals, openSheet, reachedLevel, view } from './ui.js';
 
 // The front screen and the way back from every other: Play Game, Shop, Settings and High Score over the drifting city,
-// the aircraft the player flies hovering with a pizza on its rope, and one Back for the arrows, Escape and the phone's own
-// Back button.
+// an aircraft hovering with a pizza on its rope (the player's own first, then every swapSecs another of the fleet, each
+// in its own colours, fading over swapFade), and one Back for the arrows, Escape and the phone's own Back button.
 const $ = id => document.getElementById(id);
 export const menuOpen = () => !$('overlay').hidden;
-let room = null, floor = 0, still = false, count = 0, busy = () => false;
+let room = null, floor = 0, still = false, count = 0, busy = () => false, plane = null, since = 0;
 
 // the stage is read when the menu shows and when the screen changes, never every frame; on an upright screen the choices
 // stand under the aircraft, so the street is raised into them and the rooftops show above them
@@ -32,14 +32,32 @@ export function showMenu() {
   $('menuNext').textContent = !settings.trained && !del ? 'Learn to fly first' : next > count ? 'Replay for stars' : `Mission ${next}`;
   measure();
   nudgeShop();
+  plane = null;
+}
+
+// The aircraft on show and how much of it shows: the player's own when the menu opens, then a different one of the fleet
+// each turn, never the same twice in a row.
+function onShow(time) {
+  const c = MENU;
+  if (!plane || time < since) {
+    plane = settings.plane;
+    since = time;
+  } else if (time - since >= c.swapSecs) {
+    const others = AIRCRAFT.filter(a => a.key !== plane);
+    plane = others[(Math.random() * others.length) | 0].key;
+    since = time;
+  }
+  const age = time - since;
+  return still ? 1 : Math.max(0, Math.min(1, age / c.swapFade, (c.swapSecs - age) / c.swapFade));
 }
 
 export function drawHover(time) {
   if (!room) return;
-  const c = MENU, m = AIRCRAFT.find(a => a.key === settings.plane) ?? AIRCRAFT[0], D = view.DPR, T = 2 * Math.PI, move = still ? 0 : 1;
+  const shows = onShow(time), c = MENU, m = AIRCRAFT.find(a => a.key === plane) ?? AIRCRAFT[0], D = view.DPR, T = 2 * Math.PI, move = still ? 0 : 1;
   const k = Math.min(c.maxScale, c.fill * Math.min(room.w / (2 * m.span), room.h / c.tall));
   const x = room.x + room.w / 2, y = room.y + room.h / 2 - c.raise * k + move * Math.sin(time * T / c.bobSecs) * c.bob * k;
   ctx.setTransform(D, 0, 0, D, 0, 0);
+  ctx.globalAlpha = shows;
   glow(ctx, c.glow, x, y, m.span * k * c.glowSize);
   ctx.setTransform(D * k, 0, 0, D * k, D * x, D * y);
   ctx.rotate(move * Math.sin(time * T / c.tiltSecs) * c.tilt);
@@ -58,6 +76,7 @@ export function drawHover(time) {
   ctx.restore();
   drawAirframe(ctx, m.key, time);
   ctx.setTransform(D, 0, 0, D, 0, 0);
+  ctx.globalAlpha = 1;
 }
 
 // Back: the topmost screen closes as its own arrow does (the pause card resumes, the result card leads to the map), the

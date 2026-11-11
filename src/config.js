@@ -594,7 +594,7 @@ export const HANGAR = {
 // rope of rope units, hanging hang units below it at cargo times its drawn size. A screen that asks for less motion gets
 // it still. On an upright screen the street runs groundAt of the way down the choices, so the rooftops stand between the
 // aircraft and the buttons rather than all behind them.
-export const MENU = { fill: .62, maxScale: 4, tall: 80, raise: 19, bob: 3, bobSecs: 2.6, tilt: .05, tiltSecs: 3.4, swing: .14, swingSecs: 2.1, rope: 30, hang: 8, cargo: 1.1, order: 'pizza', ropeColor: '#1d1420', ropeWidth: 1.4, glow: 'rgba(255,194,61,.22)', glowSize: 1.6, groundAt: .45 };
+export const MENU = { fill: .62, maxScale: 4, tall: 80, raise: 19, bob: 3, bobSecs: 2.6, tilt: .05, tiltSecs: 3.4, swing: .14, swingSecs: 2.1, rope: 30, hang: 8, cargo: 1.1, order: 'pizza', ropeColor: '#1d1420', ropeWidth: 1.4, glow: 'rgba(255,194,61,.22)', glowSize: 1.6, groundAt: .45, swapSecs: 3.5, swapFade: .35 };
 // A locked mission on the map shakes for shake seconds when tapped and names the mission to pass for hint seconds;
 // buzz is the tap's buzz in ms.
 export const LOCKS = { shake: .42, hint: 1.8, buzz: 12 };
