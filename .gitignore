@@ -3,3 +3,5 @@ dist/
 .claude/
 docs-review/
 promo/
+# the app carries the Firebase key, so it never goes to GitHub
+*.apk
