@@ -129,7 +129,6 @@ body:not(.dev) .devOnly{display:none!important}
 #call[hidden],#wrap.home #call{display:none}
 @keyframes callIn{from{opacity:0;transform:translateY(calc(var(--callDrop,0px) - 10px)) scale(.96)}}
 #call.out{opacity:0}
-#call.faint{opacity:var(--callFaint,.3)}
 /* moved across, clear of the altimeter and its height label, while the left would cover the pointer or the aircraft */
 #call.east{left:auto;right:var(--callEast,76px)}
 #call.snap{transition:opacity .22s ease,margin-top var(--comboAnim) ease}
@@ -152,7 +151,6 @@ body:not(.dev) .devOnly{display:none!important}
 @keyframes callWiggle{0%,60%,100%{transform:rotate(0)}70%{transform:rotate(-12deg)}80%{transform:rotate(12deg)}90%{transform:rotate(-8deg)}}
 #call.talk #callBtn,#call.out #callBtn{background:#e8492c}
 #call.talk #callBtn .ico,#call.out #callBtn .ico{transform:rotate(135deg)}
-body.desk #call.ring #callLine::after{content:" · Enter"}
 #wrap.narrow.comboOn #call{margin-top:var(--comboStep)}
 @media (max-height:480px){#call{width:min(300px,calc(100% - 88px));padding:5px;grid-template-columns:34px minmax(0,1fr) 38px}#callFace{width:34px;height:34px;font-size:15px}#callBtn{width:38px;height:38px}}
 @media (prefers-reduced-motion:reduce){#call,#call.nudge,#call.ring #callBtn,#call.ring #callFace::after{animation:none}#call{transition:opacity .22s}}

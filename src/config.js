@@ -1038,11 +1038,13 @@ export const HOMES = {
 // title is spoken, budget the most bytes all lines may take. Every line is brought to loudness: the RMS of its gate[0]-second
 // windows within gate[1] dB of its loudest one, measured once when it decodes, times its voice's trim so the four voices
 // match (re-measure the trims if the voices are recorded again); quiet floors that level, so a near-silent clip is never
-// blown up. While a caller talks the rotor steps back to rotorShare.
+// blown up. While a caller talks the rotor steps back to rotorShare. answerAfter: every call answers itself this many
+// seconds after it starts ringing, picked at random between the two.
 export const CALL = {
+  answerAfter: [1.0343, 2.34324],
   firstAt: .5, nextAt: 1.4, airAt: .35, rushAt: .1, padAt: .2, resumeAt: .3, between: .25, fade: .25,
   ringEvery: 1.5, loud: 4, quietEvery: 3, rushRings: 1,
-  approach: 700, approachShare: .5, below: 88, gap: 8, remeasure: .5, maxChars: 40, linger: .4, buzz: 35, faint: .3, seed: 4141, hudShort: 420,
+  approach: 700, approachShare: .5, below: 88, gap: 8, remeasure: .5, maxChars: 40, linger: .4, buzz: 35, seed: 4141, hudShort: 420,
   guard: { x: 56, up: 64, down: 40 }, east: 76,
   states: { ring: 'Incoming call · {home}', hand: 'Handed on · {home}', drop: 'Next drop · {home}', rush: 'Rush order · {home}' },
   faces: ['#e8492c', '#f09a1a', '#2fa866', '#2f9fc2', '#7d6cf0', '#d0609a', '#b4824e', '#2f8f9d'],

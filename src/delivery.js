@@ -8,7 +8,6 @@ import {
 } from './config.js';
 import { currentModel, flyingPlane, lend, ropeSlack } from './drone.js';
 import { homeName, homeOf } from './homes.js';
-import { touchUI } from './input.js';
 import { canCarry } from './rope.js';
 import { endRun, rushDelivered, rushLoaded } from './rush.js';
 import { boosts, landReady, loadProgress, noteResult, owns, payDaily, saveProgress, settings, spendDrop } from './storage.js';
@@ -759,8 +758,8 @@ export function drawPrep(st) {
 const noteBox = [0, 0, 0, 0];
 function drawPrepNote(st, x, bottom, fade) {
   const c = PREP.note, p = st.prep, wait = p?.call || st.ticket?.air, held = p ?? st.ticket, nudge = held?.nudge ? held.nudge / PREP.nudge : 0, name = p?.opening ? 'YOUR ORDER' : p?.item.label.toUpperCase();
-  const title = wait ? 'ANSWER THE CALL' : p ? `PREPARING ${name}  ${Math.ceil(p.left)}s` : 'ORDER READY';
-  const sub = wait ? (touchUI() ? 'Tap the call to take the order' : 'Press Enter to take the order') : !p ? '' : p.opening ? 'Takeoff when it is ready' : 'Stay on the pad', h = sub ? c.tall : c.h;
+  const title = wait ? 'INCOMING CALL' : p ? `PREPARING ${name}  ${Math.ceil(p.left)}s` : 'ORDER READY';
+  const sub = wait ? 'The order comes with the call' : !p ? '' : p.opening ? 'Takeoff when it is ready' : 'Stay on the pad', h = sub ? c.tall : c.h;
   ctx.save();
   ctx.font = `800 ${c.title}px Tajawal,sans-serif`;
   const titleW = ctx.measureText(title).width;

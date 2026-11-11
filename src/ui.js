@@ -574,7 +574,7 @@ export function hud(st) {
   const k = st.ticket, ask = k && !k.answered && (st.prep?.call || ringingFor() === k);
   const from = ask ? (k.air ? st.order.t : st.stop.parcels?.[0].t ?? st.stop.t) : null, caller = from && callerAt(from, st);
   const item = o && (o.drop ? run[o.drop - 1].item : st.item), who = st.prep && !run && callerAt(st.stop.t, st)?.who, shop = st.stop.shop.shop.name, label = st.stop.item.label;
-  text('oTitle', st.outcome ? st.outcome.why || 'Delivered' : caller ? `${tag}Answer ${caller.who}'s call`
+  text('oTitle', st.outcome ? st.outcome.why || 'Delivered' : caller ? `${tag}${caller.who} is calling`
     : o ? `${tag}${item.label}${item.urgent ? (r ? ` · URGENT ×${RUSH.points.urgent}` : ' · URGENT') : ''} → ${goingTo(st)}`
     : st.prep && !st.prep.call ? `${tag}Preparing ${st.prep.item.label}${who ? ` for ${who}` : ''}`
     : st.level.training ? 'Training'

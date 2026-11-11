@@ -6,12 +6,12 @@ import { bandBottom, covers, modalOpen, view, X, Y } from './ui.js';
 import { askLine, callerOf, clipName, greetLine, turnOf } from './voice.js';
 import { rng } from './world.js';
 
-// Every order comes in as a phone call. The card rings on the left under the HUD until the player answers it (a tap on
-// the card or its button, or Enter); an order waits for its call (delivery.js), and the moment it is answered it is
-// ready. The caller then says it in a recorded voice, a man's or a woman's as their title says, with the words showing
+// Every order comes in as a phone call. The card rings on the left under the HUD and answers itself a moment later (a tap
+// on the card or Enter answers it sooner); an order waits for its call (delivery.js), and the moment it is answered it
+// is ready. The caller then says it in a recorded voice, a man's or a woman's as their title says, with the words showing
 // as they are said; a missing line falls back to a babble made on the device. Rush rings once and lifts off as the
 // answer. It runs once a frame in real time and only reads the game, except answerOrder.
-let clock = 0, live = null, next = null, owner = null, calledFor = null, again = false, lastEnd = -Infinity, rect = null, measuredAt = 0, drop = 0, faint = false, east = false, back = false, nudged = false;
+let clock = 0, live = null, next = null, owner = null, calledFor = null, again = false, lastEnd = -Infinity, rect = null, measuredAt = 0, drop = 0, east = false, back = false, nudged = false;
 // what has been answered, so a Rush order never rings twice
 const heard = new WeakSet();
 // the aircraft's guard box and the card's two sides, filled in place
@@ -84,18 +84,19 @@ function callFor(st, gate, at) {
   return { h, c, t, gate, ticket, rush, segs, state, vo: voiceOf(h, c), at };
 }
 
-// the card's class: its phase, faint, the side it moved to (kept until the call is gone), and a shake
-const show = phase => { $('call').className = phase + (faint ? ' faint' : '') + (east ? ' east' : '') + (nudged ? ' nudge' : ''); };
+// the card's class: its phase, the side it moved to (kept until the call is gone), and a shake
+const show = phase => { $('call').className = phase + (east ? ' east' : '') + (nudged ? ' nudge' : ''); };
 
 function ring() {
   const c = live.c, el = $('call');
-  Object.assign(live, { phase: 'ring', rings: 1, nextRing: clock + CALL.ringEvery, seg: -1, pend: null, pendAt: null });
+  const [soon, late] = CALL.answerAfter;
+  Object.assign(live, { phase: 'ring', rings: 1, nextRing: clock + CALL.ringEvery, answerAt: clock + soon + Math.random() * (late - soon), seg: -1, pend: null, pendAt: null });
   $('callWho').textContent = c.who;
   $('callLine').textContent = live.state;
   $('callFace').textContent = c.initials;
   el.style.setProperty('--face', CALL.faces[live.h.i % CALL.faces.length]);
-  $('callBtn').setAttribute('aria-label', `Answer call from ${c.who}`);
-  faint = east = back = false;
+  $('callBtn').setAttribute('aria-label', `Call from ${c.who}`);
+  east = back = false;
   show('ring');
   el.hidden = false;
   rect = null;
@@ -110,7 +111,7 @@ function answer() {
   heard.add(live.gate);
   if (live.ticket) answerOrder(owner);
   show('talk');
-  $('callBtn').setAttribute('aria-label', 'End call');
+  $('callBtn').setAttribute('aria-label', `On a call with ${live.c.who}`);
   sfx('answer');
   startSeg(0);
 }
@@ -160,7 +161,6 @@ function startSeg(i) {
 function endCall(hard, quiet = false) {
   if (!live) return;
   hushVoice();
-  faint = false;
   covers.card = null;
   if (hard) {
     $('call').hidden = true;
@@ -182,10 +182,9 @@ export const callLive = () => !!live && (live.phase === 'talk' || (live.phase ==
 // what the ringing card is for, so the HUD asks for an answer only once there is a call to answer
 export const ringingFor = () => (live?.phase === 'ring' ? live.gate : null);
 
-// The card's tap and Enter: answer a ringing call, end one that talks.
+// The card's tap and Enter answer a ringing call a moment early; a call that talks stays on until it is over.
 function press() {
   if (live?.phase === 'ring') answer();
-  else if (live?.phase === 'talk') endCall(false);
 }
 
 export function stepCall(st, dt, paused, spot) {
@@ -239,7 +238,7 @@ export function stepCall(st, dt, paused, spot) {
   if (live.phase === 'ring') {
     // its order gone (the mission moved on), it stops; Rush takes lifting off with the order as the answer
     if ((live.ticket && st.ticket !== live.ticket) || (live.rush && st.stop !== live.gate)) endCall(false, true);
-    else if (live.rush && st.has && !st.docked) answer();
+    else if ((live.rush && st.has && !st.docked) || clock >= live.answerAt) answer();
     else if (clock >= live.nextRing && live.rings < (live.rush ? CALL.rushRings : Infinity)) {
       live.rings++;
       sfx(live.rush ? 'phoneQuick' : live.rings <= CALL.loud ? 'phone' : 'phoneSoft');
@@ -277,8 +276,7 @@ function blocks(r, st, spot) {
 const onNote = r => !!covers.note && meets(r, covers.note);
 
 // The card steps under a toast or the hangar's tip. Over the pointer or the aircraft it moves across to the right, where
-// the screen is wide enough for that to clear them, and fades only while it still covers them; the shop's note moves
-// aside from it by itself (drawPrepNote). A ringing card never fades: it is waiting on a tap.
+// the screen is wide enough for that to clear them; the shop's note moves aside from it by itself (drawPrepNote).
 function place(st, spot) {
   const el = $('call'), d = Math.max(0, bandBottom() + CALL.gap - (view.top + CALL.below));
   if (d !== drop) {
@@ -328,17 +326,12 @@ function place(st, spot) {
       over = false;
     }
   }
+  // a call stays in full view from its first ring to its end, so it never fades over them
   covers.card = rect;
-  const dim = over && live.phase !== 'ring';
-  if (dim !== faint) {
-    faint = dim;
-    el.classList.toggle('faint', dim);
-  }
 }
 
 export function initCall() {
   const el = $('call');
-  el.style.setProperty('--callFaint', CALL.faint);
   el.style.setProperty('--callEast', `${CALL.east}px`);
   // pointerdown, so the card never takes focus and a second finger works while the first steers
   el.addEventListener('pointerdown', e => {
