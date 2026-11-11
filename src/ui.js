@@ -1405,7 +1405,7 @@ export function initSheet() {
   $('devForm').addEventListener('submit', e => {
     e.preventDefault();
     const code = $('devCode');
-    if (code.value === DEV.password) {
+    if (devHash(code.value) === DEV.hash) {
       settings.dev = true;
       saveSettings();
       showDev();
@@ -1413,6 +1413,18 @@ export function initSheet() {
     } else $('devMsg').textContent = 'Wrong password. Try again.';
     code.value = '';
   });
+}
+
+// A fingerprint of the developer password, so only the fingerprint is written in config.js.
+function devHash(code) {
+  const fnv = s => {
+    let h = 0x811c9dc5;
+    for (const c of s) h = Math.imul(h ^ c.charCodeAt(0), 0x01000193) >>> 0;
+    return h;
+  };
+  let h = `flying-parcel:${code}`;
+  for (let i = 0; i < 2048; i++) h = fnv(`${h}:${i}`).toString(16);
+  return h;
 }
 
 export function onDevActions(auto, charge) {

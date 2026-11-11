@@ -1,12 +1,12 @@
 import { LEAGUE, ONLINE } from './config.js';
 import { loadProgress, online, saveOnline } from './storage.js';
-import { cleanName, leaveBoard, onlineReady, readBoard, sendScore } from './online.js';
+import { checkName, leaveBoard, nameChars, onlineReady, readBoard, sendScore } from './online.js';
 import { scoreText } from './ui.js';
 
 const $ = id => document.getElementById(id);
 // names come from other players; the rules allow only safe letters, but nothing from the board is trusted as markup
 const safe = s => String(s).replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
-const NAME_RULE = `${ONLINE.name.min} to ${ONLINE.name.max} letters, numbers, spaces, dots, dashes or underscores`;
+const NAME_RULE = `${ONLINE.name.min} to ${ONLINE.name.max} English letters, numbers or spaces`;
 const row = (place, name, score, you) => `<li class="${you ? 'you' : ''}"><b>${place}</b><span>${safe(name)}</span><em>${scoreText(score)}</em></li>`;
 
 const myScore = () => {
@@ -114,9 +114,9 @@ export function openLeague() {
 
 async function join(e) {
   e.preventDefault();
-  const name = cleanName($('nameInput').value);
-  if (!name) {
-    status(`Use ${NAME_RULE}`, true);
+  const { name, error } = checkName($('nameInput').value);
+  if (error) {
+    status(error === 'rude' ? 'Please pick a friendlier nickname' : `Use ${NAME_RULE}`, true);
     return;
   }
   $('nameInput').blur();
@@ -159,6 +159,11 @@ export function initLeague() {
   for (const id of ['openLeague', 'menuScores']) $(id).addEventListener('click', openLeague);
   $('leagueClose').addEventListener('click', () => { $('league').hidden = true; });
   $('nameInput').maxLength = ONLINE.name.max;
+  // anything but English letters, digits and spaces never reaches the field
+  $('nameInput').addEventListener('input', () => {
+    const field = $('nameInput'), kept = nameChars(field.value);
+    if (kept !== field.value) field.value = kept;
+  });
   $('nameForm').addEventListener('submit', join);
   $('nameEdit').addEventListener('click', () => { showName(true); $('nameInput').focus(); });
   $('leagueLeave').addEventListener('click', leave);

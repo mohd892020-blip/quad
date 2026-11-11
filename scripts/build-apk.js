@@ -8,7 +8,11 @@ import { join } from 'node:path';
 
 // The tools folder and the signing key keep the game's first name, flying-pizza: renaming them would orphan the key.
 const HOME = process.env.FLYING_PIZZA_HOME || join(homedir(), '.flying-pizza');
-const MIN_SDK = '24', TARGET_SDK = '34', KEY_ALIAS = 'flying-pizza', KEY_PASS = 'android';
+// Secrets stay out of the repository, in HOME/secrets.json: { firebaseApiKey, keyPass }.
+const SECRETS_FILE = join(HOME, 'secrets.json');
+if (!existsSync(SECRETS_FILE)) throw new Error(`missing ${SECRETS_FILE}: { "firebaseApiKey": "...", "keyPass": "..." }`);
+const SECRETS = JSON.parse(readFileSync(SECRETS_FILE, 'utf8'));
+const MIN_SDK = '24', TARGET_SDK = '34', KEY_ALIAS = 'flying-pizza', KEY_PASS = SECRETS.keyPass;
 const FONTS = [['Lalezar', 400], ['Tajawal', 400], ['Tajawal', 700], ['Tajawal', 800]];
 
 // each tool unpacks into one folder of its own, whatever its version calls it
@@ -32,7 +36,9 @@ function selfContained(page) {
     const data = readFileSync(join('android', 'fonts', `${family}-${weight}.woff2`)).toString('base64');
     return `@font-face{font-family:${family};font-weight:${weight};font-display:swap;src:url(data:font/woff2;base64,${data}) format("woff2")}`;
   }).join('');
-  const inside = page.replace(/<link[^>]*fonts\.g[^>]*>\s*/g, '').replace('</head>', () => `<style>${faces}</style></head>`);
+  // the Firebase key goes in here only, ahead of the game's script, which reads it as window.FLYING_SECRETS
+  const keys = `<script>window.FLYING_SECRETS=${JSON.stringify({ firebase: SECRETS.firebaseApiKey || '' })}</script>`;
+  const inside = page.replace(/<link[^>]*fonts\.g[^>]*>\s*/g, '').replace('</head>', () => `<style>${faces}</style>${keys}</head>`);
   const outside = inside.match(/<(?:link|script|img|audio|video|source)\b[^>]*\b(?:href|src)="(?:https?:)?\/\/[^"]*"/);
   if (outside) throw new Error(`the page still loads from outside: ${outside[0]}`);
   return inside;

@@ -498,7 +498,8 @@ export const JOY = {
   ],
 };
 
-export const DEV = { password: '930933', chargeTo: 100 };
+// hash: the developer password's fingerprint (devHash in ui.js), so the password itself never sits in the code.
+export const DEV = { hash: '6b553697', chargeTo: 100 };
 
 // Courier is the prototype's flight, every factor 1. thrust is climb and load strength,
 // speed scales horizontal thrust, battery is capacity, tough divides crash damage.
@@ -574,15 +575,25 @@ export const LEAGUE = {
 // The world High Score board, in the Android app's Firebase project (Firestore, anonymous sign-in), reached over plain REST
 // so no SDK weighs on the page. It opens inside the app, or anywhere in developer mode for testing; elsewhere the ladder
 // above stays. A player sends a nickname and the ladder's score, nothing more: the privacy page promises exactly that.
-// top: rows read from the board. name: nickname length, letters, digits, spaces and . _ - only (firestore.rules checks
-// the same). maxScore: the highest score the rules accept. timeoutMs: how long one request may take before the page
-// falls back to this device's ladder.
+// The Firebase key is not kept here: npm run apk writes it into the app from ~/.flying-pizza/secrets.json, so the
+// repository and the web build never carry it, and without it the board stays closed.
+// top: rows read from the board. name: nickname length; English letters, digits and spaces only, with at least one letter
+// (firestore.rules checks the same). rude: nicknames the board refuses, checked in lower case with 0 1 3 4 5 7 8 9 read as o i e
+// a s t b g, and again with doubled letters folded to one (fuuuck): parts are refused anywhere in the name with the spaces
+// taken out (firestore.rules refuses the worst of them too); words only when they stand alone, as they hide inside clean
+// names (Cassie, Cockpit). Arabic insults written in Latin letters are in both lists. A part must not fold into a clean
+// word (boob folds to bob). maxScore: the highest score the rules accept. timeoutMs: how long one request may take before
+// the page falls back to this device's ladder.
 export const ONLINE = {
-  apiKey: 'AIzaSyAG2R8h52LhhYQhJCh6SfixGu5tuhtrjVs',
   project: 'flying-parcel-scores',
   collection: 'scores',
   top: 50,
   name: { min: 3, max: 16 },
+  rude: {
+    parts: ['fuck', 'fuk', 'fck', 'fack', 'fvck', 'phuck', 'fcuk', 'shit', 'cunt', 'bitch', 'biatch', 'bastard', 'nigger', 'nigga', 'faggot', 'whore', 'slut', 'pussy', 'penis', 'vagina', 'porn', 'asshole', 'arsehole', 'wank', 'twat', 'jizz', 'dildo', 'blowjob', 'handjob', 'sexy', 'horny', 'hentai', 'milf', 'hitler', 'retard', 'motherf',
+      'kosomak', 'kosomk', 'kusomak', 'kosokht', 'sharmot', 'sharmut', 'manyak', 'manyok', 'metnak', 'mitnak', 'ayrak', 'ayrbak'],
+    words: ['ass', 'arse', 'dick', 'cock', 'cum', 'sex', 'tit', 'tits', 'boobs', 'rape', 'nazi', 'anal', 'kys', 'fag', 'hoe', 'kos', 'kus', 'zeb', 'zebi', 'ayr', 'ayre', 'ayri', 'nek', 'nik', 'neek', 'a7a', 'kalb', 'hmar', '7mar', 'jahsh', 'khara'],
+  },
   maxScore: 1000000,
   timeoutMs: 8000,
 };

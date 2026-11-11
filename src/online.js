@@ -5,16 +5,34 @@ import { online, saveOnline, settings } from './storage.js';
 // document per player, named by that id, holds { name, score }. Every call can fail or time out; callers fall back to the
 // ladder kept on this device.
 
+// written into the Android app by npm run apk; the web build has none, so its board stays closed
+const KEY = window.FLYING_SECRETS?.firebase || '';
 const DOCS = `https://firestore.googleapis.com/v1/projects/${ONLINE.project}/databases/(default)/documents`;
-const NAME = new RegExp(`^[A-Za-z0-9 ._-]{${ONLINE.name.min},${ONLINE.name.max}}$`);
+const NAME = new RegExp(`^[A-Za-z0-9 ]{${ONLINE.name.min},${ONLINE.name.max}}$`);
+const LEET = { 0: 'o', 1: 'i', 3: 'e', 4: 'a', 5: 's', 7: 't', 8: 'b', 9: 'g' };
+// Sh1t reads as shit; fold turns fuuuck into fuck
+const leet = s => s.toLowerCase().replace(/[0-9]/g, d => LEET[d] ?? d);
+const fold = s => s.replace(/(.)\1+/g, '$1');
 
-// inside the Android app, or in developer mode so the board can be tried in a browser
-export const onlineReady = () => !!window.PizzaScreen || settings.dev;
+function rude(name) {
+  const { parts, words } = ONLINE.rude, joined = leet(name.replace(/ /g, ''));
+  if (parts.some(p => joined.includes(p) || fold(joined).includes(fold(p)))) return true;
+  // each word is tried as typed (a7a), with its digits read as letters, and both folded
+  return name.split(' ').some(w => [w.toLowerCase(), leet(w), fold(w.toLowerCase()), fold(leet(w))].some(f => words.includes(f)));
+}
 
-// trims and folds runs of spaces; null when it still breaks the rule firestore.rules also checks
-export function cleanName(raw) {
+// inside the Android app, or in developer mode so the board can be tried in a browser that has the key
+export const onlineReady = () => !!KEY && (!!window.PizzaScreen || settings.dev);
+
+// Only what a nickname may hold, for the field to drop as the player types.
+export const nameChars = raw => String(raw ?? '').replace(/[^A-Za-z0-9 ]/g, '');
+
+// Trims and folds runs of spaces. { name } when it keeps the rule firestore.rules also checks, else { error: 'chars' }
+// (length, letters) or { error: 'rude' }.
+export function checkName(raw) {
   const name = String(raw ?? '').trim().replace(/\s+/g, ' ');
-  return NAME.test(name) ? name : null;
+  if (!NAME.test(name) || !/[A-Za-z]/.test(name)) return { error: 'chars' };
+  return rude(name) ? { error: 'rude' } : { name };
 }
 
 async function call(url, init = {}) {
@@ -36,7 +54,7 @@ async function token() {
   let fresh;
   if (online.refresh) {
     try {
-      const r = await call(`https://securetoken.googleapis.com/v1/token?key=${ONLINE.apiKey}`, {
+      const r = await call(`https://securetoken.googleapis.com/v1/token?key=${KEY}`, {
         method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: `grant_type=refresh_token&refresh_token=${encodeURIComponent(online.refresh)}`,
       });
@@ -47,7 +65,7 @@ async function token() {
     }
   }
   if (!fresh) {
-    const r = await call(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${ONLINE.apiKey}`, {
+    const r = await call(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${KEY}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ returnSecureToken: true }),
     });
     fresh = { token: r.idToken, refresh: r.refreshToken, uid: r.localId, life: +r.expiresIn };
@@ -62,9 +80,13 @@ async function token() {
 
 const auth = async () => ({ Authorization: `Bearer ${await token()}` });
 
-const write = async (fields, mask) => call(`${DOCS}/${ONLINE.collection}/${online.uid}?${mask.map(f => `updateMask.fieldPaths=${f}`).join('&')}`, {
-  method: 'PATCH', headers: { ...await auth(), 'Content-Type': 'application/json' }, body: JSON.stringify({ fields }),
-});
+// signs in first: a new player has no id until then, and the address needs it
+async function write(fields, mask) {
+  const head = await auth();
+  return call(`${DOCS}/${ONLINE.collection}/${online.uid}?${mask.map(f => `updateMask.fieldPaths=${f}`).join('&')}`, {
+    method: 'PATCH', headers: { ...head, 'Content-Type': 'application/json' }, body: JSON.stringify({ fields }),
+  });
+}
 
 // Puts this player's name and score on the board. The rules refuse a score lower than the one already there (progress
 // reset on this device, say): then only the name changes, and the board's own score is kept and remembered as sent.
