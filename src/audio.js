@@ -102,9 +102,16 @@ export async function packedBytes(kind, dir, file) {
     if (!r.ok) throw new Error(`${file}: ${r.status}`);
     return r.arrayBuffer();
   }
-  const text = atob(packed.textContent.trim()), bytes = new Uint8Array(text.length);
-  for (let i = 0; i < text.length; i++) bytes[i] = text.charCodeAt(i);
-  return bytes.buffer;
+  // the browser turns the block's text back into bytes off the page's own thread, so the menu never stalls on it; where
+  // it will not, it is done here
+  const b64 = packed.textContent.trim();
+  try {
+    return await (await fetch(`data:application/octet-stream;base64,${b64}`)).arrayBuffer();
+  } catch (_) {
+    const text = atob(b64), bytes = new Uint8Array(text.length);
+    for (let i = 0; i < text.length; i++) bytes[i] = text.charCodeAt(i);
+    return bytes.buffer;
+  }
 }
 
 function wake() {

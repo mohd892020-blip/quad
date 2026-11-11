@@ -237,9 +237,10 @@ export function genWorld(seed) {
   });
 }
 
+// Every kept building image goes out of date (the fonts arrived, the picture's sharpness changed): each keeps drawing as
+// it is, true to size, until refreshSprite repaints it, one a frame and nearest first, so no frame repaints them all.
 export function dropSprites() {
-  for (const b of world.live) b.sprite = null;
-  world.live.clear();
+  for (const b of world.live) b.spritePal = null;
 }
 
 export function mixHex(a, b, t) {

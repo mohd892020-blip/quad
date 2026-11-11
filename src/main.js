@@ -39,7 +39,9 @@ import { world, drawCity, drawMap, drawSky, dropSprites, genWorld, setClock, ste
 let st = null, hudT = 0, last = performance.now(), levels = [], spot = null;
 // how many times each mission has been started this session, so each try draws its own surprises
 const tries = {};
-const pace = { t: 0, n: 0, even: 0, last: 0, easy: 0, raised: false, tried: false };
+// the game's first seconds paint the city, load the music and wait on the fonts, so the menu warms up too before it
+// judges the phone
+const pace = { t: 0, n: 0, even: 0, last: 0, easy: 0, raised: false, tried: false, warm: QUALITY.warmup };
 
 // an order waiting on its call holds the aircraft: the opening one and a later stop's on their pad, one handed on in the air
 const waits = () => st.prep?.opening || st.prep?.call || st.ticket?.air;
