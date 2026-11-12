@@ -99,7 +99,7 @@ ar (Arabic)، es-419 (Spanish – Latin America)، es-ES (Spanish – Spain)، p
 - لكل صورة نص بديل (alt text) حده 140 حرف، وما يبلّش بـ«photo of» أو «image of».
 - الكلام المكتوب فوق الصورة أقل من 20% منها، وبلا صور إيدين ماسكة جوال.
 
-**[معلّق]** App icon: بيستنى اختيارك من الأيقونات الجديدة. لما تعتمدها بحطها بـ`launch/graphics/icon/icon-512.png`.
+**[جاهز]** App icon: `launch/graphics/icon/icon-512.png` (الأيقونة رقم 1، صورة كوبتر توصيل حقيقية، مصدرها ورخصتها بـ`android/store/ICON-SOURCE.md`).
 
 **[معلّق]** Feature graphic: بتنعمل بعد اعتماد الأيقونة عشان تمشي معها بالشكل والألوان. الفكرة: عنوان Flying Parcel بخط Lalezar، والكوبتر والطرد على الحبل فوق المدينة، بألوان اللعبة.
 
