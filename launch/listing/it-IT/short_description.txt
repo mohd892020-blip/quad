@@ -1,0 +1,1 @@
+Pilota un drone, fai oscillare l’ordine appeso alla corda e consegnalo in tempo.

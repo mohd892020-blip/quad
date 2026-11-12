@@ -5,3 +5,5 @@ docs-review/
 promo/
 # the app carries the Firebase key, so it never goes to GitHub
 *.apk
+# store videos are large and stay on this machine
+launch/video/*.mp4

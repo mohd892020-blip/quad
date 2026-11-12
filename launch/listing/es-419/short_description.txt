@@ -1,0 +1,1 @@
+Pilotea un dron, balancea el pedido colgado de una cuerda y entrégalo a tiempo.
