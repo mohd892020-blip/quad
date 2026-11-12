@@ -209,12 +209,14 @@ export function saveRush(score, del, pay) {
 }
 
 // The world board's identity on this device: the anonymous player id and its refresh token from Firebase, the nickname,
-// and the score last sent (-1 before the first).
-export const online = { uid: '', refresh: '', name: '', sent: -1 };
+// the score last sent (-1 before the first), and where the player stood when the board was last seen (for the result card).
+export const online = { uid: '', refresh: '', name: '', sent: -1, board: null };
 try {
   const saved = JSON.parse(localStorage.getItem(ONLINE_KEY));
   for (const k of ['uid', 'refresh', 'name']) if (typeof saved?.[k] === 'string') online[k] = saved[k];
   if (Number.isInteger(saved?.sent) && saved.sent >= -1) online.sent = saved.sent;
+  const b = saved?.board, above = b?.above;
+  if (Number.isInteger(b?.rank) && Number.isInteger(b?.total)) online.board = { rank: b.rank, total: b.total, above: typeof above?.name === 'string' && Number.isInteger(above?.score) ? { name: above.name, score: above.score, top: !!above.top } : null };
 } catch (_) {}
 
 export function saveOnline() {

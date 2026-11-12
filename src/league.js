@@ -78,6 +78,10 @@ async function showWorld() {
       saveOnline();
     }
     showRank(rank, Math.max(total, rank), score);
+    // the result card's teaser reads this between visits: the pilot just above, or the last of the top when out of it
+    const ahead = inTop ? rows[rows.indexOf(own) - 1] : rows[rows.length - 1];
+    online.board = { rank, total: Math.max(total, rank), above: ahead && rank > 1 ? { name: ahead.name, score: ahead.score, top: !inTop } : null };
+    saveOnline();
     $('leagueRows').innerHTML = rows.map((r, i) => row(i + 1, r.name, r.score, r.uid === online.uid)).join('')
       + (inTop ? '' : `<li class="gap">⋯</li>${row(rank, online.name, score, true)}`);
     $('leagueHow').textContent = `${LEAGUE.perStar} points a star, ${LEAGUE.perDelivery} a delivery. World board`;
@@ -130,7 +134,44 @@ async function join(e) {
   }
 }
 
+// The High Score button on a result card, won or lost: where the player stands and who is next to pass, so the board is
+// worth a look. On this device's ladder a climb since the last card is called out; the world board answers from its last
+// visit, as asking it at every card would cost a wait.
+let lastRank = 0;
+const passLine = (gap, name) => `${scoreText(gap)} points to pass ${name}${gap <= LEAGUE.perStar ? '. One star does it' : ''}`;
+function scoreTease() {
+  const score = myScore();
+  if (onlineReady()) {
+    const b = online.board, a = b?.above;
+    if (!online.name) return { title: 'Join the world High Score', line: 'Race real pilots for the top spot' };
+    if (!b) return { title: 'World High Score', line: 'See where you stand among real pilots' };
+    if (b.rank === 1) return { title: '#1 in the world', line: 'Defend your crown' };
+    const gap = a ? a.score - score : 0, line = !a ? 'Climb the world board'
+      : gap < 0 ? `You may have passed ${a.top ? `into the top ${ONLINE.top}` : a.name}. Check now`
+      : a.top ? `${scoreText(gap)} points to reach the top ${ONLINE.top}` : passLine(gap, a.name);
+    return { title: `#${scoreText(b.rank)} of ${scoreText(b.total)} pilots`, line };
+  }
+  const { rows, rank } = standings(), up = lastRank > 0 && rank < lastRank;
+  lastRank = rank;
+  if (rank === 1) return { title: up ? 'NEW #1!' : '#1 on High Score', line: 'Defend your crown', up };
+  const ahead = rows[rank - 2];
+  return { title: up ? `UP TO #${rank}!` : `#${rank} on High Score`, line: passLine(ahead.score - score, ahead.name), up };
+}
+
+export function teaseScores(show) {
+  const btn = $('resultScores');
+  btn.hidden = !show;
+  if (!show) return;
+  const { title, line, up } = scoreTease();
+  btn.querySelector('b').textContent = title;
+  btn.querySelector('small').textContent = line;
+  btn.classList.toggle('up', !!up);
+  btn.setAttribute('aria-label', `High Score. ${title}. ${line}`);
+}
+
 export function initLeague() {
+  if (!onlineReady()) lastRank = standings().rank;
+  $('resultScores').addEventListener('click', openLeague);
   for (const id of ['openLeague', 'menuScores']) $(id).addEventListener('click', openLeague);
   $('leagueClose').addEventListener('click', () => { $('league').hidden = true; });
   $('nameInput').maxLength = ONLINE.name.max;

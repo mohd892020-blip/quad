@@ -8,7 +8,7 @@ import { drawCloudsBack, drawCloudsFront, drawFallBehind, drawFallFront, drawFog
 import { updateMusic } from './music.js';
 import { BEACH, CAMERA, CITY_SEED, CLOCK, DRONE, DUST, FIXED_DT, GROUND, HUD_INTERVAL, MAX_FRAME_DT, MUSIC, PERFECT, QUALITY, RUSH } from './config.js';
 import { notePlay, saveSettings, settings as picked } from './storage.js';
-import { initLeague } from './league.js';
+import { initLeague, teaseScores } from './league.js';
 import { drawHover, initMenu, menuFloor, menuOpen, showMenu } from './menu.js';
 import { initDaily } from './daily.js';
 import { beginRush, initRush, rushLevel, stepRush } from './rush.js';
@@ -237,6 +237,7 @@ function loop(now) {
       st.outcome = null;
       st.done = true;
       showResult(outcome, st.level, !st.level.daily && !st.level.rush && st.level.n < levels.length);
+      teaseScores(!outcome.training);
     }
   }
   // a paused scene does not change, so the last picture stands until the canvas is resized
