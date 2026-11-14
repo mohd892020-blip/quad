@@ -1,16 +1,17 @@
 # Builds the iPhone app on a GitHub macOS runner, since this project has no Mac. For now it builds for the simulator
 # only: it starts the game on an iPhone and an iPad, upright and sideways, and keeps the screenshots and the page's
-# log as the run's artifact. The simulator build carries no Firebase key, so nothing secret is saved.
+# log as the run's artifact and on the ios-preview branch. The simulator build carries no Firebase key, so nothing secret
+# is saved.
 name: iOS
 
 on:
   workflow_dispatch:
   push:
     branches: [master]
-    paths: ['ios/**', 'scripts/ios-page.js', '.github/workflows/ios.yml']
+    paths: ['ios/**', 'scripts/ios-page.js', '.github/workflows/ios.yml', '.github/ios-play.sh']
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: ios
@@ -55,40 +56,16 @@ jobs:
             CURRENT_PROJECT_VERSION="$(git rev-list --count HEAD)" \
             build
 
-      - name: Play it on an iPhone and an iPad
-        run: |
-          APP=build/Build/Products/Debug-iphonesimulator/FlyingParcel.app
-          ID=com.flyingparcel.game
-          mkdir -p shots
-          # the newest iOS runtime's last device whose name matches
-          pick() {
-            xcrun simctl list devices available -j | jq -r --arg re "$1" \
-              '[.devices | to_entries | sort_by(.key)[] | select(.key | test("iOS")) | .value[] | select(.name | test($re))] | last | .udid // empty'
-          }
-          play() {
-            local udid="$1" name="$2"
-            [ -n "$udid" ] || { echo "no $name simulator"; return 0; }
-            xcrun simctl boot "$udid" || true
-            xcrun simctl bootstatus "$udid" -b
-            xcrun simctl install "$udid" "$APP"
-            xcrun simctl launch "$udid" "$ID"
-            sleep 25
-            xcrun simctl io "$udid" screenshot "shots/$name-upright.png"
-            xcrun simctl terminate "$udid" "$ID" || true
-            sleep 3
-            xcrun simctl launch "$udid" "$ID" -ForceSideways YES
-            sleep 25
-            xcrun simctl io "$udid" screenshot "shots/$name-sideways.png"
-            xcrun simctl spawn "$udid" log show --last 10m --style compact \
-              --predicate 'subsystem == "com.flyingparcel.game" OR (process == "FlyingParcel" AND messageType == error)' \
-              > "shots/$name-log.txt" || true
-            echo "----- $name log"
-            cat "shots/$name-log.txt"
-            xcrun simctl shutdown "$udid" || true
-          }
-          xcrun simctl list devices available | head -n 60
-          play "$(pick '^iPhone.*Pro Max$')" iphone
-          play "$(pick '^iPad Pro 13')" ipad
+      # Each device in a step of its own, every simulator call with a time limit, and what happened as notes on the run's
+      # public summary page, so a hang on one device still leaves the other's screenshots.
+      - name: Play it on an iPhone
+        timeout-minutes: 15
+        run: bash .github/ios-play.sh '^iPhone.*Pro Max$' iphone
+
+      - name: Play it on an iPad
+        if: always()
+        timeout-minutes: 15
+        run: bash .github/ios-play.sh '^iPad Pro 13' ipad
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -96,3 +73,17 @@ jobs:
           name: ios-simulator
           path: shots/
           retention-days: 14
+
+      # The latest run's screenshots and log also go to the ios-preview branch, which anyone can open without signing in.
+      - name: Put the screenshots on the ios-preview branch
+        if: always() && github.ref == 'refs/heads/master'
+        run: |
+          mkdir -p shots/small
+          for f in shots/*.png; do [ -e "$f" ] && sips -Z 900 -s format jpeg "$f" --out "shots/small/$(basename "${f%.png}").jpg" >/dev/null; done
+          cd shots
+          git init -q -b ios-preview
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "iOS simulator run ${{ github.run_number }} for ${GITHUB_SHA::7}"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" ios-preview
