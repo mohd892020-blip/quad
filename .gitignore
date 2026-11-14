@@ -7,3 +7,8 @@ promo/
 *.apk
 # store videos are large and stay on this machine
 launch/video/*.mp4
+# the iPhone app's page and Xcode project are made on the macOS runner
+ios/www/
+ios/*.xcodeproj/
+build/
+shots/

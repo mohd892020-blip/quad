@@ -1,0 +1,33 @@
+# XcodeGen turns this into FlyingParcel.xcodeproj on the macOS runner (.github/workflows/ios.yml), so no Xcode project
+# is kept in the repository. www/ is written by scripts/ios-page.js from the built game before each build.
+name: FlyingParcel
+options:
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+targets:
+  FlyingParcel:
+    type: application
+    platform: iOS
+    sources:
+      - path: App
+      - path: www
+        type: folder
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.flyingparcel.game
+        PRODUCT_NAME: FlyingParcel
+        INFOPLIST_FILE: App/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SWIFT_VERSION: "5.0"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        SUPPORTS_MACCATALYST: NO
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
+        SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
+    scheme: {}
