@@ -306,7 +306,18 @@ export const SNOW = {
   lift: { a: 43750, b: 44500, ha: 150, hb: 250 },
   seed: 97, edge: 60, clear: 110, pineGap: 80, pineGapRange: 110, pineH: [150, 290], pineW: [60, 90],
   pylonW: 8, pylonTop: 30, stationW: 70, sag: 36, riderRate: .3, hang: 14,
-  rise: 600, ridgeStep: 22, ridgeLong: 230, snowLine: .55, capDepth: 120, haze: .4, farDrift: .2, farH: 340, farSwell: 60, farTeeth: 60, nearDrift: .45, nearH: 170, nearSwell: 30, nearTeeth: 26,
+  rise: 600, farDrift: .2, farH: 340, farSwell: 60, nearDrift: .45, nearH: 170, nearSwell: 30,
+  // the two ranges behind, drawn as separate peaks every gap (u), each up to its height plus lift, step u apart along the
+  // ridge, from seed. Each peak has a sunlit face and a face in shade running from its top down to slant of the way to the
+  // next valley's foot; shade is the rock cooled toward cool (coolNight in the dark) by shadeCool. haze pales the rock
+  // toward the sky's horizon colour (far more than near), cap is how far down from its top a peak wears snow, on peaks
+  // taller than capFrom, its hem zigzagging drip deep; snowShade cools the snow in shade, and mist rises that high from
+  // the foot in the haze colour.
+  ranges: {
+    cool: '#3a4f86', coolNight: '#1c2550', darkBelow: .7, shadeCool: .35, slant: .35, drip: 14, rough: 1.2,
+    far: { gap: 300, lift: 40, step: 10, seed: 11, haze: .55, cap: .38, capFrom: 120, snowShade: .3, mist: 160 },
+    near: { gap: 190, lift: 20, step: 8, seed: 29, haze: .22, cap: .42, capFrom: 90, snowShade: .32, mist: 90 },
+  },
 };
 
 // The forest past the desert. Pines grow from seed every pineGap to pineGap + pineGapRange,

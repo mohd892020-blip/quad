@@ -30,11 +30,11 @@ export function behind(x, y) {
   const c = CONTRAST, time = world.pal, wall = world.B.find(b => x >= b.x && x <= b.x + b.w && y >= b.top);
   if (wall) return rgb(wall.col).map(v => v * time.light);
   if (y >= GROUND - c.groundGap) return rgb(x >= SNOW.from ? time.snowGround : x >= MOUNTAIN.from ? time.scree : x >= FOREST.from ? time.moss : x >= DESERT.from ? time.dune : x < BEACH.from ? time.ground : seaAt(x) ? time.sea : time.sand);
-  // ridges rise to their height plus swell (and teeth); the snowfield's near range is painted snowFar and its far one
-  // peakFar (alpine.js drawHighBehind)
+  // ridges rise to their height plus swell (and teeth, or the snowfield's peaks their lift); the snowfield's near range
+  // is painted from peakNear and its far one from peakFar (alpine.js drawHighBehind)
   if (x >= SNOW.from) {
-    if (y >= GROUND - (SNOW.nearH + SNOW.nearSwell)) return rgb(time.snowFar);
-    if (y >= GROUND - (SNOW.farH + SNOW.farSwell)) return rgb(time.peakFar);
+    if (y >= GROUND - (SNOW.nearH + SNOW.nearSwell + SNOW.ranges.near.lift)) return rgb(time.peakNear);
+    if (y >= GROUND - (SNOW.farH + SNOW.farSwell + SNOW.ranges.far.lift)) return rgb(time.peakFar);
   } else if (x >= MOUNTAIN.from) {
     if (y >= GROUND - (MOUNTAIN.nearH + MOUNTAIN.nearSwell)) return rgb(time.peakNear);
     if (y >= GROUND - (MOUNTAIN.farH + MOUNTAIN.farSwell)) return rgb(time.peakFar);

@@ -140,8 +140,8 @@ export function drawHighBehind() {
     range(m, m.nearDrift, m.nearH, m.nearSwell, m.nearTeeth, time.peakNear, null, time.far2);
   }
   if (X(s.from) < view.W && X(s.to) > 0) {
-    range(s, s.farDrift, s.farH, s.farSwell, s.farTeeth, time.peakFar, time.snowCap, time.far2);
-    range(s, s.nearDrift, s.nearH, s.nearSwell, s.nearTeeth, time.snowFar, time.snowCap, time.far2);
+    peakRange(s, s.ranges.far, s.farDrift, s.farH + s.farSwell, time.peakFar, time);
+    peakRange(s, s.ranges.near, s.nearDrift, s.nearH + s.nearSwell, time.peakNear, time);
   }
 }
 
@@ -283,4 +283,82 @@ export function drawHigh(st) {
 // Called each step: the air near a cliff pushes the aircraft up or down.
 export function stepDraft(st) {
   st.draft = st.level.mountain ? draftAt(st.d.x) : 0;
+}
+
+// The snowfield's ranges, drawn like a postcard: separate peaks, each with a sunlit face and a face in shade, snow caps
+// whose hems run down the gullies, the rock paling into the sky's haze toward the foot.
+const hash = i => { const v = Math.sin(i * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
+const toward = (hex, to, t) => mixHex(hex, to, t);
+// a row of peaks, each its own height and width; the highest of the nearby peaks makes the ridge, so the only tops are
+// the peaks' own
+function peakHeight(u, gap, tall, seed, rough) {
+  const i0 = Math.floor(u / gap);
+  let best = 0;
+  for (let i = i0 - 2; i <= i0 + 2; i++) {
+    const mid = (i + .5 + (hash(i + seed) - .5) * .6) * gap, h = tall * (.5 + .5 * hash(i * 3.1 + seed)), half = gap * (.8 + .5 * hash(i * 7.7 + seed));
+    const d = Math.abs(u - mid) / half;
+    if (d < 1) best = Math.max(best, h * Math.pow(1 - d, rough));
+  }
+  return best;
+}
+
+function peakRange(c, r, par, height, rock, time) {
+  const { S, cam, W } = view, base = Y(GROUND), left = Math.max(0, X(c.from)), right = Math.min(W, X(c.to)), k = c.ranges;
+  if (right <= left) return;
+  const pts = ridgePoints(par, r.step, left, right).map(([sx, u]) => {
+    const x = cam.x + sx / S, rise = Math.max(0, Math.min(1, (x - c.from) / c.rise, (c.to - x) / c.rise));
+    return [sx, rise * peakHeight(u, r.gap, height + r.lift, r.seed, k.rough), u];
+  });
+  const haze = time.sky[2][1], cool = time.light < k.darkBelow ? k.coolNight : k.cool, at = ([sx, h]) => [sx, base - h * S];
+  const body = new Path2D();
+  body.moveTo(pts[0][0], base);
+  for (const p of pts) body.lineTo(...at(p));
+  body.lineTo(pts[pts.length - 1][0], base);
+  body.closePath();
+  const top = Math.min(...pts.map(p => base - p[1] * S)), fade = ctx.createLinearGradient(0, top, 0, base);
+  fade.addColorStop(0, toward(rock, haze, r.haze));
+  fade.addColorStop(1, toward(rock, haze, Math.min(1, r.haze + .35)));
+  ctx.fillStyle = fade;
+  ctx.fill(body);
+  const shadow = new Path2D(), caps = new Path2D();
+  for (let i = 1; i < pts.length - 1; i++) {
+    const h = pts[i][1];
+    if (!(h > 0 && h >= pts[i - 1][1] && h > pts[i + 1][1])) continue;
+    let v = i + 1;
+    while (v < pts.length - 1 && pts[v + 1][1] < pts[v][1]) v++;
+    const [ax, ay] = at(pts[i]);
+    shadow.moveTo(ax, ay);
+    for (let j = i + 1; j <= v; j++) shadow.lineTo(...at(pts[j]));
+    shadow.lineTo(pts[v][0], base);
+    shadow.lineTo(ax + (pts[v][0] - ax) * k.slant, base);
+    shadow.closePath();
+    if (h < r.capFrom) continue;
+    const hem = h * (1 - r.cap * (.8 + .4 * hash(pts[i][2])));
+    let l = i, e = i;
+    while (l > 0 && pts[l - 1][1] > hem) l--;
+    while (e < pts.length - 1 && pts[e + 1][1] > hem) e++;
+    caps.moveTo(...at(pts[l]));
+    for (let j = l; j <= e; j++) caps.lineTo(...at(pts[j]));
+    const n = Math.max(3, Math.round((pts[e][0] - pts[l][0]) / (k.drip * S * 2)));
+    for (let j = n; j >= 0; j--) {
+      const down = (j % 2 ? 1 : -.3) * k.drip * (.6 + .8 * hash(j + i));
+      caps.lineTo(pts[l][0] + (pts[e][0] - pts[l][0]) * j / n, base - (hem - down) * S);
+    }
+    caps.closePath();
+  }
+  ctx.fillStyle = toward(toward(rock, cool, k.shadeCool), haze, r.haze * .85);
+  ctx.fill(shadow);
+  const snow = toward(time.snowCap, haze, r.haze * .6);
+  ctx.fillStyle = snow;
+  ctx.fill(caps);
+  ctx.save();
+  ctx.clip(shadow);
+  ctx.fillStyle = toward(toward(time.snowCap, cool, r.snowShade), haze, r.haze * .6);
+  ctx.fill(caps);
+  ctx.restore();
+  const mist = ctx.createLinearGradient(0, base - r.mist * S, 0, base);
+  mist.addColorStop(0, haze + '00');
+  mist.addColorStop(1, haze + 'dd');
+  ctx.fillStyle = mist;
+  ctx.fill(body);
 }

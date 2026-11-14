@@ -25,7 +25,7 @@ body{background:var(--night);color:var(--ink);font-family:var(--body);overflow:h
 .bar i{display:block;height:100%;width:100%;transform-origin:0 50%}
 #bBat i{background:var(--basil)} #bHeat i{background:var(--tomato)} #bBox i{background:var(--cheese)}
 #controls{position:absolute;left:0;right:0;bottom:0;display:flex;justify-content:space-between;align-items:flex-end;
-  padding:0 max(16px,env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));pointer-events:none}
+  padding:0 max(16px,env(safe-area-inset-right,0px)) calc(var(--foot) + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));pointer-events:none}
 [hidden]{display:none!important}
 .grp{display:flex;gap:12px;pointer-events:auto}
 .btn{width:72px;height:72px;border-radius:50%;border:2px solid rgba(255,243,223,.35);background:rgba(26,20,48,.55);color:var(--ink);
@@ -74,7 +74,7 @@ kbd{display:inline-grid;place-items:center;min-width:24px;height:24px;box-sizing
 .seg button:focus-visible,#devForm button:focus-visible,.act:focus-visible,.icon:focus-visible,#devCode:focus-visible{outline:3px solid var(--cheese);outline-offset:2px}
 @media (max-width:420px){#joy{width:150px}}
 @media (max-height:480px){
-  #actions{flex-direction:row;right:calc(124px + max(16px,env(safe-area-inset-right,0px)));bottom:calc(16px + env(safe-area-inset-bottom,0px))}
+  #actions{flex-direction:row;right:calc(124px + max(16px,env(safe-area-inset-right,0px)));bottom:calc(var(--foot) + env(safe-area-inset-bottom,0px))}
   .pill{padding:4px 10px}
 }
 #hud #clock.low{color:var(--tomato)}
@@ -312,7 +312,9 @@ body:not(.dev) .devOnly{display:none!important}
 #boostFill{position:absolute;top:0;right:0;bottom:0;left:0;border-radius:50%;background:conic-gradient(#7ad0ff calc(var(--fuel,100)*1%),rgba(255,255,255,.16) 0);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 5px),#000 calc(100% - 4.5px));mask:radial-gradient(farthest-side,transparent calc(100% - 5px),#000 calc(100% - 4.5px));pointer-events:none}
 #boost .ico{position:relative;width:78%;height:60%}
 #boost.flipped .ico{transform:scaleX(-1)}
-:root{--stick:1}
+/* --foot: how far the joystick, Lift and Down and the bottom row stand off the screen's foot, clear of the phone's own
+   swipe-up strip, so a thumb near the edge does not leave the game */
+:root{--stick:1;--foot:34px}
 .btn{width:calc(64px*var(--stick));height:calc(64px*var(--stick));font-size:22px}
 #boost{width:calc(58px*var(--stick));height:calc(58px*var(--stick));font-size:13px}
 #joy{width:calc(150px*var(--stick));height:calc(60px*var(--stick));border-radius:calc(30px*var(--stick))}
@@ -331,7 +333,7 @@ body:not(.dev) .devOnly{display:none!important}
   #boost{width:calc(52px*var(--stick));height:calc(52px*var(--stick));font-size:12px}
   #joy{width:calc(130px*var(--stick));height:calc(54px*var(--stick));border-radius:calc(27px*var(--stick))}
   #knob{width:calc(42px*var(--stick));height:calc(42px*var(--stick));margin:calc(-21px*var(--stick)) 0 0 calc(-21px*var(--stick))}
-  #actions{bottom:calc(16px + env(safe-area-inset-bottom,0px));right:calc(144px*var(--stick) + max(16px,env(safe-area-inset-right,0px)))}
+  #actions{bottom:calc(var(--foot) + env(safe-area-inset-bottom,0px));right:calc(144px*var(--stick) + max(16px,env(safe-area-inset-right,0px)))}
   #liftPair{--pair:calc(66px*var(--stick));height:calc(112px*var(--stick))}
   #up{font-size:17px}
   #liftPair #down{font-size:13px}
