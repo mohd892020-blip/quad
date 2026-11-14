@@ -196,11 +196,14 @@ export const SKYLINE = {
 // seconds and lingers linger seconds after.
 export const WEATHER_HINT = { gust: .75, gustMin: 120, draft: 110, show: .5, linger: 1.5, intro: 6 };
 
-// The altimeter on the right edge: a coloured scale from the street (0) to max, w wide, right of the edge, from top
-// below the HUD to bottom above the controls; it hides when shorter than minH. The goal's height shows as a tick, and
-// chevrons show a climb or a drop, strongest at fastClimb px/s, hidden under still of that.
+// The altimeter on the right edge: a glass tube holding a coloured scale from the street (0) to max, w wide, right of
+// the edge. It takes share of the room between top (below the HUD) and bottom (above the controls), never under minH,
+// centred on the screen as far as that room allows. glass is the tube's tint and rim, gloss its highlight. The height
+// rides in a glass tag beside it, the goal's height shows as a tick, and chevrons show a climb or a drop, strongest at
+// fastClimb px/s, hidden under still of that.
 export const ALTIMETER = {
-  max: 900, w: 7, right: 10, top: 64, bottom: 14, minH: 120, alpha: .85, fastClimb: 220, still: .12, up: '#7cff9a', down: '#ffb35c', goal: '#4fc27c',
+  max: 900, w: 8, right: 12, top: 64, bottom: 14, share: .5, minH: 80, alpha: .72, fastClimb: 220, still: .12, up: '#7cff9a', down: '#ffb35c', goal: '#4fc27c',
+  glass: 'rgba(255,255,255,.13)', rim: 'rgba(255,255,255,.5)', gloss: .5, tag: 'rgba(20,15,40,.5)',
   colors: [[0, '#e8492c'], [.1, '#ff9a3c'], [.28, '#ffd23d'], [.45, '#4fc27c'], [.7, '#3fb0c8'], [1, '#8a7cff']],
 };
 

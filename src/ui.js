@@ -78,23 +78,48 @@ export function setZoom(z) {
 // The altimeter on the right: a coloured scale from the street up, the aircraft's height on it with a pointer, the
 // goal's height as a tick, and chevrons that show the climb or the drop.
 export function drawAltimeter(st, goal) {
-  const c = ALTIMETER, x = view.W - c.right - c.w, top = view.top + c.top, bottom = view.bottom - c.bottom, span = bottom - top;
+  const c = ALTIMETER, x = view.W - c.right - c.w, room = view.bottom - c.bottom - (view.top + c.top);
+  const span = Math.min(room, Math.max(c.minH, room * c.share));
   if (span < c.minH || st.level.training) return;
+  const mid = Math.max(view.top + c.top + span / 2, Math.min(view.bottom - c.bottom - span / 2, view.H / 2)), top = mid - span / 2, bottom = mid + span / 2;
   const at = h => bottom - Math.max(0, Math.min(1, h / c.max)) * span, scale = ctx.createLinearGradient(0, bottom, 0, top);
   for (const [k, col] of c.colors) scale.addColorStop(k, col);
-  ctx.fillStyle = 'rgba(20,15,40,.5)';
+  // the tube: a pale tint with a bright rim and a soft drop shadow
+  ctx.save();
+  ctx.shadowColor = 'rgba(10,8,30,.35)';
+  ctx.shadowBlur = 10;
+  ctx.fillStyle = c.glass;
   ctx.beginPath();
-  ctx.roundRect(x - 3, top - 3, c.w + 6, span + 6, c.w / 2 + 3);
+  ctx.roundRect(x - 4, top - 4, c.w + 8, span + 8, c.w / 2 + 4);
   ctx.fill();
+  ctx.restore();
+  ctx.strokeStyle = c.rim;
+  ctx.lineWidth = 1;
+  ctx.stroke();
   ctx.globalAlpha = c.alpha;
   ctx.fillStyle = scale;
   ctx.beginPath();
   ctx.roundRect(x, top, c.w, span, c.w / 2);
   ctx.fill();
   ctx.globalAlpha = 1;
+  // light caught down the tube's left side
+  const shine = ctx.createLinearGradient(x - 4, 0, x + c.w + 4, 0);
+  shine.addColorStop(0, `rgba(255,255,255,${c.gloss})`);
+  shine.addColorStop(.45, 'rgba(255,255,255,0)');
+  ctx.fillStyle = shine;
+  ctx.beginPath();
+  ctx.roundRect(x - 3, top - 3, c.w + 6, span + 6, c.w / 2 + 3);
+  ctx.fill();
   if (goal) {
+    const gy = at(G_LINE - goal.y);
+    ctx.save();
+    ctx.shadowColor = c.goal;
+    ctx.shadowBlur = 8;
     ctx.fillStyle = c.goal;
-    ctx.fillRect(x - 5, at(G_LINE - goal.y) - 1.5, c.w + 10, 3);
+    ctx.beginPath();
+    ctx.roundRect(x - 6, gy - 2, c.w + 12, 4, 2);
+    ctx.fill();
+    ctx.restore();
   }
   const h = G_LINE - st.d.y, y = at(h), climb = -st.d.vy, rate = Math.min(1, Math.abs(climb) / c.fastClimb);
   if (rate > c.still) {
@@ -112,20 +137,26 @@ export function drawAltimeter(st, goal) {
     ctx.stroke();
     ctx.globalAlpha = 1;
   }
-  ctx.fillStyle = '#ffffff';
-  ctx.beginPath();
-  ctx.moveTo(x - 3, y);
-  ctx.lineTo(x - 12, y - 6);
-  ctx.lineTo(x - 12, y + 6);
-  ctx.closePath();
-  ctx.fill();
-  ctx.font = '700 11px Tajawal,sans-serif';
-  ctx.textAlign = 'right';
-  ctx.lineWidth = 3;
-  ctx.strokeStyle = 'rgba(20,15,40,.85)';
+  // the height in a glass tag pointing at the tube
   const label = `${Math.max(0, Math.round(h / 10))} m`;
-  ctx.strokeText(label, x - 15, y + 4);
-  ctx.fillText(label, x - 15, y + 4);
+  ctx.font = '700 11px Tajawal,sans-serif';
+  const tw = ctx.measureText(label).width + 14, tx = x - 8 - tw;
+  ctx.fillStyle = c.tag;
+  ctx.beginPath();
+  ctx.roundRect(tx, y - 9, tw, 18, 9);
+  ctx.moveTo(x - 9, y - 4);
+  ctx.lineTo(x - 3, y);
+  ctx.lineTo(x - 9, y + 4);
+  ctx.fill();
+  ctx.strokeStyle = c.rim;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.roundRect(tx, y - 9, tw, 18, 9);
+  ctx.stroke();
+  ctx.fillStyle = '#ffffff';
+  ctx.textAlign = 'center';
+  ctx.fillText(label, tx + tw / 2, y + 4);
+  ctx.textAlign = 'left';
 }
 
 // Phones play best on their side. A phone held upright is offered the turn, on the mission card, the pause card and as
